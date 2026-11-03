@@ -287,13 +287,11 @@ func _pill_box(pos: Vector2, sz: Vector2, icon_path: String, plus: bool) -> Labe
 
 
 func _round_button(item: Dictionary, sz: float) -> Control:
-	var btn := Button.new()
-	var st := _style(Color(0.08, 0.06, 0.16, 0.88), Ui.colors["accent"], 3, int(sz / 2), 10)
-	for state in ["normal", "hover", "pressed", "focus"]:
-		btn.add_theme_stylebox_override(state, st)
-	btn.icon = Content.load_texture(str(item["icon"]))
-	btn.expand_icon = true
-	btn.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	# Рамка нарисована в самой иконке
+	var btn := TextureButton.new()
+	btn.texture_normal = Content.load_texture(str(item["icon"]))
+	btn.ignore_texture_size = true
+	btn.stretch_mode = TextureButton.STRETCH_KEEP_ASPECT_CENTERED
 	btn.size = Vector2(sz, sz)
 	btn.pressed.connect(_do_action.bind(item))
 	if item.has("badge"):
@@ -358,9 +356,9 @@ func _build_side_menu() -> void:
 		tile.custom_minimum_size = Vector2(108, 108)
 		tile.pressed.connect(_do_action.bind(item))
 		col.add_child(tile)
-		var ic := _icon(str(item["icon"]), 60)
-		ic.position = Vector2(24, 4)
-		ic.size = Vector2(60, 60)
+		var ic := _icon(str(item["icon"]), 66)
+		ic.position = Vector2(21, 2)
+		ic.size = Vector2(66, 66)
 		tile.add_child(ic)
 		var l := _outlined(str(item["title"]), 16, "text", 4)
 		l.position = Vector2(0, 62)
