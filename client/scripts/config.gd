@@ -17,6 +17,18 @@ func _ready() -> void:
 			server_url = arg.substr("--server=".length()).strip_edges().trim_suffix("/")
 		elif arg == "--autotest":
 			autotest = true
+		elif arg.begins_with("--screenshot-after="):
+			# --screenshot-after=3:/tmp/shot.png — снимок экрана через 3 с (для проверок)
+			var parts := arg.substr("--screenshot-after=".length()).split(":", true, 1)
+			_screenshot_later(float(parts[0]), parts[1])
+
+
+func _screenshot_later(sec: float, path: String) -> void:
+	await get_tree().create_timer(sec).timeout
+	await RenderingServer.frame_post_draw
+	get_viewport().get_texture().get_image().save_png(path)
+	print("SCREENSHOT: ", path)
+	get_tree().quit(0)
 
 
 ## Сравнение версий вида 1.2.3: -1, 0 или 1

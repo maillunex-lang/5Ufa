@@ -27,7 +27,7 @@ func _ready() -> void:
 	_player_label = Ui.label("", 28)
 	col.add_child(_player_label)
 	col.add_child(Ui.spacer())
-	col.add_child(Ui.button(Content.t("ui.button.play"), _on_play))
+	col.add_child(Ui.button("Тестовый бой", _on_play))
 	_account_box = VBoxContainer.new()
 	_account_box.add_theme_constant_override("separation", 20)
 	col.add_child(_account_box)
@@ -54,7 +54,7 @@ func _refresh_account() -> void:
 	var p := Api.player
 	var kind := "гость" if Api.is_guest() else str(p.get("email", ""))
 	var test := "  ·  ТЕСТОВЫЙ" if bool(p.get("is_test", false)) else ""
-	_player_label.text = "%s  ·  #%s\n%s%s" % [p.get("display_name", "?"), p.get("number", "?"), kind, test]
+	_player_label.text = "%s  ·  #%d\n%s%s" % [p.get("display_name", "?"), int(p.get("number", 0)), kind, test]
 	for c in _account_box.get_children():
 		c.queue_free()
 	if Api.is_guest():
@@ -63,7 +63,7 @@ func _refresh_account() -> void:
 
 
 func _on_play() -> void:
-	_show_message("Игра появится на следующих этапах: бой и герои — этап 3, кампания — этап 4.")
+	get_tree().change_scene_to_file("res://scenes/team_select.tscn")
 
 
 func _on_bg_progress(done: int, total: int) -> void:
@@ -220,4 +220,16 @@ func _autotest() -> void:
 		"play_text": Content.t("ui.button.play"),
 	}
 	print("AUTOTEST RESULT: ", JSON.stringify(summary))
+	if "--autotest-battle" in OS.get_cmdline_user_args():
+		var res: Dictionary = await Api.request_json(HTTPClient.METHOD_POST, "/api/v1/battle/test", {"team": [
+			{"hero": "alpamysha", "slot": 0}, {"hero": "ural_batyr", "slot": 1}, {"hero": "zayatulyak", "slot": 2},
+			{"hero": "humai", "slot": 3}, {"hero": "hyuhylu", "slot": 4}], "enemy": "test_evil"})
+		if not res.ok:
+			print("AUTOTEST FAIL: ", res.error)
+			get_tree().quit(1)
+			return
+		get_tree().set_meta("battle_log", res.data["log"])
+		get_tree().set_meta("battle_enemy_name", "Отряд Шульгена")
+		get_tree().change_scene_to_file("res://scenes/battle.tscn")
+		return
 	get_tree().quit(0 if bad == 0 and files.size() == expected else 1)

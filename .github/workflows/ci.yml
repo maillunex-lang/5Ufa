@@ -98,6 +98,9 @@ jobs:
           rm -rf ~/.local/share/godot/app_userdata
           run --autotest-login=ci@example.com:abcd1234
           grep -q '"ok":true' /tmp/out.txt
+          echo "--- тестовый бой: сервер считает, клиент проигрывает журнал до экрана результата"
+          run --autotest-battle
+          grep -q 'AUTOTEST BATTLE: {.*"ok":true' /tmp/out.txt || { cat /tmp/out.txt; exit 1; }
           echo "--- обновление приложения: загружаем «новую версию», клиент её скачивает и проверяет"
           { printf 'PK\003\004'; head -c 300000 /dev/urandom; } > /tmp/fake.apk
           curl -fsS -X PUT --data-binary @/tmp/fake.apk -H "X-Upload-Token: ci-token" \
