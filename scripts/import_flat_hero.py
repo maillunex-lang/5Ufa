@@ -4,9 +4,10 @@
 Запуск из корня репозитория:
     python3 scripts/import_flat_hero.py рисунок_без_фона.png ural_batyr
 
-Фон убирается заранее (например, rembg с моделью isnet-anime). Области частей заданы многоугольниками
-в координатах исходного рисунка (PARTS) — под другой рисунок их нужно разметить заново.
-Части рисуются в порядке ORDER; кость каждой части — в её точке вращения (PIVOT).
+Фон убирается заранее (например, rembg с моделью isnet-anime). Разметка частей — в scripts/rigs/<герой>.json:
+многоугольники частей (parts) в координатах рисунка, точки вращения (pivot), родители костей (parent),
+порядок отрисовки (order), опущенные в покое руки (arm_rest), стиль анимаций (style: sword | fist).
+Корпус (torso) = всё, что не попало в другие части.
 """
 from __future__ import annotations
 
@@ -19,24 +20,102 @@ from PIL import Image, ImageChops, ImageDraw, ImageFilter
 ROOT = Path(__file__).resolve().parents[1] / "content"
 K = 0.3        # уменьшение слоёв
 HEIGHT = 150   # рост героя в бою, пиксели
-FEET_X = 640   # центр между ступнями (исходные координаты)
+RIGS = Path(__file__).resolve().parent / "rigs"
 
-# Многоугольники частей (исходный рисунок 1536×1024). Корпус = всё, что не попало в другие части.
-PARTS = {
-    "head": [(522, 0), (745, 0), (745, 182), (700, 196), (612, 200), (566, 176), (522, 150)],
-    "cape": [(0, 290), (330, 175), (440, 165), (452, 380), (444, 600), (380, 700), (300, 840), (0, 840)],
-    "arm_front": [(714, 150), (760, 90), (1536, 90), (1536, 345), (714, 330)],
-    "leg_back": [(380, 652), (642, 652), (642, 1024), (380, 1024)],
-    "leg_front": [(642, 652), (960, 652), (960, 1024), (642, 1024)],
-}
-PIVOT = {
-    "torso": (620, 640), "head": (650, 192), "cape": (450, 240),
-    "arm_front": (712, 232), "leg_back": (565, 660), "leg_front": (700, 660),
-}
-PARENT = {"torso": "hips", "head": "torso", "cape": "torso", "arm_front": "torso",
-          "leg_back": "hips", "leg_front": "hips"}
-ORDER = ["cape", "leg_back", "leg_front", "torso", "head", "arm_front"]
-ARM_REST = 28  # в покое меч опущен вперёд-вниз (градусы по часовой)
+
+def sword_anims() -> dict:
+    """Боец с мечом в вытянутой руке, плащ за спиной."""
+    return {
+        "idle": {"duration": 1.4, "loop": True, "bones": {
+            "torso": {"scale": [[0, 1, 1], [0.7, 1.0, 1.015], [1.4, 1, 1]]},
+            "head": {"rotate": [[0, 0], [0.7, -2], [1.4, 0]]},
+            "cape": {"rotate": [[0, 0], [0.7, 3], [1.4, 0]]},
+            "arm_front": {"rotate": [[0, 0], [0.7, -4], [1.4, 0]]}}},
+        "walk": {"duration": 0.6, "loop": True, "bones": {
+            "leg_front": {"rotate": [[0, -14], [0.3, 12], [0.6, -14]]},
+            "leg_back": {"rotate": [[0, 12], [0.3, -14], [0.6, 12]]},
+            "hips": {"translate": [[0, 0, 0], [0.15, 0, -7], [0.3, 0, 0], [0.45, 0, -7], [0.6, 0, 0]]},
+            "cape": {"rotate": [[0, 4], [0.3, 8], [0.6, 4]]},
+            "arm_front": {"rotate": [[0, -6], [0.3, 4], [0.6, -6]]}}},
+        "attack": {"duration": 0.6, "bones": {
+            "arm_front": {"rotate": [[0, 0], [0.2, -75], [0.35, 18], [0.6, 0]]},
+            "torso": {"rotate": [[0, 0], [0.2, -4], [0.35, 5], [0.6, 0]]},
+            "hips": {"translate": [[0, 0, 0], [0.35, 30, 0], [0.6, 0, 0]]},
+            "cape": {"rotate": [[0, 0], [0.35, 10], [0.6, 0]]}},
+            "events": [{"t": 0.35, "name": "hit"}]},
+        "skill": {"duration": 0.8, "bones": {
+            "arm_front": {"rotate": [[0, 0], [0.3, -120], [0.5, 25], [0.8, 0]]},
+            "torso": {"rotate": [[0, 0], [0.3, -8], [0.5, 8], [0.8, 0]]},
+            "hips": {"translate": [[0, 0, 0], [0.3, -10, -10], [0.5, 40, 0], [0.8, 0, 0]]},
+            "cape": {"rotate": [[0, 0], [0.5, 14], [0.8, 0]]}},
+            "events": [{"t": 0.5, "name": "hit"}]},
+        "ultimate": {"duration": 1.2, "bones": {
+            "hips": {"translate": [[0, 0, 0], [0.3, 0, 12], [0.6, 20, -90], [0.9, 50, 0], [1.2, 0, 0]]},
+            "arm_front": {"rotate": [[0, 0], [0.6, -150], [0.9, 30], [1.2, 0]]},
+            "cape": {"rotate": [[0, 0], [0.6, 18], [0.9, 6], [1.2, 0]]},
+            "leg_front": {"rotate": [[0, 0], [0.6, -20], [0.9, 0]]},
+            "leg_back": {"rotate": [[0, 0], [0.6, 20], [0.9, 0]]},
+            "root": {"scale": [[0, 1, 1], [0.6, 1.12, 1.12], [1.0, 1.04, 1.04], [1.2, 1, 1]]}},
+            "events": [{"t": 0.9, "name": "hit"}]},
+        **common_anims(),
+        "victory": {"duration": 1.0, "loop": True, "bones": {
+            "root": {"translate": [[0, 0, 0], [0.3, 0, -14], [0.6, 0, 0], [1.0, 0, 0]]},
+            "arm_front": {"rotate": [[0, -95], [0.5, -85], [1.0, -95]]},
+            "cape": {"rotate": [[0, 6], [0.5, 12], [1.0, 6]]}}},
+    }
+
+
+def fist_anims() -> dict:
+    """Рукопашный боец: руки опущены, удары кулаками («вперёд» = поворот против часовой)."""
+    return {
+        "idle": {"duration": 1.4, "loop": True, "bones": {
+            "torso": {"scale": [[0, 1, 1], [0.7, 1.0, 1.015], [1.4, 1, 1]]},
+            "head": {"rotate": [[0, 0], [0.7, -2], [1.4, 0]]},
+            "arm_front": {"rotate": [[0, 0], [0.7, -3], [1.4, 0]]},
+            "arm_back": {"rotate": [[0, 0], [0.7, 3], [1.4, 0]]}}},
+        "walk": {"duration": 0.6, "loop": True, "bones": {
+            "leg_front": {"rotate": [[0, -12], [0.3, 12], [0.6, -12]]},
+            "leg_back": {"rotate": [[0, 12], [0.3, -12], [0.6, 12]]},
+            "hips": {"translate": [[0, 0, 0], [0.15, 0, -7], [0.3, 0, 0], [0.45, 0, -7], [0.6, 0, 0]]},
+            "arm_front": {"rotate": [[0, 14], [0.3, -14], [0.6, 14]]},
+            "arm_back": {"rotate": [[0, -14], [0.3, 14], [0.6, -14]]}}},
+        "attack": {"duration": 0.6, "bones": {
+            "arm_front": {"rotate": [[0, 0], [0.15, 18], [0.3, -80], [0.45, -72], [0.6, 0]]},
+            "torso": {"rotate": [[0, 0], [0.15, -3], [0.3, 6], [0.6, 0]]},
+            "hips": {"translate": [[0, 0, 0], [0.3, 28, 0], [0.6, 0, 0]]}},
+            "events": [{"t": 0.3, "name": "hit"}]},
+        "skill": {"duration": 0.8, "bones": {
+            "arm_back": {"rotate": [[0, 0], [0.25, -85], [0.4, -60], [0.8, 0]]},
+            "arm_front": {"rotate": [[0, 0], [0.25, 15], [0.45, -90], [0.6, -80], [0.8, 0]]},
+            "hips": {"translate": [[0, 0, 0], [0.25, 20, 0], [0.45, 45, 0], [0.8, 0, 0]]},
+            "torso": {"rotate": [[0, 0], [0.25, -5], [0.45, 8], [0.8, 0]]}},
+            "events": [{"t": 0.45, "name": "hit"}]},
+        "ultimate": {"duration": 1.2, "bones": {
+            "hips": {"translate": [[0, 0, 0], [0.3, 0, 14], [0.6, 15, -100], [0.9, 40, 6], [1.2, 0, 0]]},
+            "arm_front": {"rotate": [[0, 0], [0.6, -165], [0.9, -30], [1.2, 0]]},
+            "arm_back": {"rotate": [[0, 0], [0.6, -150], [0.9, -20], [1.2, 0]]},
+            "leg_front": {"rotate": [[0, 0], [0.6, -18], [0.9, 0]]},
+            "leg_back": {"rotate": [[0, 0], [0.6, 18], [0.9, 0]]},
+            "root": {"scale": [[0, 1, 1], [0.6, 1.12, 1.12], [0.9, 1.06, 0.96], [1.2, 1, 1]]}},
+            "events": [{"t": 0.9, "name": "hit"}]},
+        **common_anims(),
+        "victory": {"duration": 1.0, "loop": True, "bones": {
+            "root": {"translate": [[0, 0, 0], [0.3, 0, -14], [0.6, 0, 0], [1.0, 0, 0]]},
+            "arm_front": {"rotate": [[0, -165], [0.5, -150], [1.0, -165]]},
+            "arm_back": {"rotate": [[0, 10], [0.5, 5], [1.0, 10]]}}},
+    }
+
+
+def common_anims() -> dict:
+    return {
+        "hit": {"duration": 0.3, "bones": {
+            "torso": {"rotate": [[0, 0], [0.1, -7], [0.3, 0]]},
+            "head": {"rotate": [[0, 0], [0.1, -8], [0.3, 0]]},
+            "root": {"translate": [[0, 0, 0], [0.1, -6, 0], [0.3, 0, 0]]}}},
+        "death": {"duration": 0.9, "bones": {
+            "root": {"rotate": [[0, 0], [0.5, -85], [0.9, -90]], "translate": [[0, 0, 0], [0.5, -14, -6], [0.9, -16, 0]]}},
+            "alpha": [[0, 1], [0.6, 1], [0.9, 0.35]]},
+    }
 
 
 def mask_of(size, poly):
@@ -46,8 +125,19 @@ def mask_of(size, poly):
 
 
 def main(src_png: Path, hero_id: str) -> None:
+    rig = json.loads((RIGS / f"{hero_id}.json").read_text(encoding="utf-8"))
+    PARTS = {k: [tuple(p) for p in v] for k, v in rig["parts"].items()}
+    PIVOT = {k: tuple(v) for k, v in rig["pivot"].items()}
+    PARENT, ORDER, FEET_X = rig["parent"], rig["order"], rig["feet_x"]
     src = Image.open(src_png).convert("RGBA")
     a = src.split()[3].point(lambda v: 0 if v < 60 else v)  # убираем остатки свечения
+    sc = rig.get("shadow_cut")
+    if sc:  # полупрозрачная тёмная тень, оставшаяся от фона
+        r, g, b, _ = src.split()
+        lum = Image.merge("RGB", (r, g, b)).convert("L")
+        dark = lum.point(lambda v: 255 if v < sc["lum"] else 0)
+        weak = a.point(lambda v: 255 if v < sc["alpha"] else 0)
+        a = ImageChops.subtract(a, ImageChops.multiply(dark, weak))
     keep = a.point(lambda v: 255 if v else 0).filter(ImageFilter.MinFilter(5)).filter(ImageFilter.MaxFilter(7))
     src.putalpha(ImageChops.multiply(a, keep))  # и одиночные точки вокруг героя
     hero_dir = ROOT / "heroes" / hero_id
@@ -87,15 +177,18 @@ def main(src_png: Path, hero_id: str) -> None:
     bones = [{"name": "root", "scale_x": root_scale, "scale_y": root_scale},
              {"name": "hips", "parent": "root", "x": round((hips[0] - FEET_X) * K, 2),
               "y": round((hips[1] - feet_y) * K, 2)}]
-    for name in ["torso", "head", "cape", "arm_front", "leg_back", "leg_front"]:
+    for name in ["torso"] + [n for n in PARTS]:
         p = PIVOT[name]
         pp = hips if PARENT[name] == "hips" else PIVOT[PARENT[name]]
         bone = {"name": name, "parent": PARENT[name], "x": round((p[0] - pp[0]) * K, 2),
                 "y": round((p[1] - pp[1]) * K, 2)}
-        if name == "arm_front":
-            bone["rotation"] = ARM_REST
+        if name in rig.get("arm_rest", {}):
+            bone["rotation"] = rig["arm_rest"][name]
         bones.append(bone)
-    bones.append({"name": "weapon", "parent": "arm_front", "x": round((1300 - PIVOT["arm_front"][0]) * K, 2), "y": 0})
+    if rig.get("weapon_x"):
+        bones.append({"name": "weapon", "parent": "arm_front", "x": round((rig["weapon_x"] - PIVOT["arm_front"][0]) * K, 2), "y": 0})
+    else:  # кулак: точка удара — у кисти опущенной руки
+        bones.append({"name": "weapon", "parent": "arm_front", "x": 0, "y": round(250 * K, 2)})
     slots = []
     for name in ORDER:
         bx, by = boxes[name][:2]
@@ -103,50 +196,7 @@ def main(src_png: Path, hero_id: str) -> None:
         slots.append({"name": name, "bone": name, "image": f"rig/{name}.png",
                       "pivot": [round((px - bx) * K, 2), round((py - by) * K, 2)]})
 
-    anims = {
-        "idle": {"duration": 1.4, "loop": True, "bones": {
-            "torso": {"scale": [[0, 1, 1], [0.7, 1.0, 1.015], [1.4, 1, 1]]},
-            "head": {"rotate": [[0, 0], [0.7, -2], [1.4, 0]]},
-            "cape": {"rotate": [[0, 0], [0.7, 3], [1.4, 0]]},
-            "arm_front": {"rotate": [[0, 0], [0.7, -4], [1.4, 0]]}}},
-        "walk": {"duration": 0.6, "loop": True, "bones": {
-            "leg_front": {"rotate": [[0, -14], [0.3, 12], [0.6, -14]]},
-            "leg_back": {"rotate": [[0, 12], [0.3, -14], [0.6, 12]]},
-            "hips": {"translate": [[0, 0, 0], [0.15, 0, -7], [0.3, 0, 0], [0.45, 0, -7], [0.6, 0, 0]]},
-            "cape": {"rotate": [[0, 4], [0.3, 8], [0.6, 4]]},
-            "arm_front": {"rotate": [[0, -6], [0.3, 4], [0.6, -6]]}}},
-        "attack": {"duration": 0.6, "bones": {
-            "arm_front": {"rotate": [[0, 0], [0.2, -75], [0.35, 18], [0.6, 0]]},
-            "torso": {"rotate": [[0, 0], [0.2, -4], [0.35, 5], [0.6, 0]]},
-            "hips": {"translate": [[0, 0, 0], [0.35, 30, 0], [0.6, 0, 0]]},
-            "cape": {"rotate": [[0, 0], [0.35, 10], [0.6, 0]]}},
-            "events": [{"t": 0.35, "name": "hit"}]},
-        "skill": {"duration": 0.8, "bones": {
-            "arm_front": {"rotate": [[0, 0], [0.3, -120], [0.5, 25], [0.8, 0]]},
-            "torso": {"rotate": [[0, 0], [0.3, -8], [0.5, 8], [0.8, 0]]},
-            "hips": {"translate": [[0, 0, 0], [0.3, -10, -10], [0.5, 40, 0], [0.8, 0, 0]]},
-            "cape": {"rotate": [[0, 0], [0.5, 14], [0.8, 0]]}},
-            "events": [{"t": 0.5, "name": "hit"}]},
-        "ultimate": {"duration": 1.2, "bones": {
-            "hips": {"translate": [[0, 0, 0], [0.3, 0, 12], [0.6, 20, -90], [0.9, 50, 0], [1.2, 0, 0]]},
-            "arm_front": {"rotate": [[0, 0], [0.6, -150], [0.9, 30], [1.2, 0]]},
-            "cape": {"rotate": [[0, 0], [0.6, 18], [0.9, 6], [1.2, 0]]},
-            "leg_front": {"rotate": [[0, 0], [0.6, -20], [0.9, 0]]},
-            "leg_back": {"rotate": [[0, 0], [0.6, 20], [0.9, 0]]},
-            "root": {"scale": [[0, 1, 1], [0.6, 1.12, 1.12], [1.0, 1.04, 1.04], [1.2, 1, 1]]}},
-            "events": [{"t": 0.9, "name": "hit"}]},
-        "hit": {"duration": 0.3, "bones": {
-            "torso": {"rotate": [[0, 0], [0.1, -7], [0.3, 0]]},
-            "head": {"rotate": [[0, 0], [0.1, -8], [0.3, 0]]},
-            "root": {"translate": [[0, 0, 0], [0.1, -6, 0], [0.3, 0, 0]]}}},
-        "death": {"duration": 0.9, "bones": {
-            "root": {"rotate": [[0, 0], [0.5, -85], [0.9, -90]], "translate": [[0, 0, 0], [0.5, -14, -6], [0.9, -16, 0]]}},
-            "alpha": [[0, 1], [0.6, 1], [0.9, 0.35]]},
-        "victory": {"duration": 1.0, "loop": True, "bones": {
-            "root": {"translate": [[0, 0, 0], [0.3, 0, -14], [0.6, 0, 0], [1.0, 0, 0]]},
-            "arm_front": {"rotate": [[0, -95], [0.5, -85], [1.0, -95]]},
-            "cape": {"rotate": [[0, 6], [0.5, 12], [1.0, 6]]}}},
-    }
+    anims = sword_anims() if rig.get("style") == "sword" else fist_anims()
     skel = {
         "format": "ufa-skeleton", "version": 1, "size": [90, HEIGHT],
         "bones": bones, "slots": slots,
