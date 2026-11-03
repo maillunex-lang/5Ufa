@@ -70,6 +70,7 @@ jobs:
           sed -i "s/^POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=ci$(openssl rand -hex 8)/" .env
           sed -i "s/^SECRET_KEY=.*/SECRET_KEY=$(openssl rand -hex 16)/" .env
           sed -i "s/^PUBLIC_PATH_PREFIX=.*/PUBLIC_PATH_PREFIX=/" .env
+          sed -i "s/^CLIENT_UPLOAD_TOKEN=.*/CLIENT_UPLOAD_TOKEN=ci-token/" .env
           docker compose build -q
           docker compose up -d postgres redis
           docker compose run --rm -T api alembic upgrade head
@@ -86,7 +87,7 @@ jobs:
             local rc=0
             timeout 180 $G --headless --path . -- --server=http://127.0.0.1:8085 --autotest "$@" > /tmp/out.txt 2>&1 || rc=$?
             grep -E "AUTOTEST|SCRIPT ERROR|ERROR:" /tmp/out.txt || true
-            [ "$rc" -eq 0 ] && grep -q "AUTOTEST RESULT" /tmp/out.txt
+            [ "$rc" -eq 0 ] && grep -qE "AUTOTEST (RESULT|UPDATE)" /tmp/out.txt
           }
           echo "--- первый запуск: гость, загрузка всего контента"
           run
@@ -97,6 +98,12 @@ jobs:
           rm -rf ~/.local/share/godot/app_userdata
           run --autotest-login=ci@example.com:abcd1234
           grep -q '"ok":true' /tmp/out.txt
+          echo "--- обновление приложения: загружаем «новую версию», клиент её скачивает и проверяет"
+          { printf 'PK\003\004'; head -c 300000 /dev/urandom; } > /tmp/fake.apk
+          curl -fsS -X PUT --data-binary @/tmp/fake.apk -H "X-Upload-Token: ci-token" \
+            "http://127.0.0.1:8085/api/v1/client/releases/999?version_name=9.9.9"
+          run --autotest-update
+          grep -q 'AUTOTEST UPDATE: {"error":"","ok":true' /tmp/out.txt || { cat /tmp/out.txt; exit 1; }
 
       - name: Логи сервера при ошибке
         if: failure()

@@ -13,6 +13,10 @@ config/icon="res://icon.svg"
 boot_splash/bg_color=Color(0.086, 0.055, 0.141, 1)
 boot_splash/show_image=false
 
+[ufa]
+
+version_code=1
+
 [autoload]
 
 Config="*res://scripts/config.gd"

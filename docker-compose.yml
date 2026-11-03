@@ -47,6 +47,7 @@ services:
       PUBLIC_DOMAIN: ${DOMAIN:-}
       PUBLIC_PATH_PREFIX: ${PUBLIC_PATH_PREFIX:-}
       GIT_SHA: ${GIT_SHA:-dev}
+      CLIENT_UPLOAD_TOKEN: ${CLIENT_UPLOAD_TOKEN:-}
     volumes:
       - contentstore:/data/content-store
     depends_on:

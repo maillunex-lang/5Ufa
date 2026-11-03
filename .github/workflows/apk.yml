@@ -17,6 +17,15 @@ on:
       - "scripts/build-apk.sh"
       - ".github/workflows/apk.yml"
   workflow_dispatch:
+    inputs:
+      mandatory:
+        description: "Обязательное обновление (старые версии не пустит в игру)"
+        type: boolean
+        default: false
+      notes:
+        description: "Что нового (покажется игрокам). Пусто — заголовок последнего коммита"
+        type: string
+        default: ""
 
 concurrency:
   group: apk-build
@@ -27,6 +36,7 @@ permissions:
 
 env:
   GODOT_VERSION: "4.7.2"
+  SERVER_URL: "https://tts-ufa.ru/games/server"
 
 jobs:
   build:
@@ -127,6 +137,37 @@ jobs:
             --notes "Сборка из коммита ${GITHUB_SHA::8}. Размер APK: $SIZE МБ. Android 12+.
 
           Установка: скачайте ufa-$V.apk на телефон и откройте файл (разрешите установку из этого источника)."
+
+      - name: Загрузка на сервер (обновление внутри игры)
+        if: steps.keystore.outputs.temp == 'false'
+        env:
+          TOKEN: ${{ secrets.CLIENT_UPLOAD_TOKEN }}
+          V: ${{ steps.build.outputs.version_name }}
+          CODE: ${{ github.run_number }}
+          MANDATORY: ${{ inputs.mandatory && 'true' || 'false' }}
+          NOTES_IN: ${{ inputs.notes }}
+        run: |
+          TOKEN="$(printf '%s' "$TOKEN" | tr -d '[:space:]')"
+          if [ -z "$TOKEN" ]; then
+            echo "::warning::Нет секрета CLIENT_UPLOAD_TOKEN — игроки не получат это обновление внутри игры (см. docs/app-updates.md)"
+            exit 0
+          fi
+          NOTES="${NOTES_IN:-$(git log -1 --format=%s)}"
+          NOTES_B64="$(printf '%s' "$NOTES" | base64 -w0)"
+          URL="$SERVER_URL/api/v1/client/releases/$CODE?version_name=$V&mandatory=$MANDATORY"
+          # Сервер мог ещё не обновиться (деплой идёт параллельно) — несколько попыток
+          for i in $(seq 1 10); do
+            CODE_HTTP=$(curl -sS -o /tmp/resp.txt -w "%{http_code}" -X PUT --data-binary "@client/build/ufa-$V.apk" \
+              -H "Content-Type: application/vnd.android.package-archive" \
+              -H "X-Upload-Token: $TOKEN" -H "X-Notes: $NOTES_B64" "$URL" || echo 000)
+            echo "Попытка $i: HTTP $CODE_HTTP $(head -c 300 /tmp/resp.txt)"
+            case "$CODE_HTTP" in
+              200) echo "APK $V загружен на сервер — игроки получат предложение обновиться"; exit 0 ;;
+              403|409|413|422) exit 1 ;;
+            esac
+            sleep 30
+          done
+          exit 1
 
       - name: Итог
         run: |

@@ -31,6 +31,7 @@
 8. Принятые решения — [docs/decisions.md](docs/decisions.md).
 9. Аккаунты игроков — [docs/accounts.md](docs/accounts.md).
 10. Ключ подписи и сборка APK — [docs/apk-signing.md](docs/apk-signing.md).
+11. Обновление приложения из игры — [docs/app-updates.md](docs/app-updates.md).
 
 ## Правило безопасности
 

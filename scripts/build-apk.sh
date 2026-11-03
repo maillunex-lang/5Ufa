@@ -25,6 +25,8 @@ VERSION_NAME="${VERSION_NAME:-$(grep -oP '^config/version="\K[^"]+' "$CLIENT/pro
 echo ">>> Версия $VERSION_NAME (код $VERSION_CODE)"
 sed -i "s/^config\/version=.*/config\/version=\"$VERSION_NAME\"/" "$CLIENT/project.godot"
 sed -i "s/^version\/code=.*/version\/code=$VERSION_CODE/; s/^version\/name=.*/version\/name=\"$VERSION_NAME\"/" "$CLIENT/export_presets.cfg"
+# Номер сборки нужен игре, чтобы спрашивать у сервера про обновления
+sed -i "s/^version_code=.*/version_code=$VERSION_CODE/" "$CLIENT/project.godot"
 
 echo ">>> Импорт ресурсов проекта"
 "$GODOT" --headless --path "$CLIENT" --import >/dev/null 2>&1 || true

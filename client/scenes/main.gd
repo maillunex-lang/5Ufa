@@ -42,6 +42,9 @@ func _ready() -> void:
 	if get_tree().has_meta("notice"):
 		_show_message(str(get_tree().get_meta("notice")))
 		get_tree().remove_meta("notice")
+	elif get_tree().has_meta("update_offer") and not Config.autotest:
+		_offer_update(get_tree().get_meta("update_offer"))
+		get_tree().remove_meta("update_offer")
 	Content.sync_background()
 	if Config.autotest:
 		_autotest()
@@ -122,6 +125,18 @@ func _show_message(text: String) -> void:
 	var box := _make_dialog("Сообщение")
 	box.add_child(Ui.label(text, 28))
 	box.add_child(Ui.button("Понятно", _close_dialog))
+	_center_dialog()
+
+
+func _offer_update(info: Dictionary) -> void:
+	var box := _make_dialog("Новая версия %s" % info.get("version_name", ""))
+	var notes := str(info.get("notes", ""))
+	box.add_child(Ui.label((notes + "\n\n" if notes != "" else "") +
+			"Размер: %s" % Content.format_mb(int(info.get("size", 0))), 26))
+	box.add_child(Ui.button("Обновить", func():
+		get_tree().set_meta("do_update", info)
+		get_tree().change_scene_to_file("res://scenes/boot.tscn")))
+	box.add_child(Ui.button("Позже", _close_dialog))
 	_center_dialog()
 
 

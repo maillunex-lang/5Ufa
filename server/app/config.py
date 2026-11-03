@@ -20,6 +20,10 @@ class Settings(BaseSettings):
     # Внешний веб-сервер убирает этот префикс перед отправкой запроса к нам,
     # но в ссылках, которые получает клиент, он должен быть.
     public_path_prefix: str = ""
+    # Токен, с которым GitHub Actions загружает новые APK (пусто — загрузка выключена)
+    client_upload_token: str = ""
+    # Максимальный размер загружаемого APK
+    client_max_apk_mb: int = 95
 
     # Хранилище файлов контента (адресация по SHA-256)
     content_store_dir: Path = _REPO_ROOT / "data" / "content-store"

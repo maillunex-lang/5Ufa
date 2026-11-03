@@ -26,6 +26,12 @@ if [ ! -f .env ]; then
     echo "ОШИБКА: нет файла .env. Создайте его: cp .env.example .env && nano .env" >&2
     exit 1
 fi
+# Токен загрузки APK (обновления приложения): создаём один раз, если его ещё нет
+if ! grep -qE '^CLIENT_UPLOAD_TOKEN=.+' .env; then
+    sed -i '/^CLIENT_UPLOAD_TOKEN=/d' .env
+    echo "CLIENT_UPLOAD_TOKEN=$(openssl rand -hex 32)" >> .env
+    echo "[deploy] создан CLIENT_UPLOAD_TOKEN в .env (добавьте его в секреты GitHub, см. docs/app-updates.md)"
+fi
 set -a; . ./.env; set +a
 HTTP_PORT="${HTTP_PORT:-8085}"
 BACKUP_DIR="${BACKUP_DIR:-./backups}"

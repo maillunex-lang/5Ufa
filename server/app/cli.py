@@ -9,6 +9,8 @@
     docker compose exec api python -m app.cli player list
     docker compose exec api python -m app.cli player set-test 1001
     docker compose exec api python -m app.cli player ban 1001 --days 7 --reason "мат в чате"
+    docker compose exec api python -m app.cli client list
+    docker compose exec api python -m app.cli client set 12 mandatory
 """
 from __future__ import annotations
 
@@ -24,7 +26,7 @@ from app.content.builder import build_manifest
 from app.content.releases import get_channel_release, import_directory, publish
 from app.content.validation import ContentError, get_schema_registry
 from app.db import get_sessionmaker
-from app.models import CHANNELS, ContentRelease, Player
+from app.models import CHANNELS, ClientRelease, ContentRelease, Player
 
 
 def _mb(n: int) -> str:
@@ -154,6 +156,33 @@ async def cmd_player_ban(args) -> int:
     return 0
 
 
+async def cmd_client_list(args) -> int:
+    async with get_sessionmaker()() as session:
+        rows = (await session.execute(select(ClientRelease).order_by(ClientRelease.version_code.desc()).limit(20))).scalars()
+        for r in rows:
+            flags = ("" if r.active else " ВЫКЛЮЧЕНА") + (" ОБЯЗАТЕЛЬНАЯ" if r.mandatory else "")
+            print(f"код {r.version_code:<5} {r.version_name:<10} {_mb(r.size):>9}  {r.created_at:%Y-%m-%d %H:%M}{flags}")
+    return 0
+
+
+async def cmd_client_set(args) -> int:
+    async with get_sessionmaker()() as session:
+        r = (await session.execute(select(ClientRelease).where(ClientRelease.version_code == args.code))).scalar_one_or_none()
+        if r is None:
+            raise ContentError([f"Версия с кодом {args.code} не найдена"])
+        if args.action == "disable":
+            r.active = False
+        elif args.action == "enable":
+            r.active = True
+        elif args.action == "mandatory":
+            r.mandatory = True
+        elif args.action == "optional":
+            r.mandatory = False
+        await session.commit()
+        print(f"Версия {r.version_name} (код {r.version_code}): активна={r.active}, обязательная={r.mandatory}")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="app.cli")
     sub = parser.add_subparsers(dest="group", required=True)
@@ -194,6 +223,14 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--days", type=int, default=3650)
     p.add_argument("--reason", default="")
     p.set_defaults(func=cmd_player_ban)
+
+    client = sub.add_parser("client", help="Версии приложения (APK)").add_subparsers(dest="cmd", required=True)
+    client.add_parser("list", help="Загруженные версии").set_defaults(func=cmd_client_list)
+    p = client.add_parser("set", help="Изменить версию")
+    p.add_argument("code", type=int, help="код версии (versionCode)")
+    p.add_argument("action", choices=["disable", "enable", "mandatory", "optional"],
+                   help="disable — не предлагать игрокам; mandatory — обновление обязательно")
+    p.set_defaults(func=cmd_client_set)
 
     args = parser.parse_args(argv)
     try:

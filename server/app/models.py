@@ -92,3 +92,23 @@ class PlayerSession(Base):
     revoked: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     client_version: Mapped[str] = mapped_column(String(32), default="", nullable=False)
     ip: Mapped[str] = mapped_column(String(64), default="", nullable=False)
+
+
+# ---------------------------------------------------------------------------
+# Обновления приложения: APK хранится в хранилище контента (по SHA-256),
+# GitHub Actions загружает каждую новую сборку на сервер.
+# ---------------------------------------------------------------------------
+class ClientRelease(Base):
+    __tablename__ = "client_releases"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    version_code: Mapped[int] = mapped_column(Integer, unique=True, nullable=False)
+    version_name: Mapped[str] = mapped_column(String(32), nullable=False)
+    sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    size: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    notes: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    # Обязательное обновление: старые версии не пустит в игру, пока не обновятся
+    mandatory: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    # Выключенную версию игроки не получают (откат неудачной сборки)
+    active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
