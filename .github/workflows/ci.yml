@@ -54,6 +54,10 @@ jobs:
           "$AAPT" dump xmltree client/build/ufa.apk AndroidManifest.xml > /tmp/ufa-manifest.txt
           grep -q 'org.godotengine.plugin.notification.NotificationReceiver' /tmp/ufa-manifest.txt
           grep -q 'android.permission.POST_NOTIFICATIONS' /tmp/ufa-manifest.txt
+          # Без этого разрешения перестанет работать обновление из игры
+          grep -q 'android.permission.REQUEST_INSTALL_PACKAGES' /tmp/ufa-manifest.txt
+          # ID приложения не должен меняться — иначе обновление не встанет поверх
+          "$AAPT" dump badging client/build/ufa.apk | grep -q "^package: name='lunex.ufa'"
           if grep -Eq 'android.permission.(SCHEDULE_EXACT_ALARM|REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)' /tmp/ufa-manifest.txt; then
             echo 'Обнаружено лишнее разрешение уведомлений' >&2
             exit 1
