@@ -68,6 +68,15 @@ jobs:
             echo 'APK содержит неподдерживаемую архитектуру' >&2
             exit 1
           fi
+          # Код админки не должен попадать в APK игры
+          if grep -q '^assets/admin/' /tmp/ufa-apk-files.txt; then
+            echo 'В APK игры попала админка' >&2
+            exit 1
+          fi
+          echo "--- APK админки"
+          PRESET="Admin Android" OUT="$PWD/client/build/ufa-admin.apk" bash scripts/build-apk.sh
+          "$AAPT" dump badging client/build/ufa-admin.apk | grep -q "^package: name='lunex.ufa.admin'"
+          "$AAPT" dump badging client/build/ufa-admin.apk | grep "application-label"
 
   server-tests:
     runs-on: ubuntu-latest
@@ -176,6 +185,12 @@ jobs:
           echo "--- снаряжение: стартовый набор, ошибка улучшения без ресурсов, разбор в руду"
           run --autotest-inventory
           grep -q 'AUTOTEST INVENTORY: {.*"ok":true' /tmp/out.txt || { cat /tmp/out.txt; exit 1; }
+          echo "--- админка: вход, разделы, форма героя без правок не меняет черновик, промпт, файлы черновика"
+          (cd .. && docker compose exec -T -e ADMIN_PASSWORD=ci-admin-pass-1 api python -m app.cli admin create owner)
+          timeout 180 $G --headless --path . res://admin/admin_main.tscn -- --server=http://127.0.0.1:8085 \
+            --admin-autotest=owner:ci-admin-pass-1 > /tmp/out.txt 2>&1 || true
+          grep -E "AUTOTEST|SCRIPT ERROR" /tmp/out.txt || true
+          grep -q 'AUTOTEST ADMIN: {.*"ok":true' /tmp/out.txt || { cat /tmp/out.txt; exit 1; }
           echo "--- обновление приложения: загружаем «новую версию», клиент её скачивает и проверяет"
           { printf 'PK\003\004'; head -c 300000 /dev/urandom; } > /tmp/fake.apk
           curl -fsS -X PUT --data-binary @/tmp/fake.apk -H "X-Upload-Token: ci-token" \

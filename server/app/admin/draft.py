@@ -144,7 +144,14 @@ async def put_file(session: AsyncSession, admin_id: int | None, path: str, data:
     sha = get_store().put_bytes(data)
     base_sha = ws.base_files.get(path)
     row = await session.get(DraftFile, path)
-    if path != PACKAGES and base_sha == sha:
+    same = base_sha == sha
+    if not same and base_sha and path.endswith(".json"):
+        # Тот же JSON по смыслу (1 и 1.0, другой порядок ключей) — не считаем правкой
+        try:
+            same = json.loads(data.decode("utf-8")) == json.loads(get_store().path_for(base_sha).read_bytes())
+        except (ValueError, OSError):
+            same = False
+    if path != PACKAGES and same:
         if row is not None:  # вернули как было — правка больше не нужна
             await session.delete(row)
         await session.flush()

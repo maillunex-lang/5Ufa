@@ -9,12 +9,15 @@
 #   VERSION_CODE     — целое, растёт с каждой сборкой (по умолчанию 1)
 #   GODOT_ANDROID_KEYSTORE_RELEASE_PATH / _USER / _PASSWORD — ключ подписи
 #   APK_MAX_MB       — ограничение размера (500 МиБ)
+#   PRESET           — пресет экспорта: "Android" (игра, по умолчанию) или "Admin Android" (админка)
+#   OUT              — куда положить APK (по умолчанию client/build/ufa.apk)
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 CLIENT="$ROOT/client"
 GODOT="${GODOT:-godot}"
-OUT="$CLIENT/build/ufa.apk"
+OUT="${OUT:-$CLIENT/build/ufa.apk}"
+PRESET="${PRESET:-Android}"
 APK_MAX_MB="${APK_MAX_MB:-500}"
 if ! [[ "$APK_MAX_MB" =~ ^[0-9]+$ ]] || (( APK_MAX_MB < 1 || APK_MAX_MB > 500 )); then
     echo "ОШИБКА: APK_MAX_MB должен быть от 1 до 500 МиБ" >&2
@@ -52,10 +55,10 @@ set_setting() {
 set_setting "export/android/android_sdk_path" "$ANDROID_SDK"
 [ -n "${JAVA_HOME:-}" ] && set_setting "export/android/java_sdk_path" "$JAVA_HOME"
 
-echo ">>> Экспорт APK"
+echo ">>> Экспорт APK ($PRESET)"
 mkdir -p "$(dirname "$OUT")"
 rm -f "$OUT"
-"$GODOT" --headless --path "$CLIENT" --install-android-build-template --export-release "Android" "$OUT" 2>&1 | tee /tmp/godot-export.log | grep -vE "^\s*$" | tail -40
+"$GODOT" --headless --path "$CLIENT" --install-android-build-template --export-release "$PRESET" "$OUT" 2>&1 | tee /tmp/godot-export.log | grep -vE "^\s*$" | tail -40
 if [ ! -f "$OUT" ]; then
     echo "ОШИБКА: APK не создан, см. лог выше" >&2
     exit 1

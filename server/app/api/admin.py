@@ -264,9 +264,19 @@ async def get_schema(name: str, admin: AdminUser = Depends(editor)):
 
 @router.get("/draft")
 async def get_draft(admin: AdminUser = Depends(editor), session: AsyncSession = Depends(get_session)):
+    """Изменения черновика и все файлы «как будет после публикации» (для предпросмотра в админке)."""
+    from app.models import DraftFile
     data = await drf.changes(session)
     ws = await drf.workspace(session)
-    data["files"] = {p: sha for p, sha in ws.files().items() if p != drf.PACKAGES}
+    sizes = {}
+    if ws.base is not None:
+        for pkg in ws.base.manifest.get("packages", []):
+            for f in pkg["files"]:
+                sizes[f["path"]] = f["size"]
+    for r in (await session.execute(select(DraftFile))).scalars():
+        sizes[r.path] = r.size
+    data["files"] = {p: {"sha256": sha, "size": int(sizes.get(p, 0))} for p, sha in ws.files().items() if p != drf.PACKAGES}
+    data["base_url"] = get_settings().public_content_files_url
     await session.commit()
     return data
 

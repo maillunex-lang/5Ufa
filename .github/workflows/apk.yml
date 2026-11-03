@@ -118,11 +118,27 @@ jobs:
           bash scripts/build-apk.sh
           cp client/build/ufa.apk "client/build/ufa-$VERSION_NAME.apk"
 
+      - name: Сборка APK админки (lunex.ufa.admin)
+        env:
+          V: ${{ steps.build.outputs.version_name }}
+        run: |
+          export VERSION_NAME="$V"
+          export VERSION_CODE="${{ github.run_number }}"
+          export ANDROID_SDK="$ANDROID_HOME"
+          export GODOT="$HOME/godot/godot"
+          export PRESET="Admin Android"
+          export OUT="$PWD/client/build/ufa-admin-$V.apk"
+          bash scripts/build-apk.sh
+          AAPT="$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -1)"
+          "$AAPT" dump badging "$OUT" | grep -q "^package: name='lunex.ufa.admin'"
+
       - name: Артефакт сборки
         uses: actions/upload-artifact@v4
         with:
           name: ufa-${{ steps.build.outputs.version_name }}${{ steps.keystore.outputs.temp == 'true' && '-TEMPKEY' || '' }}
-          path: client/build/ufa-${{ steps.build.outputs.version_name }}.apk
+          path: |
+            client/build/ufa-${{ steps.build.outputs.version_name }}.apk
+            client/build/ufa-admin-${{ steps.build.outputs.version_name }}.apk
           retention-days: 30
 
       - name: Публикация в Releases
@@ -132,11 +148,12 @@ jobs:
           V: ${{ steps.build.outputs.version_name }}
           SIZE: ${{ steps.build.outputs.apk_size_mb }}
         run: |
-          gh release create "client-v$V" "client/build/ufa-$V.apk" \
+          gh release create "client-v$V" "client/build/ufa-$V.apk" "client/build/ufa-admin-$V.apk" \
             --title "Игра $V" \
-            --notes "Сборка из коммита ${GITHUB_SHA::8}. Размер APK: $SIZE МБ. Android 12+.
+            --notes "Сборка из коммита ${GITHUB_SHA::8}. Размер APK игры: $SIZE МБ. Android 12+.
 
-          Установка: скачайте ufa-$V.apk на телефон и откройте файл (разрешите установку из этого источника)."
+          Установка: скачайте ufa-$V.apk на телефон и откройте файл (разрешите установку из этого источника).
+          Админка: ufa-admin-$V.apk — отдельное приложение; войти можно только с логином и паролем администратора."
 
       - name: Загрузка на сервер (обновление внутри игры)
         if: steps.keystore.outputs.temp == 'false'

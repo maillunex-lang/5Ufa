@@ -11,7 +11,7 @@
 |---|---|
 | `/server` | Сервер: Python 3.12 + FastAPI, PostgreSQL, Redis, миграции Alembic |
 | `/client` | Игра (Godot 4.7, APK-загрузчик) |
-| `/admin` | Админка (Godot 4, отдельный APK) — этап 6 |
+| `/admin` | Админка (код в `client/admin/`, отдельный APK `lunex.ufa.admin`) — [docs/admin.md](docs/admin.md) |
 | `/shared` | JSON Schema всех типов контента — единый источник правды |
 | `/content` | Базовый контент (заглушки), из него собирается первый релиз |
 | `/patch-prompts` | Справочник промптов для ИИ по разделам контента |
@@ -37,6 +37,7 @@
 14. Прогрессия героев и призыв — [docs/progression.md](docs/progression.md).
 15. Главный экран «Город» — [docs/hub.md](docs/hub.md).
 16. Снаряжение и уникальный предмет — [docs/equipment.md](docs/equipment.md).
+17. Админка — [docs/admin.md](docs/admin.md).
 
 ## Правило безопасности
 

@@ -122,6 +122,16 @@ func sync_required() -> Dictionary:
 	return res
 
 
+## Админка: подставить свой манифест (файлы черновика) и скачать всё, чего нет. {ok, error}
+func use_manifest(m: Dictionary) -> Dictionary:
+	manifest = m
+	var res: Dictionary = await _download_all(plan(true) + plan(false), func(done, all): progress.emit(done, all))
+	if res.ok:
+		state["release"] = int(manifest.get("release", 0))
+		_cleanup_removed()
+	return res
+
+
 ## Фоновые пакеты — во время игры. Можно вызывать повторно, параллельно не запустится.
 func sync_background() -> void:
 	if background_running:
