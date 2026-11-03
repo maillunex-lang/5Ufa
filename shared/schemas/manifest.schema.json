@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.ufagame.local/manifest.schema.json",
+  "title": "Манифест загрузки контента (ответ GET /api/v1/content/manifest)",
+  "description": "URL файла = base_url + sha256[0:2] + '/' + sha256. Файл сохраняется в user://content/<path>.",
+  "type": "object",
+  "required": ["schema_version", "release", "channel", "content_hash", "min_client_version", "base_url", "total_size", "packages"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "release": {"type": "integer", "minimum": 1},
+    "channel": {"enum": ["live", "test"]},
+    "content_hash": {"$ref": "common.schema.json#/$defs/sha256"},
+    "created_at": {"type": ["string", "null"]},
+    "min_client_version": {"$ref": "common.schema.json#/$defs/semver"},
+    "base_url": {"type": "string"},
+    "total_size": {"type": "integer", "minimum": 0},
+    "packages": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "title", "required", "priority", "version", "size", "files"],
+        "properties": {
+          "id": {"$ref": "common.schema.json#/$defs/id"},
+          "title": {"type": "string"},
+          "required": {"type": "boolean"},
+          "priority": {"type": "integer"},
+          "version": {"type": "string", "pattern": "^[0-9a-f]{16}$"},
+          "size": {"type": "integer", "minimum": 0},
+          "files": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["path", "size", "sha256"],
+              "properties": {
+                "path": {"type": "string"},
+                "size": {"type": "integer", "minimum": 0},
+                "sha256": {"$ref": "common.schema.json#/$defs/sha256"}
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

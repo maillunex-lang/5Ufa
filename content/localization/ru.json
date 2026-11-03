@@ -1,0 +1,12 @@
+{
+  "language": "ru",
+  "strings": {
+    "loading.checking": "Проверка обновлений…",
+    "loading.downloading": "Загрузка: {done} из {total}",
+    "loading.verifying": "Проверка файлов…",
+    "loading.error.network": "Нет связи с сервером. Повторить?",
+    "loading.ready": "Готово!",
+    "ui.button.play": "Играть",
+    "ui.button.retry": "Повторить"
+  }
+}

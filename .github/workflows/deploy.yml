@@ -1,0 +1,52 @@
+# Автодеплой на VPS при push в main.
+# Нужные секреты (Settings -> Secrets and variables -> Actions), см. docs/setup-guide.md:
+#   VPS_HOST         — IP или домен VPS
+#   VPS_PORT         — SSH-порт (обычно 22)
+#   VPS_USER         — пользователь на VPS
+#   VPS_SSH_KEY      — приватный SSH-ключ для входа на VPS (весь текст файла)
+#   VPS_KNOWN_HOSTS  — отпечаток сервера (вывод ssh-keyscan)
+#   VPS_APP_DIR      — папка проекта на VPS, например /home/game/ufagame
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  checks:
+    uses: ./.github/workflows/ci.yml
+
+  deploy:
+    needs: checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Настройка SSH
+        env:
+          SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+
+      - name: Деплой на VPS
+        env:
+          HOST: ${{ secrets.VPS_HOST }}
+          PORT: ${{ secrets.VPS_PORT }}
+          USER: ${{ secrets.VPS_USER }}
+          APP_DIR: ${{ secrets.VPS_APP_DIR }}
+        run: |
+          ssh -i ~/.ssh/deploy_key -p "${PORT:-22}" -o BatchMode=yes -o ServerAliveInterval=30 \
+            "$USER@$HOST" "cd '$APP_DIR' && git fetch --quiet origin main && git checkout --quiet origin/main -- scripts/deploy.sh && bash scripts/deploy.sh main"
+
+      - name: Удаление ключа
+        if: always()
+        run: rm -f ~/.ssh/deploy_key

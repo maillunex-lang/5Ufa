@@ -1,0 +1,123 @@
+#!/usr/bin/env bash
+# Деплой на VPS. Запускается GitHub Actions по SSH (или вручную):
+#   bash scripts/deploy.sh            # обновиться до последнего main
+#   bash scripts/deploy.sh main       # явно указать ветку
+#
+# Шаги: бэкап базы -> git обновление -> сборка -> миграции -> запуск -> проверка /health.
+# При любой ошибке: откат миграций и кода к прошлой версии, повторный запуск.
+set -euo pipefail
+
+# git reset ниже перезапишет этот файл, а bash читает скрипт по частям.
+# Поэтому сначала копируем себя во временный файл и выполняемся из копии.
+if [ -z "${DEPLOY_APP_DIR:-}" ]; then
+    DEPLOY_APP_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+    TMP_SELF="$(mktemp /tmp/ufagame-deploy.XXXXXX.sh)"
+    cp "$0" "$TMP_SELF"
+    DEPLOY_APP_DIR="$DEPLOY_APP_DIR" exec bash "$TMP_SELF" "$@"
+fi
+trap 'rm -f "$0"' EXIT
+
+cd "$DEPLOY_APP_DIR"
+BRANCH="${1:-main}"
+LOG_DIR=".deploy"
+mkdir -p "$LOG_DIR"
+
+if [ ! -f .env ]; then
+    echo "ОШИБКА: нет файла .env. Создайте его: cp .env.example .env && nano .env" >&2
+    exit 1
+fi
+set -a; . ./.env; set +a
+HTTP_PORT="${HTTP_PORT:-8080}"
+BACKUP_DIR="${BACKUP_DIR:-./backups}"
+mkdir -p "$BACKUP_DIR/predeploy"
+
+log() { echo "[deploy $(date -u +%H:%M:%S)] $*"; }
+
+health_check() {
+    local url="http://127.0.0.1:${HTTP_PORT}/health"
+    for i in $(seq 1 30); do
+        if curl -fsS --max-time 5 "$url" >/dev/null 2>&1; then
+            log "health OK: $(curl -fsS --max-time 5 "$url")"
+            return 0
+        fi
+        sleep 3
+    done
+    log "health НЕ отвечает: $url"
+    curl -sS --max-time 5 "$url" || true
+    return 1
+}
+
+current_db_revision() {
+    # Текущая версия схемы базы (пусто, если сервис ещё не запущен)
+    docker compose exec -T api alembic current 2>/dev/null | grep -oE '^[0-9A-Za-z_]+' | head -1 || true
+}
+
+PREV_SHA="$(git rev-parse HEAD)"
+PREV_REV="$(current_db_revision)"
+log "текущая версия кода: ${PREV_SHA:0:8}, схема БД: ${PREV_REV:-нет}"
+
+# 1. Бэкап базы перед изменениями (если база уже работает)
+if docker compose ps --status running postgres 2>/dev/null | grep -q postgres; then
+    DUMP="$BACKUP_DIR/predeploy/db-$(date -u +%Y%m%d-%H%M%S)-${PREV_SHA:0:8}.dump"
+    log "бэкап базы -> $DUMP"
+    docker compose exec -T postgres pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" --format=custom > "$DUMP"
+    # храним 10 последних предеплойных дампов
+    ls -1t "$BACKUP_DIR"/predeploy/db-*.dump 2>/dev/null | tail -n +11 | xargs -r rm --
+fi
+
+# 2. Обновление кода
+log "получаю код из origin/$BRANCH"
+git fetch --quiet origin "$BRANCH"
+git reset --hard --quiet "origin/$BRANCH"
+NEW_SHA="$(git rev-parse HEAD)"
+export GIT_SHA="$NEW_SHA"
+log "новая версия кода: ${NEW_SHA:0:8}"
+
+rollback() {
+    set +e
+    log "!!! ОШИБКА ДЕПЛОЯ — ОТКАТ к ${PREV_SHA:0:8}"
+    if [ -n "$PREV_REV" ]; then
+        local now_rev
+        now_rev="$(docker compose run --rm -T api alembic current 2>/dev/null | grep -oE '^[0-9A-Za-z_]+' | head -1)"
+        if [ -n "$now_rev" ] && [ "$now_rev" != "$PREV_REV" ]; then
+            log "откат схемы БД $now_rev -> $PREV_REV"
+            docker compose run --rm -T api alembic downgrade "$PREV_REV"
+        fi
+    fi
+    git reset --hard --quiet "$PREV_SHA"
+    export GIT_SHA="$PREV_SHA"
+    docker compose up -d --build --remove-orphans
+    docker compose up -d --force-recreate --no-deps nginx
+    if health_check; then
+        log "откат выполнен, работает прежняя версия ${PREV_SHA:0:8}"
+    else
+        log "!!! после отката сервер тоже не отвечает — нужна ручная проверка: docker compose logs --tail=200"
+    fi
+    exit 1
+}
+trap rollback ERR
+
+# 3. Сборка и миграции
+log "сборка образов"
+docker compose build
+log "запуск базы и Redis"
+docker compose up -d postgres redis
+log "миграции базы"
+docker compose run --rm -T api alembic upgrade head
+log "первичный импорт контента (только если база пустая)"
+docker compose run --rm -T api python -m app.cli content import --if-empty --publish
+
+# 4. Запуск всего стека
+log "запуск сервисов"
+docker compose up -d --remove-orphans
+# Конфиг Nginx монтируется из папки и применяется только при старте контейнера,
+# поэтому пересоздаём Nginx всегда (перерыв ~1 секунда).
+docker compose up -d --force-recreate --no-deps nginx
+
+# 5. Проверка
+health_check
+
+trap - ERR
+echo "$NEW_SHA" > "$LOG_DIR/last_success"
+docker image prune -f >/dev/null 2>&1 || true
+log "ДЕПЛОЙ УСПЕШЕН: ${NEW_SHA:0:8}"

@@ -1,0 +1,34 @@
+{
+  "$schema": "../shared/schemas/content-packages.schema.json",
+  "min_client_version": "0.1.0",
+  "packages": [
+    {
+      "id": "core",
+      "title": "Интерфейс и настройки",
+      "required": true,
+      "priority": 0,
+      "include": ["config/**", "localization/**", "ui/**", "fonts/**"]
+    },
+    {
+      "id": "tutorial",
+      "title": "Обучение",
+      "required": true,
+      "priority": 10,
+      "include": ["tutorial/**"]
+    },
+    {
+      "id": "chapter_1",
+      "title": "Глава 1",
+      "required": true,
+      "priority": 20,
+      "include": ["campaign/chapter_1/**"]
+    },
+    {
+      "id": "chapter_2",
+      "title": "Глава 2",
+      "required": false,
+      "priority": 30,
+      "include": ["campaign/chapter_2/**"]
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "game_name": "[НАЗВАНИЕ]",
+  "default_language": "ru",
+  "languages": ["ru"],
+  "support_email": "",
+  "theme": {
+    "primary": "#3B1F5C",
+    "accent": "#F2B544",
+    "background": "#160E24",
+    "text": "#F4ECDD"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.ufagame.local/localization.schema.json",
+  "title": "Тексты локализации (localization/<язык>.json)",
+  "type": "object",
+  "required": ["language", "strings"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {"type": "string"},
+    "language": {"type": "string", "pattern": "^[a-z]{2}$"},
+    "strings": {
+      "type": "object",
+      "propertyNames": {"$ref": "common.schema.json#/$defs/text_key"},
+      "additionalProperties": {"type": "string"}
+    }
+  }
+}

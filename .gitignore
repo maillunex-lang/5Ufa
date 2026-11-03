@@ -1,0 +1,25 @@
+# Секреты — никогда не коммитим
+.env
+*.keystore
+*.jks
+*.pem
+id_*
+
+# Данные сервера
+/backups/
+/data/
+/.deploy/
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+*.egg-info/
+
+# Godot
+.godot/
+*.import
+/client/build/
+/admin/build/
+export_credentials.cfg

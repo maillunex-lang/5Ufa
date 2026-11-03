@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.ufagame.local/patch.schema.json",
+  "title": "patch.json — описание ZIP-патча контента",
+  "description": "Спецификация: docs/patch-format.md. Применение реализуется на этапе 6.",
+  "type": "object",
+  "required": ["id", "format_version", "section", "description", "operations"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {"type": "string"},
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9_\\-]{2,63}$",
+      "description": "Уникальный id патча, например heroes-2026-11-batch1"
+    },
+    "format_version": {"const": 1},
+    "section": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]{1,63}$",
+      "description": "Раздел контента: heroes, factions, campaign, localization, ui, audio ..."
+    },
+    "description": {"type": "string", "minLength": 1, "maxLength": 2000},
+    "author": {"type": "string"},
+    "base_release": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Необязательно: релиз, на основе которого сделан патч (для предупреждения о конфликтах)"
+    },
+    "operations": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["op", "id"],
+        "additionalProperties": false,
+        "properties": {
+          "op": {"enum": ["add", "update", "delete"]},
+          "id": {"$ref": "common.schema.json#/$defs/id", "description": "id объекта в разделе"},
+          "data": {"type": "object", "description": "add — полный объект; update — только изменяемые поля (слияние)"},
+          "files": {
+            "type": "array",
+            "items": {"$ref": "common.schema.json#/$defs/content_path"},
+            "description": "Файлы ресурсов из ZIP, относящиеся к объекту"
+          }
+        },
+        "allOf": [
+          {"if": {"properties": {"op": {"enum": ["add", "update"]}}}, "then": {"required": ["data"]}}
+        ]
+      }
+    }
+  }
+}

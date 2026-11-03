@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.ufagame.local/content-packages.schema.json",
+  "title": "Описание пакетов загрузки (content/packages.json)",
+  "type": "object",
+  "required": ["packages"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {"type": "string"},
+    "min_client_version": {
+      "$ref": "common.schema.json#/$defs/semver",
+      "description": "Минимальная версия APK, которая может работать с этим контентом"
+    },
+    "packages": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "title", "required", "include"],
+        "additionalProperties": false,
+        "properties": {
+          "id": {"$ref": "common.schema.json#/$defs/id"},
+          "title": {"type": "string", "minLength": 1, "description": "Название для экрана загрузки"},
+          "required": {"type": "boolean", "description": "true — качается до входа в игру, false — в фоне"},
+          "priority": {"type": "integer", "minimum": 0, "description": "Порядок загрузки (меньше — раньше)"},
+          "include": {
+            "type": "array",
+            "minItems": 1,
+            "items": {"type": "string", "minLength": 1},
+            "description": "Маски путей: ** — любые папки, * — любые символы в имени"
+          }
+        }
+      }
+    }
+  }
+}

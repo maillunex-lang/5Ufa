@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.ufagame.local/common.schema.json",
+  "title": "Общие типы",
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]{1,63}$",
+      "description": "Идентификатор: латиница в нижнем регистре, цифры и _, начинается с буквы (например hero_ural_batyr)"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "semver": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "Версия вида 1.2.3"
+    },
+    "color": {
+      "type": "string",
+      "pattern": "^#([0-9a-fA-F]{6}|[0-9a-fA-F]{8})$",
+      "description": "Цвет #RRGGBB или #RRGGBBAA"
+    },
+    "content_path": {
+      "type": "string",
+      "pattern": "^[a-z0-9_\\-]+(/[a-z0-9_\\-.]+)*\\.[a-z0-9]+$",
+      "description": "Путь к файлу контента: латиница в нижнем регистре, цифры, _ - . и /"
+    },
+    "text_key": {
+      "type": "string",
+      "pattern": "^[a-z0-9_.]+$",
+      "description": "Ключ текста локализации, например ui.button.play"
+    }
+  }
+}

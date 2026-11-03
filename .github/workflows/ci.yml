@@ -1,0 +1,41 @@
+# Проверки: тесты сервера, проверка контента по схемам, проверка docker-compose.
+# Запускается на каждый push в любую ветку и в pull request,
+# а также вызывается из deploy.yml перед деплоем.
+name: CI
+
+on:
+  push:
+    branches-ignore: [main]
+  pull_request:
+  workflow_call:
+
+jobs:
+  server-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: server/requirements-dev.txt
+
+      - name: Установка зависимостей
+        run: pip install -r server/requirements-dev.txt
+
+      - name: Тесты сервера
+        working-directory: server
+        run: pytest -q
+
+      - name: Проверка базового контента по JSON Schema
+        working-directory: server
+        env:
+          SHARED_DIR: ${{ github.workspace }}/shared
+          BASE_CONTENT_DIR: ${{ github.workspace }}/content
+        run: python -m app.cli content validate
+
+      - name: Проверка docker-compose.yml
+        run: |
+          cp .env.example .env
+          docker compose config --quiet

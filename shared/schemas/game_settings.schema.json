@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.ufagame.local/game_settings.schema.json",
+  "title": "Общие настройки игры (config/game_settings.json)",
+  "type": "object",
+  "required": ["game_name", "default_language", "languages"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {"type": "string"},
+    "game_name": {"type": "string", "minLength": 1, "maxLength": 64, "description": "Название игры (показывается в игре)"},
+    "default_language": {"type": "string", "pattern": "^[a-z]{2}$"},
+    "languages": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "pattern": "^[a-z]{2}$"}},
+    "support_email": {"type": "string"},
+    "theme": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "primary": {"$ref": "common.schema.json#/$defs/color"},
+        "accent": {"$ref": "common.schema.json#/$defs/color"},
+        "background": {"$ref": "common.schema.json#/$defs/color"},
+        "text": {"$ref": "common.schema.json#/$defs/color"}
+      }
+    }
+  }
+}

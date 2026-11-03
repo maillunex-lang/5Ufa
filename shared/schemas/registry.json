@@ -1,0 +1,7 @@
+{
+  "description": "Какая схема проверяет какой файл контента. Маски путей относительно корня контента. Первое совпадение побеждает. JSON-файлы без совпадения проверяются только на корректность JSON.",
+  "content_files": [
+    {"pattern": "config/game_settings.json", "schema": "game_settings.schema.json"},
+    {"pattern": "localization/*.json", "schema": "localization.schema.json"}
+  ]
+}
