@@ -67,7 +67,9 @@ def test_store_and_change_detection(tmp_path):
         for f in p["files"]:
             assert store.path_for(f["sha256"]).stat().st_size == f["size"]
     # Меняем один файл — меняется только версия его пакета
-    (d / "campaign/chapter_2/chapter.json").write_text('{"id": "chapter_2", "stages": [1]}', "utf-8")
+    chapter = json.loads((d / "campaign/chapter_2/chapter.json").read_text("utf-8"))
+    chapter["title"] = "Другая гора"
+    (d / "campaign/chapter_2/chapter.json").write_text(json.dumps(chapter), "utf-8")
     b = build_manifest(d, store, get_schema_registry())
     va = {p["id"]: p["version"] for p in a.manifest["packages"]}
     vb = {p["id"]: p["version"] for p in b.manifest["packages"]}

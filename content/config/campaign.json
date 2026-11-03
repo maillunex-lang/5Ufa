@@ -1,0 +1,8 @@
+{
+  "afk_cap_seconds": 43200,
+  "gold_per_hour": 60,
+  "hero_xp_per_hour": 30,
+  "stage_bonus_percent": 5,
+  "quick_seconds": 7200,
+  "quick_daily_limit": 1
+}

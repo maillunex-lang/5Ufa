@@ -51,7 +51,7 @@ set_setting "export/android/android_sdk_path" "$ANDROID_SDK"
 echo ">>> Экспорт APK"
 mkdir -p "$(dirname "$OUT")"
 rm -f "$OUT"
-"$GODOT" --headless --path "$CLIENT" --export-release "Android" "$OUT" 2>&1 | tee /tmp/godot-export.log | grep -vE "^\s*$" | tail -40
+"$GODOT" --headless --path "$CLIENT" --install-android-build-template --export-release "Android" "$OUT" 2>&1 | tee /tmp/godot-export.log | grep -vE "^\s*$" | tail -40
 if [ ! -f "$OUT" ]; then
     echo "ОШИБКА: APK не создан, см. лог выше" >&2
     exit 1

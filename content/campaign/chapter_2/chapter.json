@@ -1,7 +1,60 @@
 {
   "id": "chapter_2",
+  "number": 2,
   "title": "Иремель",
-  "note": "Заглушка. Этапы, враги и награды будут описаны на этапе 4.",
-  "background": "campaign/chapter_2/background.png",
-  "stages": []
+  "subtitle": "Голоса гор",
+  "dialogue_start": "На склонах Иремеля пробуждаются древние хранители. Герои ищут дорогу к истоку беды.",
+  "dialogue_end": "Хранители указывают путь к пещере Шульган-Таш.",
+  "stages": [
+    {
+      "id": "2-1",
+      "number": 6,
+      "enemy": "test_forest",
+      "enemy_multiplier": 0.61,
+      "reward": {
+        "gold": 100,
+        "hero_xp": 50
+      }
+    },
+    {
+      "id": "2-2",
+      "number": 7,
+      "enemy": "test_forest",
+      "enemy_multiplier": 0.635,
+      "reward": {
+        "gold": 100,
+        "hero_xp": 50
+      }
+    },
+    {
+      "id": "2-3",
+      "number": 8,
+      "enemy": "test_forest",
+      "enemy_multiplier": 0.66,
+      "reward": {
+        "gold": 100,
+        "hero_xp": 50
+      }
+    },
+    {
+      "id": "2-4",
+      "number": 9,
+      "enemy": "test_forest",
+      "enemy_multiplier": 0.685,
+      "reward": {
+        "gold": 100,
+        "hero_xp": 50
+      }
+    },
+    {
+      "id": "2-5",
+      "number": 10,
+      "enemy": "test_forest",
+      "enemy_multiplier": 0.79,
+      "reward": {
+        "gold": 100,
+        "hero_xp": 50
+      }
+    }
+  ]
 }

@@ -1,0 +1,60 @@
+{
+  "id": "chapter_5",
+  "number": 5,
+  "title": "Озеро Аслыкуль",
+  "subtitle": "Тень над озером",
+  "dialogue_start": "У берегов Аслыкуля союзники готовятся к решающему сражению.",
+  "dialogue_end": "Тень рассеивается. Путь героев продолжается.",
+  "stages": [
+    {
+      "id": "5-1",
+      "number": 21,
+      "enemy": "test_underworld",
+      "enemy_multiplier": 0.88,
+      "reward": {
+        "gold": 100,
+        "hero_xp": 50
+      }
+    },
+    {
+      "id": "5-2",
+      "number": 22,
+      "enemy": "test_underworld",
+      "enemy_multiplier": 0.905,
+      "reward": {
+        "gold": 100,
+        "hero_xp": 50
+      }
+    },
+    {
+      "id": "5-3",
+      "number": 23,
+      "enemy": "test_underworld",
+      "enemy_multiplier": 0.93,
+      "reward": {
+        "gold": 100,
+        "hero_xp": 50
+      }
+    },
+    {
+      "id": "5-4",
+      "number": 24,
+      "enemy": "test_underworld",
+      "enemy_multiplier": 0.955,
+      "reward": {
+        "gold": 100,
+        "hero_xp": 50
+      }
+    },
+    {
+      "id": "5-5",
+      "number": 25,
+      "enemy": "test_underworld",
+      "enemy_multiplier": 1.0,
+      "reward": {
+        "gold": 100,
+        "hero_xp": 50
+      }
+    }
+  ]
+}

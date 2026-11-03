@@ -28,6 +28,14 @@
     {
       "pattern": "battle/*teams.json",
       "schema": "teams.schema.json"
+    },
+    {
+      "pattern": "config/campaign.json",
+      "schema": "campaign_config.schema.json"
+    },
+    {
+      "pattern": "campaign/chapter_*/chapter.json",
+      "schema": "campaign_chapter.schema.json"
     }
   ]
 }

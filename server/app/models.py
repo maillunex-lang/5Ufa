@@ -94,6 +94,21 @@ class PlayerSession(Base):
     ip: Mapped[str] = mapped_column(String(64), default="", nullable=False)
 
 
+class CampaignProgress(Base):
+    __tablename__ = "campaign_progress"
+
+    player_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("players.id", ondelete="CASCADE"), primary_key=True)
+    cleared: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    gold: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
+    hero_xp: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
+    gold_fraction: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
+    xp_fraction: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
+    elapsed_us: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow)
+    quick_day: Mapped[str] = mapped_column(String(10), nullable=False, default="")
+    quick_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+
 # ---------------------------------------------------------------------------
 # Обновления приложения: APK хранится в хранилище контента (по SHA-256),
 # GitHub Actions загружает каждую новую сборку на сервер.

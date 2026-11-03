@@ -438,6 +438,9 @@ func _finish() -> void:
 	box.add_theme_constant_override("separation", 14)
 	panel.add_child(box)
 	box.add_child(Ui.label("ПОБЕДА!" if win else "Поражение", 56, "accent"))
+	if get_tree().has_meta("campaign_stage"):
+		var reward: Dictionary = get_tree().get_meta("campaign_reward", {})
+		box.add_child(Ui.label("Награда: %d золота · %d опыта" % [int(reward.get("gold", 0)), int(reward.get("hero_xp", 0))], 22))
 	var secs := float(log_data["result"]["ticks"]) / tick_rate
 	box.add_child(Ui.label("Время боя: %d:%02d" % [int(secs) / 60, int(secs) % 60], 24))
 	var stats: Array = log_data["result"]["stats"]
@@ -464,8 +467,10 @@ func _finish() -> void:
 		num.text = "  %d" % int(s["damage"])
 		line.add_child(num)
 		box.add_child(line)
-	box.add_child(Ui.button("Ещё раз", func(): get_tree().change_scene_to_file("res://scenes/team_select.tscn")))
-	box.add_child(Ui.button("На главный экран", func(): get_tree().change_scene_to_file("res://scenes/main.tscn")))
+	box.add_child(Ui.button("К кампании" if get_tree().has_meta("campaign_stage") else "Ещё раз", func(): get_tree().change_scene_to_file("res://scenes/campaign.tscn" if get_tree().has_meta("campaign_stage") else "res://scenes/team_select.tscn")))
+	box.add_child(Ui.button("На главный экран", func():
+		get_tree().remove_meta("campaign_stage")
+		get_tree().change_scene_to_file("res://scenes/main.tscn")))
 	if Config.autotest:
 		get_tree().set_meta("autotest_result_shown", true)
 

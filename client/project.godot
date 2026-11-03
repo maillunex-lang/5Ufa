@@ -22,6 +22,11 @@ version_code=1
 Config="*res://scripts/config.gd"
 Api="*res://scripts/api.gd"
 Content="*res://scripts/content.gd"
+AfkNotifications="*res://scripts/afk_notifications.gd"
+
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/NotificationSchedulerPlugin/plugin.cfg")
 
 [display]
 

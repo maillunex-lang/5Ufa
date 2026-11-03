@@ -96,6 +96,8 @@ async def _issue_tokens(session: AsyncSession, player: Player, device: DeviceInf
         client_version=device.client_version, ip=ip,
     ))
     player.last_login_at = utcnow()
+    from app.campaign.service import locked_progress
+    await locked_progress(session, player.id)
     await session.commit()
     return {
         "access_token": create_access_token(player.id),
@@ -171,6 +173,8 @@ async def refresh(body: RefreshIn, session: AsyncSession = Depends(get_session))
     sess.refresh_hash = token_hash
     sess.expires_at = now + REFRESH_TTL
     player.last_login_at = utcnow()
+    from app.campaign.service import locked_progress
+    await locked_progress(session, player.id)
     await session.commit()
     return {"access_token": create_access_token(player.id), "refresh_token": token,
             "expires_in": 3600, "player": player_public(player)}

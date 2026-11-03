@@ -51,6 +51,33 @@
       "include": [
         "campaign/chapter_2/**"
       ]
+    },
+    {
+      "id": "chapter_3",
+      "title": "Глава 3",
+      "required": false,
+      "priority": 50,
+      "include": [
+        "campaign/chapter_3/**"
+      ]
+    },
+    {
+      "id": "chapter_4",
+      "title": "Глава 4",
+      "required": false,
+      "priority": 60,
+      "include": [
+        "campaign/chapter_4/**"
+      ]
+    },
+    {
+      "id": "chapter_5",
+      "title": "Глава 5",
+      "required": false,
+      "priority": 70,
+      "include": [
+        "campaign/chapter_5/**"
+      ]
     }
   ]
 }

@@ -10,6 +10,47 @@ on:
   workflow_call:
 
 jobs:
+  android-export:
+    # Проверка Gradle и нативного модуля уведомлений без публикации APK.
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: actions/cache@v4
+        id: godot-export-cache
+        with:
+          path: |
+            ~/godot
+            ~/.local/share/godot/export_templates
+          key: godot-4.7.2
+      - name: Установка Godot и шаблонов
+        if: steps.godot-export-cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/godot && cd ~/godot
+          BASE=https://github.com/godotengine/godot/releases/download/4.7.2-stable
+          curl -fsSL -o godot.zip "$BASE/Godot_v4.7.2-stable_linux.x86_64.zip"
+          unzip -q godot.zip && rm godot.zip
+          mv Godot_v* godot && chmod +x godot
+          curl -fsSL -o templates.tpz "$BASE/Godot_v4.7.2-stable_export_templates.tpz"
+          unzip -q templates.tpz && rm templates.tpz
+          mkdir -p ~/.local/share/godot/export_templates/4.7.2.stable
+          mv templates/* ~/.local/share/godot/export_templates/4.7.2.stable/
+      - name: Проверка сборки APK с временным ключом
+        run: |
+          keytool -genkeypair -keystore "$RUNNER_TEMP/test.keystore" -storetype PKCS12 -alias test \
+            -keyalg RSA -keysize 2048 -validity 7 -storepass temporary123 -keypass temporary123 \
+            -dname 'CN=Temporary test key' >/dev/null
+          export GODOT="$HOME/godot/godot"
+          export ANDROID_SDK="$ANDROID_HOME"
+          export GODOT_ANDROID_KEYSTORE_RELEASE_PATH="$RUNNER_TEMP/test.keystore"
+          export GODOT_ANDROID_KEYSTORE_RELEASE_USER=test
+          export GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD=temporary123
+          bash scripts/build-apk.sh
+
   server-tests:
     runs-on: ubuntu-latest
     steps:
@@ -103,6 +144,11 @@ jobs:
           grep -q 'AUTOTEST BATTLE: {.*"ok":true' /tmp/out.txt || { cat /tmp/out.txt; exit 1; }
           echo "--- живой бой: WebSocket и досчёт при пропуске"
           run --autotest-live-battle
+          grep -q 'AUTOTEST BATTLE: {.*"ok":true' /tmp/out.txt || { cat /tmp/out.txt; exit 1; }
+          echo "--- кампания: загрузка карты и первый бой"
+          run --autotest-campaign
+          grep -q 'AUTOTEST CAMPAIGN: {.*"ok":true' /tmp/out.txt || { cat /tmp/out.txt; exit 1; }
+          run --autotest-campaign-battle
           grep -q 'AUTOTEST BATTLE: {.*"ok":true' /tmp/out.txt || { cat /tmp/out.txt; exit 1; }
           echo "--- обновление приложения: загружаем «новую версию», клиент её скачивает и проверяет"
           { printf 'PK\003\004'; head -c 300000 /dev/urandom; } > /tmp/fake.apk

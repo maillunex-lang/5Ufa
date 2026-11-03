@@ -3,7 +3,7 @@ import logging
 
 from fastapi import FastAPI
 
-from app.api import auth, battle, client, content, health
+from app.api import auth, battle, campaign, client, content, health
 from app.config import get_settings
 
 settings = get_settings()
@@ -28,3 +28,4 @@ app.include_router(auth.me_router)
 app.include_router(client.router)
 app.include_router(battle.router)
 app.include_router(battle.ws_router)
+app.include_router(campaign.router)

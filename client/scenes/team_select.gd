@@ -27,7 +27,7 @@ func _ready() -> void:
 	margin.add_theme_constant_override("margin_top", 40)
 	margin.add_theme_constant_override("margin_bottom", 28)
 	_load_data()
-	col.add_child(Ui.label("Тестовый бой", 40, "accent"))
+	col.add_child(Ui.label("Кампания — этап %d" % int(get_tree().get_meta("campaign_stage")) if get_tree().has_meta("campaign_stage") else "Тестовый бой", 40, "accent"))
 	col.add_child(Ui.label("Выберите до 5 героев. Нажмите на место в отряде, чтобы убрать.", 20))
 
 	col.add_child(_row_title("Передний ряд"))
@@ -66,16 +66,22 @@ func _ready() -> void:
 	_enemy.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_enemy.custom_minimum_size = Vector2(0, 72)
 	enemy_row.add_child(_enemy)
-	col.add_child(enemy_row)
+	if not get_tree().has_meta("campaign_stage"):
+		col.add_child(enemy_row)
+	else:
+		enemy_row.queue_free()
 	_auto_start = CheckButton.new()
 	_auto_start.text = "Авто с начала боя"
 	_auto_start.button_pressed = true
-	col.add_child(_auto_start)
+	if not get_tree().has_meta("campaign_stage"):
+		col.add_child(_auto_start)
+	else:
+		_auto_start.queue_free()
 	_status = Ui.label("", 22)
 	col.add_child(_status)
 	var buttons := HBoxContainer.new()
 	buttons.add_theme_constant_override("separation", 16)
-	var back := Ui.button("Назад", func(): get_tree().change_scene_to_file("res://scenes/main.tscn"))
+	var back := Ui.button("Назад", func(): get_tree().change_scene_to_file("res://scenes/campaign.tscn" if get_tree().has_meta("campaign_stage") else "res://scenes/main.tscn"))
 	back.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	buttons.add_child(back)
 	_fight = Ui.button("В бой!", _start_battle)
@@ -85,7 +91,10 @@ func _ready() -> void:
 
 	_load_team()
 	_refresh()
-	_load_enemies()
+	if not get_tree().has_meta("campaign_stage"):
+		_load_enemies()
+	elif Config.autotest:
+		_start_battle()
 
 
 func _load_data() -> void:
@@ -208,6 +217,21 @@ func _load_enemies() -> void:
 
 
 func _start_battle() -> void:
+	if get_tree().has_meta("campaign_stage"):
+		_fight.disabled = true
+		_status.text = "Бой…"
+		_save_team()
+		var campaign_result: Dictionary = await Api.request_json(HTTPClient.METHOD_POST, "/api/v1/campaign/fight", {"team": _team(), "stage": int(get_tree().get_meta("campaign_stage"))})
+		if not campaign_result.ok:
+			_status.text = campaign_result.error
+			_fight.disabled = false
+			return
+		get_tree().remove_meta("battle_live")
+		get_tree().set_meta("battle_log", campaign_result.data["log"])
+		get_tree().set_meta("battle_enemy_name", campaign_result.data["enemy"])
+		get_tree().set_meta("campaign_reward", campaign_result.data["reward"])
+		get_tree().change_scene_to_file("res://scenes/battle.tscn")
+		return
 	if teams.is_empty():
 		_status.text = "Нет отрядов противника"
 		return

@@ -1,0 +1,60 @@
+{
+  "id": "chapter_3",
+  "number": 3,
+  "title": "Шульган-Таш",
+  "subtitle": "Подземный след",
+  "dialogue_start": "У входа в пещеру отряд слышит отголоски Подземного царства.",
+  "dialogue_end": "Тьма отступает в глубину; путь лежит к огненной горе.",
+  "stages": [
+    {
+      "id": "3-1",
+      "number": 11,
+      "enemy": "test_underworld",
+      "enemy_multiplier": 0.7,
+      "reward": {
+        "gold": 100,
+        "hero_xp": 50
+      }
+    },
+    {
+      "id": "3-2",
+      "number": 12,
+      "enemy": "test_underworld",
+      "enemy_multiplier": 0.725,
+      "reward": {
+        "gold": 100,
+        "hero_xp": 50
+      }
+    },
+    {
+      "id": "3-3",
+      "number": 13,
+      "enemy": "test_underworld",
+      "enemy_multiplier": 0.75,
+      "reward": {
+        "gold": 100,
+        "hero_xp": 50
+      }
+    },
+    {
+      "id": "3-4",
+      "number": 14,
+      "enemy": "test_underworld",
+      "enemy_multiplier": 0.775,
+      "reward": {
+        "gold": 100,
+        "hero_xp": 50
+      }
+    },
+    {
+      "id": "3-5",
+      "number": 15,
+      "enemy": "test_underworld",
+      "enemy_multiplier": 0.88,
+      "reward": {
+        "gold": 100,
+        "hero_xp": 50
+      }
+    }
+  ]
+}

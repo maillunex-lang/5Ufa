@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ufa.game/schemas/campaign_config.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "afk_cap_seconds",
+    "gold_per_hour",
+    "hero_xp_per_hour",
+    "stage_bonus_percent",
+    "quick_seconds",
+    "quick_daily_limit"
+  ],
+  "properties": {
+    "afk_cap_seconds": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "gold_per_hour": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "hero_xp_per_hour": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "stage_bonus_percent": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "quick_seconds": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "quick_daily_limit": {
+      "type": "integer",
+      "minimum": 0
+    }
+  }
+}

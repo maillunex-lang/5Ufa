@@ -27,6 +27,7 @@ func _ready() -> void:
 	_player_label = Ui.label("", 28)
 	col.add_child(_player_label)
 	col.add_child(Ui.spacer())
+	col.add_child(Ui.button("Кампания", func(): get_tree().change_scene_to_file("res://scenes/campaign.tscn")))
 	col.add_child(Ui.button("Тестовый бой", _on_play))
 	_account_box = VBoxContainer.new()
 	_account_box.add_theme_constant_override("separation", 20)
@@ -40,6 +41,7 @@ func _ready() -> void:
 	Content.background_progress.connect(_on_bg_progress)
 	Content.background_finished.connect(_on_bg_finished)
 	_refresh_account()
+	AfkNotifications.refresh()
 	if get_tree().has_meta("notice"):
 		_show_message(str(get_tree().get_meta("notice")))
 		get_tree().remove_meta("notice")
@@ -64,6 +66,7 @@ func _refresh_account() -> void:
 
 
 func _on_play() -> void:
+	get_tree().remove_meta("campaign_stage")
 	get_tree().change_scene_to_file("res://scenes/team_select.tscn")
 
 
@@ -221,6 +224,13 @@ func _autotest() -> void:
 		"play_text": Content.t("ui.button.play"),
 	}
 	print("AUTOTEST RESULT: ", JSON.stringify(summary))
+	if "--autotest-campaign-battle" in OS.get_cmdline_user_args():
+		get_tree().set_meta("campaign_stage", 1)
+		get_tree().change_scene_to_file("res://scenes/team_select.tscn")
+		return
+	if "--autotest-campaign" in OS.get_cmdline_user_args():
+		get_tree().change_scene_to_file("res://scenes/campaign.tscn")
+		return
 	if "--autotest-live-battle" in OS.get_cmdline_user_args():
 		get_tree().set_meta("battle_live", {"team": [
 			{"hero": "alpamysha", "slot": 0}, {"hero": "ural_batyr", "slot": 1}, {"hero": "zayatulyak", "slot": 2},
