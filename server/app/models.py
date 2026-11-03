@@ -193,3 +193,73 @@ class PlayerItem(Base):
     hero_instance_id: Mapped[int | None] = mapped_column(
         ForeignKey("player_heroes.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+# ---------------------------------------------------------------------------
+# Этап 6: админка — администраторы, сессии, журнал действий, черновик контента
+# ---------------------------------------------------------------------------
+ADMIN_ROLES = ("owner", "editor", "moderator")
+
+
+class AdminUser(Base):
+    __tablename__ = "admin_users"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    login: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    password_hash: Mapped[str] = mapped_column(String(256), nullable=False)
+    # owner — всё; editor — контент; moderator — игроки и модерация (выдаются позже)
+    role: Mapped[str] = mapped_column(String(16), nullable=False, default="owner")
+    # Двухфакторная защита: заготовлена, включается командой `admin 2fa-enable`
+    totp_secret: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    totp_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    disabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+    last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class AdminSession(Base):
+    """Сессия админки. Хранится только хэш токена. Истекает после N дней без действий."""
+    __tablename__ = "admin_sessions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    admin_id: Mapped[int] = mapped_column(ForeignKey("admin_users.id", ondelete="CASCADE"), index=True)
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+    ip: Mapped[str] = mapped_column(String(64), nullable=False, default="")
+    user_agent: Mapped[str] = mapped_column(String(256), nullable=False, default="")
+
+
+class AdminAudit(Base):
+    """Журнал всех действий администратора (и неудачных попыток входа)."""
+    __tablename__ = "admin_audit"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False, index=True)
+    admin_id: Mapped[int | None] = mapped_column(ForeignKey("admin_users.id", ondelete="SET NULL"), nullable=True)
+    login: Mapped[str] = mapped_column(String(64), nullable=False, default="")
+    action: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    summary: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    details: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    ip: Mapped[str] = mapped_column(String(64), nullable=False, default="")
+
+
+class DraftFile(Base):
+    """Общий черновик контента: файл, изменённый относительно базового релиза.
+    sha256 = NULL — файл удалён в черновике."""
+    __tablename__ = "content_draft_files"
+
+    path: Mapped[str] = mapped_column(String(512), primary_key=True)
+    sha256: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    size: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+    admin_id: Mapped[int | None] = mapped_column(ForeignKey("admin_users.id", ondelete="SET NULL"), nullable=True)
+
+
+class DraftMeta(Base):
+    """Одна строка (id=1): от какого релиза начат черновик."""
+    __tablename__ = "content_draft_meta"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    base_release_id: Mapped[int | None] = mapped_column(ForeignKey("content_releases.id"), nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)

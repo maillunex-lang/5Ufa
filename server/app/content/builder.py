@@ -148,5 +148,8 @@ def build_manifest(content_dir: Path, store: ContentStore | None, schemas: Schem
         "min_client_version": meta.get("min_client_version", "0.0.0"),
         "total_size": total_size,
         "packages": packages,
+        # Описание пакетов (packages.json) — нужно админке, чтобы собрать следующий релиз из черновика.
+        # Клиенту не отдаётся (см. releases.public_manifest).
+        "packages_def": meta,
     }
     return BuildResult(manifest=manifest, content_hash=content_hash, files_count=files_count, total_size=total_size)

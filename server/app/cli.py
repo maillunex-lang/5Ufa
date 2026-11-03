@@ -11,6 +11,11 @@
     docker compose exec api python -m app.cli player ban 1001 --days 7 --reason "мат в чате"
     docker compose exec api python -m app.cli client list
     docker compose exec api python -m app.cli client set 12 mandatory
+    docker compose exec -it api python -m app.cli admin create owner      (пароль спросит, на экране не виден)
+    docker compose exec -it api python -m app.cli admin set-password owner
+    docker compose exec api python -m app.cli admin list
+    docker compose exec api python -m app.cli admin 2fa-enable owner     (включить код из приложения)
+    docker compose exec api python -m app.cli admin 2fa-disable owner
 """
 from __future__ import annotations
 
@@ -183,6 +188,96 @@ async def cmd_client_set(args) -> int:
     return 0
 
 
+# --- Администраторы админки -----------------------------------------------------------
+
+def _ask_password() -> str:
+    import getpass
+    import os
+    pw = os.environ.get("ADMIN_PASSWORD", "")  # для автоматизации; обычно пароль спрашивается
+    if pw:
+        return pw
+    pw = getpass.getpass("Пароль (от 10 символов, на экране не виден): ")
+    if pw != getpass.getpass("Повторите пароль: "):
+        raise SystemExit("Пароли не совпадают")
+    return pw
+
+
+def _check_password(pw: str) -> None:
+    if len(pw) < 10 or pw.isdigit() or pw.isalpha():
+        raise SystemExit("Пароль слишком простой: нужно от 10 символов, буквы и цифры")
+
+
+async def cmd_admin_create(args) -> int:
+    from app.auth.security import hash_password
+    from app.models import ADMIN_ROLES, AdminUser
+    login = args.login.strip().lower()
+    if args.role not in ADMIN_ROLES:
+        raise SystemExit(f"Роль: {', '.join(ADMIN_ROLES)}")
+    pw = _ask_password()
+    _check_password(pw)
+    async with get_sessionmaker()() as session:
+        if (await session.execute(select(AdminUser).where(AdminUser.login == login))).scalar_one_or_none():
+            raise SystemExit(f"Администратор {login} уже есть. Сменить пароль: admin set-password {login}")
+        session.add(AdminUser(login=login, password_hash=hash_password(pw), role=args.role))
+        await session.commit()
+    print(f"Создан администратор {login} (роль {args.role}). Войдите в админку с этим логином и паролем.")
+    return 0
+
+
+async def _get_admin(session, login: str):
+    from app.models import AdminUser
+    admin = (await session.execute(select(AdminUser).where(AdminUser.login == login.strip().lower()))).scalar_one_or_none()
+    if admin is None:
+        raise SystemExit(f"Администратор {login} не найден (список: admin list)")
+    return admin
+
+
+async def cmd_admin_password(args) -> int:
+    from sqlalchemy import delete as sql_delete
+    from app.auth.security import hash_password
+    from app.models import AdminSession
+    pw = _ask_password()
+    _check_password(pw)
+    async with get_sessionmaker()() as session:
+        admin = await _get_admin(session, args.login)
+        admin.password_hash = hash_password(pw)
+        admin.disabled = False
+        await session.execute(sql_delete(AdminSession).where(AdminSession.admin_id == admin.id))  # выйти везде
+        await session.commit()
+    print(f"Пароль {args.login} изменён, все сессии закрыты.")
+    return 0
+
+
+async def cmd_admin_list(args) -> int:
+    from app.models import AdminUser
+    async with get_sessionmaker()() as session:
+        rows = (await session.execute(select(AdminUser).order_by(AdminUser.id))).scalars()
+        for a in rows:
+            print(f"{a.login:<20} роль={a.role:<9} 2FA={'вкл' if a.totp_enabled else 'выкл'} "
+                  f"{'ОТКЛЮЧЁН ' if a.disabled else ''}последний вход={a.last_login_at or '—'}")
+    return 0
+
+
+async def cmd_admin_2fa(args) -> int:
+    from app.admin.security import totp_new_secret, totp_uri
+    async with get_sessionmaker()() as session:
+        admin = await _get_admin(session, args.login)
+        if args.enable:
+            admin.totp_secret = totp_new_secret()
+            admin.totp_enabled = True
+            await session.commit()
+            print("2FA включена. Добавьте ключ в приложение-аутентификатор (Яндекс Ключ, Google Authenticator):")
+            print("  ключ:   ", admin.totp_secret)
+            print("  ссылка: ", totp_uri(admin.totp_secret, admin.login))
+            print("Теперь при входе в админку нужен 6-значный код из приложения.")
+        else:
+            admin.totp_enabled = False
+            admin.totp_secret = None
+            await session.commit()
+            print("2FA выключена.")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="app.cli")
     sub = parser.add_subparsers(dest="group", required=True)
@@ -233,6 +328,22 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("action", choices=["disable", "enable", "mandatory", "optional"],
                    help="disable — не предлагать игрокам; mandatory — обновление обязательно")
     p.set_defaults(func=cmd_client_set)
+
+    adm = sub.add_parser("admin", help="Администраторы админки").add_subparsers(dest="cmd", required=True)
+    p = adm.add_parser("create", help="Создать администратора (пароль спросит)")
+    p.add_argument("login")
+    p.add_argument("--role", default="owner")
+    p.set_defaults(func=cmd_admin_create)
+    p = adm.add_parser("set-password", help="Сменить пароль (и выйти на всех устройствах)")
+    p.add_argument("login")
+    p.set_defaults(func=cmd_admin_password)
+    adm.add_parser("list", help="Список администраторов").set_defaults(func=cmd_admin_list)
+    p = adm.add_parser("2fa-enable", help="Включить вход с кодом из приложения")
+    p.add_argument("login")
+    p.set_defaults(func=cmd_admin_2fa, enable=True)
+    p = adm.add_parser("2fa-disable", help="Выключить 2FA")
+    p.add_argument("login")
+    p.set_defaults(func=cmd_admin_2fa, enable=False)
 
     args = parser.parse_args(argv)
     try:

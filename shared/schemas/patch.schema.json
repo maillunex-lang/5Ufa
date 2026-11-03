@@ -2,25 +2,41 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://schemas.ufagame.local/patch.schema.json",
   "title": "patch.json — описание ZIP-патча контента",
-  "description": "Спецификация: docs/patch-format.md. Применение реализуется на этапе 6.",
+  "description": "Спецификация: docs/patch-format.md. Применяется в админке (этап 6): разбор, список изменений, запись в черновик.",
   "type": "object",
-  "required": ["id", "format_version", "section", "description", "operations"],
+  "required": [
+    "id",
+    "format_version",
+    "section",
+    "description",
+    "operations"
+  ],
   "additionalProperties": false,
   "properties": {
-    "$schema": {"type": "string"},
+    "$schema": {
+      "type": "string"
+    },
     "id": {
       "type": "string",
       "pattern": "^[a-z0-9][a-z0-9_\\-]{2,63}$",
       "description": "Уникальный id патча, например heroes-2026-11-batch1"
     },
-    "format_version": {"const": 1},
+    "format_version": {
+      "const": 1
+    },
     "section": {
       "type": "string",
       "pattern": "^[a-z][a-z0-9_]{1,63}$",
       "description": "Раздел контента: heroes, factions, campaign, localization, ui, audio ..."
     },
-    "description": {"type": "string", "minLength": 1, "maxLength": 2000},
-    "author": {"type": "string"},
+    "description": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2000
+    },
+    "author": {
+      "type": "string"
+    },
     "base_release": {
       "type": "integer",
       "minimum": 1,
@@ -31,20 +47,93 @@
       "minItems": 1,
       "items": {
         "type": "object",
-        "required": ["op", "id"],
+        "required": [
+          "op"
+        ],
         "additionalProperties": false,
         "properties": {
-          "op": {"enum": ["add", "update", "delete"]},
-          "id": {"$ref": "common.schema.json#/$defs/id", "description": "id объекта в разделе"},
-          "data": {"type": "object", "description": "add — полный объект; update — только изменяемые поля (слияние)"},
+          "op": {
+            "enum": [
+              "add",
+              "update",
+              "delete",
+              "put_file",
+              "delete_file"
+            ]
+          },
+          "id": {
+            "$ref": "common.schema.json#/$defs/id",
+            "description": "id объекта в разделе"
+          },
+          "data": {
+            "type": "object",
+            "description": "add — полный объект; update — только изменяемые поля (слияние)"
+          },
           "files": {
             "type": "array",
-            "items": {"$ref": "common.schema.json#/$defs/content_path"},
+            "items": {
+              "$ref": "common.schema.json#/$defs/content_path"
+            },
             "description": "Файлы ресурсов из ZIP, относящиеся к объекту"
+          },
+          "path": {
+            "$ref": "common.schema.json#/$defs/content_path",
+            "description": "put_file / delete_file: путь файла в контенте (для put_file файл лежит в архиве как files/<path>)"
           }
         },
         "allOf": [
-          {"if": {"properties": {"op": {"enum": ["add", "update"]}}}, "then": {"required": ["data"]}}
+          {
+            "if": {
+              "properties": {
+                "op": {
+                  "enum": [
+                    "add",
+                    "update",
+                    "delete"
+                  ]
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "id"
+              ]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "op": {
+                  "enum": [
+                    "add",
+                    "update"
+                  ]
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "data"
+              ]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "op": {
+                  "enum": [
+                    "put_file",
+                    "delete_file"
+                  ]
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "path"
+              ]
+            }
+          }
         ]
       }
     }

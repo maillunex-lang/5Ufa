@@ -25,6 +25,14 @@ class Settings(BaseSettings):
     # Максимальный размер загружаемого APK
     client_max_apk_mb: int = 500
 
+    # Админка: выход после N дней без действий, лимит неудачных входов за окно (сек)
+    admin_session_days: int = 7
+    admin_login_attempts: int = 5
+    admin_login_window: int = 900
+    # Максимальный размер ZIP-патча и одной загружаемой картинки
+    admin_patch_max_mb: int = 200
+    admin_file_max_mb: int = 50
+
     # Хранилище файлов контента (адресация по SHA-256)
     content_store_dir: Path = _REPO_ROOT / "data" / "content-store"
     # Папка со схемами JSON (/shared) и базовым контентом (/content)

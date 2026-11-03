@@ -1,9 +1,11 @@
 """Точка входа API-сервера."""
 import logging
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 
-from app.api import auth, battle, heroes, campaign, client, content, health
+from app.api import admin, auth, battle, heroes, campaign, client, content, health
+from app.content.validation import ContentError
 from app.config import get_settings
 
 settings = get_settings()
@@ -30,3 +32,9 @@ app.include_router(battle.router)
 app.include_router(heroes.router)
 app.include_router(battle.ws_router)
 app.include_router(campaign.router)
+app.include_router(admin.router)
+
+
+@app.exception_handler(ContentError)
+async def _content_error(request: Request, exc: ContentError):
+    return JSONResponse({"detail": {"message": "Контент не прошёл проверку", "errors": exc.messages[:200]}}, 422)
