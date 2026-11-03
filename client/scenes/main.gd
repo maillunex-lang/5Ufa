@@ -221,6 +221,13 @@ func _autotest() -> void:
 		"play_text": Content.t("ui.button.play"),
 	}
 	print("AUTOTEST RESULT: ", JSON.stringify(summary))
+	if "--autotest-live-battle" in OS.get_cmdline_user_args():
+		get_tree().set_meta("battle_live", {"team": [
+			{"hero": "alpamysha", "slot": 0}, {"hero": "ural_batyr", "slot": 1}, {"hero": "zayatulyak", "slot": 2},
+			{"hero": "humai", "slot": 3}, {"hero": "hyuhylu", "slot": 4}], "enemy": "test_evil"})
+		get_tree().set_meta("battle_enemy_name", "Отряд Шульгена")
+		get_tree().change_scene_to_file("res://scenes/battle.tscn")
+		return
 	if "--autotest-battle" in OS.get_cmdline_user_args():
 		var res: Dictionary = await Api.request_json(HTTPClient.METHOD_POST, "/api/v1/battle/test", {"team": [
 			{"hero": "alpamysha", "slot": 0}, {"hero": "ural_batyr", "slot": 1}, {"hero": "zayatulyak", "slot": 2},

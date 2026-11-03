@@ -25,17 +25,29 @@ var _banner: Label
 var _portraits: Dictionary = {}  # uid -> {bar, icon}
 var _result_shown := false
 var _skill_names: Dictionary = {}
+var live := false
+var socket: WebSocketPeer
+var live_until := 0
+var live_ended := false
+var live_auto := false
+var _auto_btn: Button
+var _skip_requested := false
 
 
 func _ready() -> void:
-	log_data = get_tree().get_meta("battle_log", {})
+	live = get_tree().has_meta("battle_live")
+	if live:
+		if not await _connect_live():
+			return
+	else:
+		log_data = get_tree().get_meta("battle_log", {})
 	enemy_name = str(get_tree().get_meta("battle_enemy_name", "Противник"))
 	if log_data.is_empty():
 		get_tree().change_scene_to_file("res://scenes/main.tscn")
 		return
 	tick_rate = int(log_data["tick_rate"])
 	events = log_data["events"]
-	speed = float(_load_setting("speed", 1.0))
+	speed = 1.0 if live else float(_load_setting("speed", 1.0))
 	theme = Ui.make_theme()
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	_build_background()
@@ -54,6 +66,46 @@ func _ready() -> void:
 	_build_hud()
 	if Config.autotest:
 		_autotest()
+
+
+func _connect_live() -> bool:
+	socket = WebSocketPeer.new()
+	socket.inbound_buffer_size = 2 * 1024 * 1024
+	socket.handshake_headers = PackedStringArray(["Authorization: Bearer " + Api.access_token])
+	var url: String = Api.api_url("/ws/battle/test")
+	url = ("wss://" + url.substr(8)) if url.begins_with("https://") else ("ws://" + url.substr(7))
+	if socket.connect_to_url(url) != OK:
+		_live_error("Не удалось подключиться к бою")
+		return false
+	var deadline: int = Time.get_ticks_msec() + 15000
+	while Time.get_ticks_msec() < deadline:
+		socket.poll()
+		if socket.get_ready_state() == WebSocketPeer.STATE_OPEN and socket.get_available_packet_count() > 0:
+			var msg: Variant = JSON.parse_string(socket.get_packet().get_string_from_utf8())
+			if msg is Dictionary and msg.get("type") == "start":
+				log_data = msg["log"]
+				return true
+			_live_error(str(msg.get("message", "Не удалось начать бой")) if msg is Dictionary else "Ошибка ответа сервера")
+			return false
+		if socket.get_ready_state() == WebSocketPeer.STATE_OPEN and not socket.has_meta("sent"):
+			socket.send_text(JSON.stringify(get_tree().get_meta("battle_live")))
+			socket.set_meta("sent", true)
+		if socket.get_ready_state() == WebSocketPeer.STATE_CLOSED:
+			break
+		await get_tree().process_frame
+	_live_error("Нет связи с сервером боя")
+	return false
+
+
+func _live_error(message: String) -> void:
+	finished = true
+	if Config.autotest:
+		print("AUTOTEST FAIL: ", message)
+		get_tree().quit(1)
+		return
+	var col := Ui.screen(self)
+	col.add_child(Ui.label(message + "\nЕсли бой начался, он будет досчитан автоматически.", 26))
+	col.add_child(Ui.button("Назад", func(): get_tree().change_scene_to_file("res://scenes/team_select.tscn")))
 
 
 # --- Построение экрана ------------------------------------------------------------
@@ -109,11 +161,11 @@ func _build_hud() -> void:
 		if int(u["side"]) != 0:
 			continue
 		var box := VBoxContainer.new()
-		var icon := TextureRect.new()
-		icon.texture = Content.load_texture("heroes/%s/portrait.png" % u["hero"])
+		var icon := Button.new()
+		icon.icon = Content.load_texture("heroes/%s/portrait.png" % u["hero"])
 		icon.custom_minimum_size = Vector2(118, 118)
-		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		icon.expand_icon = true
+		icon.pressed.connect(_request_ult.bind(int(u["uid"])))
 		box.add_child(icon)
 		var bar := ProgressBar.new()
 		bar.max_value = float(log_data["energy_max"])
@@ -129,11 +181,13 @@ func _build_hud() -> void:
 	controls.size = Vector2(680, 100)
 	controls.add_theme_constant_override("separation", 16)
 	add_child(controls)
-	var auto := Ui.button("Авто: ВКЛ", func(): _flash_banner("Ручные ульты — в следующем обновлении"))
-	auto.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	controls.add_child(auto)
+	_auto_btn = Ui.button("Авто: ВЫКЛ" if live else "Авто: ВКЛ", _toggle_auto)
+	_auto_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_auto_btn.disabled = not live
+	controls.add_child(_auto_btn)
 	_speed_btn = Ui.button("x%d" % speed, _toggle_speed)
 	_speed_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_speed_btn.disabled = live
 	controls.add_child(_speed_btn)
 	var skip := Ui.button("Пропустить", _skip)
 	skip.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -154,7 +208,13 @@ func _sort_depth() -> void:
 func _process(delta: float) -> void:
 	if finished or log_data.is_empty():
 		return
+	if live:
+		_poll_live()
+		if finished:
+			return
 	var dt := delta * speed
+	if live and not live_ended:
+		dt = minf(dt, maxf(0.0, float(live_until) / tick_rate - game_time))
 	game_time += dt
 	var tick := game_time * tick_rate
 	while idx < events.size() and float(events[idx]["t"]) <= tick:
@@ -167,8 +227,43 @@ func _process(delta: float) -> void:
 	_update_projectiles(tick)
 	var left := maxf(0.0, float(log_data["max_ticks"]) / tick_rate - game_time)
 	_timer_label.text = "%d:%02d" % [int(left) / 60, int(left) % 60]
-	if idx >= events.size() and projectiles.is_empty():
+	if idx >= events.size() and projectiles.is_empty() and (not live or live_ended):
 		_finish()
+
+
+func _poll_live() -> void:
+	socket.poll()
+	while socket.get_available_packet_count() > 0:
+		var msg: Variant = JSON.parse_string(socket.get_packet().get_string_from_utf8())
+		if not msg is Dictionary:
+			continue
+		match str(msg.get("type", "")):
+			"events":
+				events.append_array(msg.get("events", []))
+				live_until = int(msg.get("until", live_until))
+			"end":
+				events.append_array(msg.get("events", []))
+				log_data["result"] = msg["result"]
+				live_ended = true
+				socket.send_text(JSON.stringify({"type": "ack"}))
+				if _skip_requested:
+					_skip()
+			"error":
+				_live_error(str(msg.get("message", "Ошибка боя")))
+	if socket.get_ready_state() == WebSocketPeer.STATE_CLOSED and not live_ended and not finished:
+		_live_error("Связь с боем потеряна")
+
+
+func _request_ult(uid: int) -> void:
+	if live and not live_auto and not live_ended and not finished and _portraits[uid]["bar"].value >= float(log_data["energy_max"]):
+		socket.send_text(JSON.stringify({"type": "ult", "uid": uid}))
+
+
+func _toggle_auto() -> void:
+	if live and not live_ended:
+		live_auto = not live_auto
+		_auto_btn.text = "Авто: ВКЛ" if live_auto else "Авто: ВЫКЛ"
+		socket.send_text(JSON.stringify({"type": "auto", "on": live_auto}))
 
 
 func _apply(e: Dictionary, instant: bool) -> void:
@@ -303,6 +398,10 @@ func _toggle_speed() -> void:
 
 
 func _skip() -> void:
+	if live and not live_ended:
+		_skip_requested = true
+		socket.send_text(JSON.stringify({"type": "skip"}))
+		return
 	while idx < events.size():
 		_apply(events[idx], true)
 		idx += 1
@@ -390,7 +489,7 @@ func _autotest() -> void:
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--screenshot="):
 			shot = arg.get_slice("=", 1)
-	speed = 4.0
+	speed = 1.0 if live else 4.0
 	for v in units.values():
 		v.rig.speed = speed
 	await get_tree().create_timer(1.6).timeout   # ~6 с боя на x4
@@ -398,6 +497,13 @@ func _autotest() -> void:
 		await RenderingServer.frame_post_draw
 		get_viewport().get_texture().get_image().save_png(shot.replace(".png", "_fight.png"))
 	_skip()
+	var deadline: int = Time.get_ticks_msec() + 10000
+	while not _result_shown and Time.get_ticks_msec() < deadline:
+		await get_tree().process_frame
+	if not _result_shown:
+		print("AUTOTEST FAIL: Нет результата боя")
+		get_tree().quit(1)
+		return
 	await get_tree().create_timer(1.5).timeout
 	if shot != "":
 		await RenderingServer.frame_post_draw

@@ -2,20 +2,23 @@
 from __future__ import annotations
 
 import secrets
+import asyncio
+import time
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.deps import current_player
-from app.auth.security import RateLimited, check_rate_limit
+from app.auth.deps import current_player, ensure_not_banned
+from app.auth.security import RateLimited, check_rate_limit, decode_access_token
 from app.battle.sim import Battle, BattleError
 from app.content.releases import get_channel_release
 from app.content.view import ContentView, view_for
-from app.db import get_session
+from app.db import get_session, get_sessionmaker
 from app.models import Player
 
 router = APIRouter(prefix="/api/v1/battle", tags=["battle"])
+ws_router = APIRouter()
 
 
 class TeamUnit(BaseModel):
@@ -75,3 +78,82 @@ async def test_battle(body: TestBattleIn, player: Player = Depends(current_playe
     log = battle.run()
     log["content_release"] = view.release_id
     return {"enemy": {"id": enemy["id"], "name": enemy["name"]}, "log": log}
+
+
+@ws_router.websocket("/ws/battle/test")
+async def live_test_battle(ws: WebSocket):
+    """Живой тестовый бой. Токен передаётся заголовком, не в URL."""
+    await ws.accept()
+    battle = None
+    try:
+        header = ws.headers.get("authorization", "")
+        player_id = decode_access_token(header[7:].strip()) if header.lower().startswith("bearer ") else None
+        async with get_sessionmaker()() as session:
+            player = await session.get(Player, player_id) if player_id else None
+            if player is None:
+                raise HTTPException(401, "Нужно войти в игру")
+            ensure_not_banned(player)
+            try:
+                await check_rate_limit(f"battle:test:{player.id}", 30, 60)
+            except RateLimited:
+                raise HTTPException(429, "Слишком много боёв подряд")
+            raw = await asyncio.wait_for(ws.receive_json(), 10)
+            body = TestBattleIn.model_validate(raw)
+            view = await content_for(player, session)
+            heroes = view.heroes()
+            team = validate_team(body.team, heroes)
+            enemy = view.teams().get(body.enemy)
+            if enemy is None:
+                raise HTTPException(422, "Неизвестный отряд противника")
+            battle = Battle(view.battle_config(), view.factions(), heroes, team, enemy["units"],
+                            secrets.randbits(31), auto=(False, True))
+            initial = battle.log()
+            initial["content_release"] = view.release_id
+            initial.pop("result")
+            await ws.send_json({"type": "start", "log": initial})
+        sent = len(battle.events)
+        start = time.monotonic()
+        while not battle.finished:
+            # Сервер рассчитывает на два тика вперёд относительно клиента.
+            deadline = start + max(0, battle.t - 2) / battle.tick_rate
+            timeout = max(0, deadline - time.monotonic())
+            try:
+                msg = await asyncio.wait_for(ws.receive_json(), timeout=max(timeout, 0.001))
+                if isinstance(msg, dict) and msg.get("type") == "ult":
+                    uid = msg.get("uid")
+                    if type(uid) is int and 0 <= uid < len(battle.units):
+                        unit = battle.units[uid]
+                        if unit.side == 0 and unit.alive and unit.energy >= battle.cfg["energy"]["max"]:
+                            battle.request_ult(uid)
+                elif isinstance(msg, dict) and msg.get("type") == "auto" and type(msg.get("on")) is bool:
+                    battle.set_auto(0, msg["on"])
+                elif isinstance(msg, dict) and msg.get("type") == "skip":
+                    battle.set_auto(0, True)
+                    battle.run()
+                continue
+            except asyncio.TimeoutError:
+                pass
+            battle.step()
+            await ws.send_json({"type": "events", "until": battle.t, "events": battle.events[sent:]})
+            sent = len(battle.events)
+        # После пропуска журнал может быть больше буфера одного пакета клиента.
+        for offset in range(sent, len(battle.events), 40):
+            await ws.send_json({"type": "events", "until": battle.t, "events": battle.events[offset:offset + 40]})
+        await ws.send_json({"type": "end", "events": [], "result": battle.log()["result"]})
+        # Дождаться обработки результата клиентом до закрытия соединения.
+        await asyncio.wait_for(ws.receive_json(), 5)
+    except WebSocketDisconnect:
+        pass
+    except (HTTPException, ValueError, asyncio.TimeoutError, BattleError) as exc:
+        try:
+            await ws.send_json({"type": "error", "message": str(getattr(exc, "detail", "Не удалось начать бой"))})
+        except (WebSocketDisconnect, RuntimeError):
+            pass
+    finally:
+        if battle is not None and not battle.finished:
+            battle.set_auto(0, True)
+            battle.run()
+        try:
+            await ws.close()
+        except (RuntimeError, WebSocketDisconnect):
+            pass

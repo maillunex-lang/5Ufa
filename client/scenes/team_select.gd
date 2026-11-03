@@ -15,6 +15,7 @@ var _enemy: OptionButton
 var _status: Label
 var _fight: Button
 var _hero_buttons: Dictionary = {}
+var _auto_start: CheckButton
 
 
 func _ready() -> void:
@@ -66,6 +67,10 @@ func _ready() -> void:
 	_enemy.custom_minimum_size = Vector2(0, 72)
 	enemy_row.add_child(_enemy)
 	col.add_child(enemy_row)
+	_auto_start = CheckButton.new()
+	_auto_start.text = "Авто с начала боя"
+	_auto_start.button_pressed = true
+	col.add_child(_auto_start)
 	_status = Ui.label("", 22)
 	col.add_child(_status)
 	var buttons := HBoxContainer.new()
@@ -210,6 +215,16 @@ func _start_battle() -> void:
 	_status.text = "Бой…"
 	_save_team()
 	var enemy: Dictionary = teams[max(0, _enemy.selected)]
+	if not _auto_start.button_pressed:
+		if not await Api.refresh():
+			_status.text = "Не удалось обновить сессию. Проверьте связь и попробуйте снова."
+			_fight.disabled = false
+			return
+		get_tree().set_meta("battle_live", {"team": _team(), "enemy": enemy["id"]})
+		get_tree().set_meta("battle_enemy_name", enemy["name"])
+		get_tree().change_scene_to_file("res://scenes/battle.tscn")
+		return
+	get_tree().remove_meta("battle_live")
 	var res: Dictionary = await Api.request_json(HTTPClient.METHOD_POST, "/api/v1/battle/test",
 			{"team": _team(), "enemy": enemy["id"]})
 	if not res.ok:
