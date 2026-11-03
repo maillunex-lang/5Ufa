@@ -61,6 +61,7 @@ async def test_upload_disabled_without_token(client):
 
 async def test_upload_limit_enforced_without_large_fixture(client, monkeypatch):
     from app.config import get_settings
+    assert get_settings().client_max_apk_mb == 500
     monkeypatch.setattr(get_settings(), "client_upload_token", TOKEN)
     monkeypatch.setattr(get_settings(), "client_max_apk_mb", 1)
     headers = {"X-Upload-Token": TOKEN}
