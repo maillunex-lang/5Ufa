@@ -8,14 +8,18 @@
 #   VERSION_NAME     — например 0.1.42 (по умолчанию из client/project.godot)
 #   VERSION_CODE     — целое, растёт с каждой сборкой (по умолчанию 1)
 #   GODOT_ANDROID_KEYSTORE_RELEASE_PATH / _USER / _PASSWORD — ключ подписи
-#   APK_MAX_MB       — ограничение размера (95)
+#   APK_MAX_MB       — ограничение размера (500 МиБ)
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 CLIENT="$ROOT/client"
 GODOT="${GODOT:-godot}"
 OUT="$CLIENT/build/ufa.apk"
-APK_MAX_MB="${APK_MAX_MB:-95}"
+APK_MAX_MB="${APK_MAX_MB:-500}"
+if ! [[ "$APK_MAX_MB" =~ ^[0-9]+$ ]] || (( APK_MAX_MB < 1 || APK_MAX_MB > 500 )); then
+    echo "ОШИБКА: APK_MAX_MB должен быть от 1 до 500 МиБ" >&2
+    exit 1
+fi
 VERSION_CODE="${VERSION_CODE:-1}"
 VERSION_NAME="${VERSION_NAME:-$(grep -oP '^config/version="\K[^"]+' "$CLIENT/project.godot")}"
 

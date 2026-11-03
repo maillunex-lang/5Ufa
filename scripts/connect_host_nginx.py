@@ -62,8 +62,8 @@ location ^~ {prefix}/ {{
     proxy_set_header Upgrade $http_upgrade;
     proxy_set_header Connection $http_connection;
     proxy_read_timeout 3600s;
-    # ZIP-патчи из админки и крупные файлы контента
-    client_max_body_size 200m;
+    # APK и ZIP-патчи игры: максимум 500 МиБ для этого пути
+    client_max_body_size 500m;
     proxy_max_temp_file_size 0;
 }}
 """

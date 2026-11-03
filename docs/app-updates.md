@@ -61,3 +61,44 @@ docker compose exec api python -m app.cli client set 12 enable      # верну
 
 > Версия 0.1.2, которую вы уже установили, ещё не умеет обновляться сама.
 > Следующую версию (с этой функцией) нужно поставить вручную из Releases — дальше обновления пойдут из игры.
+
+## Лимит APK — 500 МиБ
+
+Сборщик не публикует APK больше 500 МиБ; сервер игры и игровой Nginx
+принимают файл до 500 МиБ. GitHub Releases допускает отдельные файлы менее 2 ГиБ.
+После обновления проекта на VPS нужно один раз обновить игровой snippet основного
+Nginx: автоматический деплой не меняет конфигурацию хостового Nginx.
+
+Под пользователем root на VPS сначала выполните:
+
+```bash
+cd /root/ufagame
+python3 scripts/connect_host_nginx.py --dry-run --file /etc/nginx/sites-available/agroapp
+```
+
+Первая команда открывает каталог проекта. Вторая показывает проект изменений и
+ничего не записывает. Ожидается выбранный файл `agroapp`, путь `/games/server/`,
+порт `8085` и строка `client_max_body_size 500m;` в игровом snippet.
+
+Если вывод соответствует этому, выполните:
+
+```bash
+cd /root/ufagame
+python3 scripts/connect_host_nginx.py --file /etc/nginx/sites-available/agroapp
+```
+
+Скрипт сохранит резервную копию snippet, проверит `nginx -t` и перезагрузит
+Nginx. Если проверка конфигурации не пройдёт, он восстановит файлы из копии.
+Ожидается сообщение `nginx -t: OK` и `Nginx перезагружен.`
+
+Для проверки:
+
+```bash
+grep -n 'client_max_body_size 500m;' /etc/nginx/snippets/ufagame-server.conf
+nginx -t
+curl -fsS https://tts-ufa.ru/games/server/health
+```
+
+Первая команда должна вывести строку с `500m`, вторая — сообщение об успешной
+проверке конфигурации, третья — JSON с `"status":"ok"`, `"database":"ok"` и
+`"redis":"ok"`. Другие маршруты основного Nginx эти команды не меняют.

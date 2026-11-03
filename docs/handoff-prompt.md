@@ -25,7 +25,7 @@ Idle/AFK RPG для Android (аналог AFK Arena), тёмное фэнтез�
 
 ## Технологии
 
-- Клиент: **Godot 4.7.2**, GDScript, рендер GL Compatibility, arm64, APK ~25 МБ (лимит 95 МБ).
+- Клиент: **Godot 4.7.2**, GDScript, рендер GL Compatibility, arm64, APK ~25 МБ (лимит 500 МиБ).
   APK — только загрузчик, весь контент качается с сервера (манифест, SHA-256, докачка Range).
 - Сервер: Python 3.12, FastAPI, PostgreSQL 16, Redis 7, Alembic, Nginx — всё в Docker Compose.
 - `/shared/schemas` — JSON Schema всех типов контента (единый источник правды).

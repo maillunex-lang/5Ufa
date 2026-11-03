@@ -57,3 +57,16 @@ async def test_upload_disabled_without_token(client):
     r = await client.put("/api/v1/client/releases/9?version_name=0.1.9", content=_apk(),
                          headers={"X-Upload-Token": ""})
     assert r.status_code == 403
+
+
+async def test_upload_limit_enforced_without_large_fixture(client, monkeypatch):
+    from app.config import get_settings
+    monkeypatch.setattr(get_settings(), "client_upload_token", TOKEN)
+    monkeypatch.setattr(get_settings(), "client_max_apk_mb", 1)
+    headers = {"X-Upload-Token": TOKEN}
+    accepted = await client.put("/api/v1/client/releases/10?version_name=0.1.10",
+                                content=_apk(1024 * 1024 - 4), headers=headers)
+    assert accepted.status_code == 200
+    rejected = await client.put("/api/v1/client/releases/11?version_name=0.1.11",
+                                content=_apk(1024 * 1024 - 3), headers=headers)
+    assert rejected.status_code == 413
