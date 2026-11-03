@@ -117,6 +117,7 @@ def find_server_blocks(lines: list[str]) -> list[dict]:
 def analyze_block(lines: list[str], b: dict, domain: str) -> None:
     b["server_name_line"] = None
     b["ssl"] = False
+    b["ports"] = []
     b["has_include"] = False
     for i in b["lines"]:
         code = strip_comment(lines[i]).strip()
@@ -124,8 +125,13 @@ def analyze_block(lines: list[str], b: dict, domain: str) -> None:
             names = code.rstrip(";").split()[1:]
             if domain in names:
                 b["server_name_line"] = i
-        if code.startswith("listen") and ("443" in code or " ssl" in code):
-            b["ssl"] = True
+        if code.startswith("listen"):
+            parts = code.rstrip(";").split()
+            if len(parts) > 1:
+                m = re.search(r"(?:^|:)(\d+)$", parts[1])
+                b["ports"].append(int(m.group(1)) if m else 80)
+            if "ssl" in parts[2:] or "443" in code:
+                b["ssl"] = True
         if SNIPPET_NAME in lines[i]:
             b["has_include"] = True
 
@@ -154,6 +160,7 @@ def main() -> int:
     ap.add_argument("--test-cmd", default="nginx -t")
     ap.add_argument("--reload-cmd", default="systemctl reload nginx")
     ap.add_argument("--skip-detect", action="store_true", help="не проверять, кто слушает 80/443")
+    ap.add_argument("--file", help="явно указать файл конфигурации сайта (если скрипт выбрал не тот)")
     args = ap.parse_args()
 
     env = read_env()
@@ -200,14 +207,39 @@ def main() -> int:
               f"Пришлите вывод:  sudo grep -rn server_name {nginx_dir}/  — подготовлю инструкцию.")
         return 4
 
-    ssl_targets = [t for t in targets if t[2]["ssl"]]
+    print("Найдены блоки server для домена:")
+    for f, _, b in targets:
+        ports = ", ".join(map(str, sorted(set(b["ports"])))) or "80"
+        print(f"  {f}  (строка {b['server_name_line'] + 1}, порты: {ports}{', SSL' if b['ssl'] else ''})")
+
     if args.remove:
         chosen = [t for t in targets if t[2]["has_include"]]
     else:
-        chosen = ssl_targets or targets
-        if not ssl_targets:
+        pool = targets
+        if args.file:
+            want = Path(args.file).resolve()
+            pool = [t for t in targets if t[0] == want]
+            if not pool:
+                sys.exit(f"ОШИБКА: в файле {args.file} нет блока server с server_name {domain}")
+        # Нужен блок, который обслуживает именно https://домен — порт 443
+        on443 = [t for t in pool if 443 in t[2]["ports"]]
+        ssl_any = [t for t in pool if t[2]["ssl"]]
+        if on443:
+            # Если домен на 443 описан в нескольких местах, Nginx использует ПЕРВЫЙ
+            # загруженный блок (остальные игнорирует с предупреждением "conflicting server name").
+            chosen = [on443[0]]
+            if len(on443) > 1:
+                print(f"\nВНИМАНИЕ: домен на порту 443 описан в нескольких блоках. Nginx использует первый —\n"
+                      f"  {on443[0][0]}\nостальные он игнорирует, поэтому подключаю только туда.\n"
+                      f"Если это не так, укажите файл явно:  --file /etc/nginx/sites-enabled/<имя>")
+        elif ssl_any:
+            chosen = [ssl_any[0]]
+            print("\nВНИМАНИЕ: HTTPS-блок домена слушает нестандартный порт, не 443. Проверьте выбор ниже.")
+        else:
+            chosen = [pool[0]]
             print("\nВНИМАНИЕ: для домена нет HTTPS-блока (listen 443). Подключаю к HTTP-блоку.\n"
                   "Включить HTTPS после этого: sudo certbot --nginx -d " + domain + "  (см. docs/https.md)")
+    print("Выбрано:")
 
     snippet_path = nginx_dir / "snippets" / SNIPPET_NAME
     include_line_tpl = "{indent}include snippets/" + SNIPPET_NAME + ";  " + MARK + "\n"
