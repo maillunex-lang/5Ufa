@@ -78,6 +78,20 @@ def test_store_and_change_detection(tmp_path):
     assert a.content_hash != b.content_hash
 
 
+def test_store_streams_files_without_reading_whole_file(tmp_path, monkeypatch):
+    import hashlib
+    source = tmp_path / "large.apk"
+    data = b"PK\x03\x04" + b"x" * (2 * 1024 * 1024)
+    source.write_bytes(data)
+    digest = hashlib.sha256(data).hexdigest()
+    monkeypatch.setattr(Path, "read_bytes", lambda _self: pytest.fail("Файл прочитан целиком"))
+    store = ContentStore(tmp_path / "store")
+    assert store.put_file(source, digest) == digest
+    with store.path_for(digest).open("rb") as saved:
+        assert hashlib.file_digest(saved, "sha256").hexdigest() == digest
+    assert store.put_file(source, digest) == digest
+
+
 def test_all_schemas_are_valid():
     from jsonschema import Draft202012Validator
     reg = get_schema_registry()

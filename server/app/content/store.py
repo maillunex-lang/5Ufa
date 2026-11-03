@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import shutil
 import tempfile
 from pathlib import Path
 
@@ -43,8 +44,19 @@ class ContentStore:
 
     def put_file(self, src: Path, sha: str | None = None) -> str:
         sha = sha or sha256_file(src)
-        if not self.has(sha):
-            self.put_bytes(src.read_bytes(), sha)
+        dest = self.path_for(sha)
+        if dest.is_file():
+            return sha
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        fd, tmp = tempfile.mkstemp(dir=dest.parent, prefix=".tmp_")
+        try:
+            with os.fdopen(fd, "wb") as output, src.open("rb") as input_file:
+                shutil.copyfileobj(input_file, output, length=1024 * 1024)
+            os.chmod(tmp, 0o644)
+            os.replace(tmp, dest)
+        except BaseException:
+            Path(tmp).unlink(missing_ok=True)
+            raise
         return sha
 
     def put_bytes(self, data: bytes, sha: str | None = None) -> str:
