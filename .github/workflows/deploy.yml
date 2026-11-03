@@ -44,6 +44,10 @@ jobs:
           USER: ${{ secrets.VPS_USER }}
           APP_DIR: ${{ secrets.VPS_APP_DIR }}
         run: |
+          # Убираем случайные пробелы и переносы строк (часто появляются при вставке с телефона)
+          trim() { printf '%s' "$1" | tr -d '[:space:]'; }
+          HOST="$(trim "$HOST")"; PORT="$(trim "$PORT")"; USER="$(trim "$USER")"; APP_DIR="$(trim "$APP_DIR")"
+          # Команда на VPS также зафиксирована в authorized_keys (ключ может только деплоить)
           ssh -i ~/.ssh/deploy_key -p "${PORT:-22}" -o BatchMode=yes -o ServerAliveInterval=30 \
             "$USER@$HOST" "cd '$APP_DIR' && git fetch --quiet origin main && git checkout --quiet origin/main -- scripts/deploy.sh && bash scripts/deploy.sh main"
 
