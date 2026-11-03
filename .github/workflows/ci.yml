@@ -173,6 +173,9 @@ jobs:
           echo "--- герои и призыв: стартовый набор, понятная ошибка без золота, призыв x10"
           run --autotest-heroes
           grep -q 'AUTOTEST HEROES: {.*"ok":true' /tmp/out.txt || { cat /tmp/out.txt; exit 1; }
+          echo "--- снаряжение: стартовый набор, ошибка улучшения без ресурсов, разбор в руду"
+          run --autotest-inventory
+          grep -q 'AUTOTEST INVENTORY: {.*"ok":true' /tmp/out.txt || { cat /tmp/out.txt; exit 1; }
           echo "--- обновление приложения: загружаем «новую версию», клиент её скачивает и проверяет"
           { printf 'PK\003\004'; head -c 300000 /dev/urandom; } > /tmp/fake.apk
           curl -fsS -X PUT --data-binary @/tmp/fake.apk -H "X-Upload-Token: ci-token" \

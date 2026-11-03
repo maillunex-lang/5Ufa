@@ -34,7 +34,7 @@
   ],
   "bottom_nav": [
     {"id": "nav_heroes", "title": "Герои", "icon": "ui/hub/icon_heroes.png", "badge": "heroes", "action": {"scene": "heroes"}},
-    {"id": "inventory", "title": "Инвентарь", "icon": "ui/hub/icon_inventory.png", "action": {"soon": "Инвентарь и снаряжение появятся на этапе 5б."}},
+    {"id": "inventory", "title": "Инвентарь", "icon": "ui/hub/icon_inventory.png", "action": {"scene": "inventory"}},
     {"id": "city", "title": "Город", "icon": "ui/hub/icon_city.png", "big": true, "action": {"scene": "hub"}},
     {"id": "quests", "title": "Квесты", "icon": "ui/hub/icon_quests.png", "action": {"soon": "Квесты появятся на этапе 7."}},
     {"id": "world", "title": "Мир", "icon": "ui/hub/icon_world.png", "badge": "campaign", "action": {"scene": "campaign"}}

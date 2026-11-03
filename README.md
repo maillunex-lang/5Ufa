@@ -36,6 +36,7 @@
 13. Формат скелетной анимации — [docs/skeleton-format.md](docs/skeleton-format.md).
 14. Прогрессия героев и призыв — [docs/progression.md](docs/progression.md).
 15. Главный экран «Город» — [docs/hub.md](docs/hub.md).
+16. Снаряжение и уникальный предмет — [docs/equipment.md](docs/equipment.md).
 
 ## Правило безопасности
 

@@ -246,6 +246,7 @@ func _poll_live() -> void:
 				log_data["result"] = msg["result"]
 				if get_tree().has_meta("campaign_stage") and msg.get("campaign_reward") is Dictionary:
 					get_tree().set_meta("campaign_reward", msg["campaign_reward"])
+					get_tree().set_meta("campaign_items", msg.get("campaign_items", []))
 				live_ended = true
 				socket.send_text(JSON.stringify({"type": "ack"}))
 				if _skip_requested:
@@ -442,7 +443,9 @@ func _finish() -> void:
 	box.add_child(Ui.label("ПОБЕДА!" if win else "Поражение", 56, "accent"))
 	if get_tree().has_meta("campaign_stage"):
 		var reward: Dictionary = get_tree().get_meta("campaign_reward", {})
-		box.add_child(Ui.label("Награда: " + Ui.cost_text(reward), 22))
+		var items: Array = get_tree().get_meta("campaign_items", [])
+		var names := ", ".join(items.map(func(i): return "%s (%s)" % [i["name"], i["quality_name"]]))
+		box.add_child(Ui.label("Награда: " + Ui.cost_text(reward) + ("\nПредметы: " + names if names != "" else ""), 22))
 	var secs := float(log_data["result"]["ticks"]) / tick_rate
 	box.add_child(Ui.label("Время боя: %d:%02d" % [int(secs) / 60, int(secs) % 60], 24))
 	var stats: Array = log_data["result"]["stats"]

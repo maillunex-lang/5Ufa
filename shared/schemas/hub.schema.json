@@ -10,7 +10,7 @@
     "action": {
       "type": "object", "additionalProperties": false, "minProperties": 1, "maxProperties": 1,
       "properties": {
-        "scene": {"enum": ["campaign", "heroes", "summon", "test_battle", "hub", "more"], "description": "Открыть экран"},
+        "scene": {"enum": ["campaign", "heroes", "summon", "inventory", "test_battle", "hub", "more"], "description": "Открыть экран"},
         "soon": {"type": "string", "minLength": 1, "description": "Показать сообщение (раздел ещё не готов)"}
       }
     },

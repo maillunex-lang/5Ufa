@@ -5,8 +5,13 @@ extends Control
 const ROLE_NAMES := {"tank": "танк", "warrior": "воин", "archer": "стрелок", "mage": "маг",
 		"support": "поддержка", "assassin": "убийца"}
 
+const Inv := preload("res://scenes/inventory.gd")
+const SLOT_ORDER := ["weapon", "armor", "helmet", "boots"]
+const SLOT_NAMES := {"weapon": "Оружие", "armor": "Доспех", "helmet": "Шлем", "boots": "Сапоги"}
+
 var data: Dictionary = {}
 var selected_id := -1
+var _picker: Control
 var _message := ""
 var _busy := false
 var _root: VBoxContainer
@@ -166,7 +171,153 @@ func _detail(h: Dictionary) -> Control:
 		dis.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row2.add_child(dis)
 	box.add_child(row2)
+	if h.has("equipment"):
+		box.add_child(_equipment_row(h))
+		box.add_child(_signature_row(h))
 	return panel
+
+
+func _equipment_row(h: Dictionary) -> Control:
+	var slots_row := HBoxContainer.new()
+	slots_row.add_theme_constant_override("separation", 8)
+	var eq: Dictionary = h["equipment"]
+	for slot in SLOT_ORDER:
+		var b := Button.new()
+		b.custom_minimum_size = Vector2(88, 88)
+		var style := StyleBoxFlat.new()
+		style.bg_color = Ui.colors["primary"].darkened(0.3)
+		style.set_corner_radius_all(12)
+		style.set_border_width_all(4)
+		if eq.has(slot):
+			b.icon = Inv.item_icon(eq[slot])
+			b.expand_icon = true
+			style.border_color = Color(str(eq[slot]["quality_color"]))
+		else:
+			b.text = SLOT_NAMES[slot]
+			b.clip_text = true
+			style.border_color = Ui.colors["accent"].darkened(0.5)
+		b.add_theme_font_size_override("font_size", 15)
+		for state in ["normal", "hover", "pressed", "focus"]:
+			b.add_theme_stylebox_override(state, style)
+		b.pressed.connect(_open_picker.bind(h, slot))
+		if eq.has(slot):
+			var lvl := Ui.label("+%d" % int(eq[slot]["level"]), 16)
+			lvl.position = Vector2(4, 62)
+			lvl.size = Vector2(80, 22)
+			lvl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+			b.add_child(lvl)
+		slots_row.add_child(b)
+	var id := int(h["id"])
+	var best := Ui.button("Надеть\nлучшее", func(): _post("/api/v1/heroes/%d/auto-equip" % id))
+	best.add_theme_font_size_override("font_size", 18)
+	best.custom_minimum_size = Vector2(0, 88)
+	best.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	slots_row.add_child(best)
+	var off := Ui.button("Снять\nвсё", func(): _post("/api/v1/heroes/%d/unequip" % id, {}))
+	off.add_theme_font_size_override("font_size", 18)
+	off.custom_minimum_size = Vector2(0, 88)
+	off.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	off.disabled = eq.is_empty()
+	slots_row.add_child(off)
+	return slots_row
+
+
+func _signature_row(h: Dictionary) -> Control:
+	var sig: Dictionary = h["signature"]
+	if not bool(sig["unlocked"]):
+		return Ui.label("Уникальный предмет откроется на ступени «%s»" % sig["unlock_tier_name"], 18)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	var txt := "Уникальный предмет: ур. %d / %d · характеристики +%s%%" % [int(sig["level"]), int(sig["max_level"]), str(sig["stat_percent"])]
+	if float(sig["ult_percent"]) > 0:
+		txt += " · ультимейт +%s%%" % str(sig["ult_percent"])
+	elif sig["next_ult"] != null:
+		txt += " · на ур. %d ультимейт +%s%%" % [int(sig["next_ult"]["level"]), str(sig["next_ult"]["percent"])]
+	var l := Ui.label(txt, 18, "accent")
+	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	row.add_child(l)
+	if sig["cost"] != null:
+		var id := int(h["id"])
+		var up := Ui.button("Улучшить\n%s" % Ui.cost_text(sig["cost"]), func(): _post("/api/v1/heroes/%d/signature" % id))
+		up.add_theme_font_size_override("font_size", 16)
+		up.custom_minimum_size = Vector2(220, 80)
+		up.clip_text = true
+		row.add_child(up)
+	return row
+
+
+## Выбор предмета для слота: подходящие по типу предметы, лучшие сверху
+func _open_picker(h: Dictionary, slot: String) -> void:
+	var res: Dictionary = await Api.request_json(HTTPClient.METHOD_GET, "/api/v1/inventory")
+	if not res.ok:
+		_message = res.error
+		_render()
+		return
+	var items: Array = res.data["items"].filter(func(i): return i["slot"] == slot and i["kind"] == h.get("equipment_kind"))
+	items.sort_custom(func(a, b): return int(a["power"]) > int(b["power"]))
+	_close_picker()
+	var dim := ColorRect.new()
+	dim.color = Color(0, 0, 0, 0.75)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(dim)
+	_picker = dim
+	var panel := PanelContainer.new()
+	panel.position = Vector2(30, 160)
+	panel.size = Vector2(660, 960)
+	dim.add_child(panel)
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 10)
+	panel.add_child(col)
+	col.add_child(Ui.label("%s · %s" % [h["name"], SLOT_NAMES[slot]], 30, "accent"))
+	if items.is_empty():
+		col.add_child(Ui.label("Подходящих предметов нет. Их дают за этапы кампании и в AFK-сундуке.", 22))
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	col.add_child(scroll)
+	var list := VBoxContainer.new()
+	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	list.add_theme_constant_override("separation", 8)
+	scroll.add_child(list)
+	var hid := int(h["id"])
+	for i in items:
+		var line := HBoxContainer.new()
+		line.add_theme_constant_override("separation", 10)
+		line.add_child(Inv.item_card(i, false, func(): pass))
+		var worn: Variant = i["worn_by"]
+		var info := Ui.label("%s +%d · %s\n%s%s" % [i["name"], int(i["level"]), i["quality_name"], Inv.stats_text(i["stats"]),
+				("\nсейчас у: %s" % worn["name"]) if worn is Dictionary else ""], 19)
+		info.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		line.add_child(info)
+		var on_me: bool = worn is Dictionary and int(worn["id"]) == hid
+		var put := Ui.button("Надет" if on_me else "Надеть", func():
+			_close_picker()
+			_post("/api/v1/heroes/%d/equip" % hid, {"item_id": int(i["id"])}))
+		put.disabled = on_me
+		put.add_theme_font_size_override("font_size", 20)
+		put.custom_minimum_size = Vector2(140, 80)
+		line.add_child(put)
+		list.add_child(line)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	if h["equipment"].has(slot):
+		var off := Ui.button("Снять", func():
+			_close_picker()
+			_post("/api/v1/heroes/%d/unequip" % hid, {"slot": slot}))
+		off.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(off)
+	var close := Ui.button("Закрыть", _close_picker)
+	close.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(close)
+	col.add_child(row)
+
+
+func _close_picker() -> void:
+	if is_instance_valid(_picker):
+		_picker.queue_free()
+	_picker = null
 
 
 func _back() -> void:
@@ -181,7 +332,13 @@ func _autotest() -> void:
 	var level_msg := _message
 	var res: Dictionary = await Api.request_json(HTTPClient.METHOD_POST, "/api/v1/summon", {"banner": "normal", "count": 10})
 	await _load()
-	var summary := {"ok": before >= 5 and res.ok and data["heroes"].size() == before + 10,
+	await _post("/api/v1/heroes/%d/auto-equip" % int(first["id"]))
+	var equipped := 0
+	for h in data["heroes"]:
+		if int(h["id"]) == int(first["id"]):
+			equipped = h.get("equipment", {}).size()
+	var summary := {"ok": before >= 5 and res.ok and data["heroes"].size() == before + 10 and equipped == 4,
+			"equipped": equipped,
 			"heroes_before": before, "heroes_after": data["heroes"].size(), "level_message": level_msg,
 			"first_result": res.data["results"][0]["tier"] if res.ok else res.error}
 	print("AUTOTEST HEROES: ", JSON.stringify(summary))

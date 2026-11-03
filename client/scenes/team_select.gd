@@ -256,6 +256,7 @@ func _start_battle() -> void:
 			get_tree().set_meta("battle_live", {"team": _team(), "stage": int(get_tree().get_meta("campaign_stage"))})
 			get_tree().set_meta("battle_enemy_name", "Кампания")
 			get_tree().set_meta("campaign_reward", {"gold": 0, "hero_xp": 0})
+			get_tree().set_meta("campaign_items", [])
 			get_tree().change_scene_to_file("res://scenes/battle.tscn")
 			return
 		var campaign_result: Dictionary = await Api.request_json(HTTPClient.METHOD_POST, "/api/v1/campaign/fight", {"team": _team(), "stage": int(get_tree().get_meta("campaign_stage"))})
@@ -267,6 +268,7 @@ func _start_battle() -> void:
 		get_tree().set_meta("battle_log", campaign_result.data["log"])
 		get_tree().set_meta("battle_enemy_name", campaign_result.data["enemy"])
 		get_tree().set_meta("campaign_reward", campaign_result.data["reward"])
+		get_tree().set_meta("campaign_items", campaign_result.data.get("items", []))
 		get_tree().change_scene_to_file("res://scenes/battle.tscn")
 		return
 	if teams.is_empty():

@@ -4,7 +4,8 @@ extends Control
 ## ui/hub.json (меняются без обновления APK). Аккаунт, проверка файлов и версия — в «Настройках».
 
 const SCENES := {"campaign": "res://scenes/campaign.tscn", "heroes": "res://scenes/heroes.tscn",
-		"summon": "res://scenes/summon.tscn", "test_battle": "res://scenes/team_select.tscn"}
+		"summon": "res://scenes/summon.tscn", "test_battle": "res://scenes/team_select.tscn",
+		"inventory": "res://scenes/inventory.tscn"}
 const OUTLINE := Color(0.06, 0.03, 0.1)
 
 var hub: Dictionary = {}
@@ -616,6 +617,9 @@ func _autotest() -> void:
 	if "--autotest-campaign-battle" in OS.get_cmdline_user_args() or "--autotest-campaign-live" in OS.get_cmdline_user_args() or "--autotest-campaign-select" in OS.get_cmdline_user_args():
 		get_tree().set_meta("campaign_stage", 1)
 		get_tree().change_scene_to_file("res://scenes/team_select.tscn")
+		return
+	if "--autotest-inventory" in OS.get_cmdline_user_args():
+		get_tree().change_scene_to_file("res://scenes/inventory.tscn")
 		return
 	if "--autotest-heroes" in OS.get_cmdline_user_args():
 		get_tree().change_scene_to_file("res://scenes/heroes.tscn")

@@ -25,6 +25,13 @@ ICONS = {
     "icon_rewards": (548, 730, 634, 800, 128), "icon_battle_pass": (634, 726, 720, 790, 128),
     "icon_coin": (786, 388, 876, 472, 96), "icon_crystal": (882, 388, 980, 472, 96),
 }
+# Предметы снаряжения и валюты (папка content/ui/items)
+ITEMS = {
+    "weapon_strength": (22, 566, 100, 644, 96), "weapon_agility": (260, 566, 338, 644, 96),
+    "weapon_mystic": (338, 566, 416, 644, 96), "armor": (416, 566, 494, 644, 96),
+    "helmet": (494, 566, 572, 644, 96), "boots": (572, 566, 650, 644, 96),
+    "ore": (1350, 386, 1434, 476, 96), "legacy_shards": (988, 386, 1072, 476, 96),
+}
 BUILDINGS = {
     "building_fortress": (34, 217, 178, 306, 300), "building_summon": (186, 217, 296, 306, 230),
     "building_tavern": (302, 217, 444, 306, 290), "building_arena": (444, 217, 556, 306, 260),
@@ -90,9 +97,13 @@ def main(sheet_path):
     OUT.mkdir(parents=True, exist_ok=True)
     for name, box in ICONS.items():
         fit(cut(sheet, box, name), box[4]).save(OUT / f"{name}.png", optimize=True)
+    items_dir = OUT.parent / "items"
+    items_dir.mkdir(parents=True, exist_ok=True)
+    for name, box in ITEMS.items():
+        fit(cut(sheet, box, name), box[4]).save(items_dir / f"{name}.png", optimize=True)
     for name, box in BUILDINGS.items():
         fit(cut(sheet, box, name), box[4], square=False).save(OUT / f"{name}.png", optimize=True)
-    print("готово:", len(ICONS) + len(BUILDINGS), "картинок в", OUT)
+    print("готово:", len(ICONS) + len(BUILDINGS) + len(ITEMS), "картинок в", OUT.parent)
 
 
 if __name__ == "__main__":

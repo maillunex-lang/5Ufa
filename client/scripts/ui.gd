@@ -140,7 +140,8 @@ static func line_edit(placeholder: String, secret := false) -> LineEdit:
 
 
 const CURRENCY_LABELS := {"gold": "золото", "hero_xp": "опыт", "essence": "эссенция",
-		"crystals": "кристаллы", "scrolls": "свитки"}
+		"crystals": "кристаллы", "scrolls": "свитки", "ore": "руда", "legacy_shards": "осколки наследия",
+		"equipment": "предметы"}
 
 
 ## Строка с балансом валют: «золото 1 200 · опыт 300 · …»
@@ -154,6 +155,9 @@ static func wallet_text(w: Dictionary) -> String:
 			faction_scrolls += int(w[code])
 	if faction_scrolls > 0:
 		parts.append("свитки фракций: %d" % faction_scrolls)
+	for code in ["ore", "legacy_shards"]:
+		if int(w.get(code, 0)) > 0:
+			parts.append("%s: %d" % [CURRENCY_LABELS[code], int(w[code])])
 	return " · ".join(parts)
 
 
