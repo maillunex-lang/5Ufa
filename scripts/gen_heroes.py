@@ -663,6 +663,21 @@ def compose_full(hero_dir: Path, skel: dict, path: Path):
     img.save(path, optimize=True)
 
 
+def write_hero(h, hid, role, art, write):
+    stats = dict(BASE_STATS[role])
+    stats["hp"] = round(stats["hp"] * HP_SCALE)
+    if h.get("rarity") == "rare":  # простые герои слабее
+        for k in ("hp", "atk", "def"):
+            stats[k] = round(stats[k] * 0.8)
+    hero_json = {
+        "id": hid, "name": h["name"], "title": h["title"], "faction": h["faction"], "role": role,
+        "rarity": h.get("rarity", "legendary"), "description": h["description"], "lore": h["lore"],
+        "stats": stats, "skills": h["skills"], "art": art,
+    }
+    write(f"heroes/{hid}/hero.json", hero_json)
+    print(f"{hid:<12} {h['name']:<12} {role:<9} {h['faction']}")
+
+
 def main():
     def write(rel, data):
         p = ROOT / rel
@@ -677,6 +692,11 @@ def main():
         hid = h["id"]
         hdir = ROOT / "heroes" / hid
         role = h["role"]
+        if (hdir / "rig").is_dir():
+            # Готовый арт (scripts/import_cutout_rig.py) — не перерисовываем, берём пути из hero.json
+            art = json.loads((hdir / "hero.json").read_text(encoding="utf-8"))["art"]
+            write_hero(h, hid, role, art, write)
+            continue
         skin = rgb(h["look"]["skin"])
         cloth = rgb(FCOLOR[h["faction"]], 0.85)
         draw_head(h, hdir / "parts/head.png")
@@ -699,18 +719,7 @@ def main():
         if role in ("archer", "mage", "support"):
             draw_projectile(role, h["faction"], hdir / "projectile.png")
             art["projectile"] = f"heroes/{hid}/projectile.png"
-        stats = dict(BASE_STATS[role])
-        stats["hp"] = round(stats["hp"] * HP_SCALE)
-        if h.get("rarity") == "rare":  # простые герои слабее
-            for k in ("hp", "atk", "def"):
-                stats[k] = round(stats[k] * 0.8)
-        hero_json = {
-            "id": hid, "name": h["name"], "title": h["title"], "faction": h["faction"], "role": role,
-            "rarity": h.get("rarity", "legendary"), "description": h["description"], "lore": h["lore"],
-            "stats": stats, "skills": h["skills"], "art": art,
-        }
-        write(f"heroes/{hid}/hero.json", hero_json)
-        print(f"{hid:<12} {h['name']:<12} {role:<9} {h['faction']}")
+        write_hero(h, hid, role, art, write)
     print(f"Готово: {len(HEROES)} героев -> {ROOT / 'heroes'}")
 
 
