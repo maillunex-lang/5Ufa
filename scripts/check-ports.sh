@@ -22,7 +22,7 @@ done
 echo
 echo "=== Кандидаты для игры (HTTP_PORT в .env) ==="
 SUGGEST=""
-for p in 8080 8081 8088 8090 8180 8280 18080 28080; do
+for p in 8085 8080 8081 8088 8090 8180 8280 18080 28080; do
     if busy "$p"; then
         echo "  $p — занят"
     else

@@ -78,7 +78,7 @@ def public_manifest(release: ContentRelease, channel: str) -> dict:
         "content_hash": release.content_hash,
         "created_at": release.created_at.isoformat() if release.created_at else None,
         "min_client_version": m["min_client_version"],
-        "base_url": s.content_files_url,
+        "base_url": s.public_content_files_url,
         "total_size": m["total_size"],
         "packages": m["packages"],
     }

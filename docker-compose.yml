@@ -1,5 +1,5 @@
 # Весь серверный стек игры. Запуск: docker compose up -d --build
-# Наружу открыт ТОЛЬКО порт Nginx (HTTP_PORT из .env).
+# Открыт ТОЛЬКО порт Nginx (HTTP_BIND:HTTP_PORT из .env, по умолчанию 127.0.0.1:8085).
 # PostgreSQL и Redis доступны только внутри сети Docker — с другими
 # вашими сервисами на VPS они не конфликтуют.
 
@@ -45,6 +45,7 @@ services:
       CONTENT_STORE_DIR: /data/content-store
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       PUBLIC_DOMAIN: ${DOMAIN:-}
+      PUBLIC_PATH_PREFIX: ${PUBLIC_PATH_PREFIX:-}
       GIT_SHA: ${GIT_SHA:-dev}
     volumes:
       - contentstore:/data/content-store
@@ -64,7 +65,7 @@ services:
     image: nginx:1.27-alpine
     restart: unless-stopped
     ports:
-      - "${HTTP_PORT:-8080}:80"
+      - "${HTTP_BIND:-127.0.0.1}:${HTTP_PORT:-8085}:80"
     environment:
       SERVER_NAME: ${DOMAIN:-_}
     volumes:
@@ -83,7 +84,7 @@ services:
       PGDATABASE: ${POSTGRES_DB}
       PGUSER: ${POSTGRES_USER}
       PGPASSWORD: ${POSTGRES_PASSWORD}
-      BACKUP_HOUR: ${BACKUP_HOUR:-3}
+      BACKUP_HOUR: ${BACKUP_HOUR:-0}
       BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-14}
     volumes:
       - ./deploy/backup:/backup:ro

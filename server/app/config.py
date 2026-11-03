@@ -16,6 +16,10 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     git_sha: str = "dev"
     public_domain: str = ""
+    # Путь на домене, под которым работает сервер (например /games/server).
+    # Внешний веб-сервер убирает этот префикс перед отправкой запроса к нам,
+    # но в ссылках, которые получает клиент, он должен быть.
+    public_path_prefix: str = ""
 
     # Хранилище файлов контента (адресация по SHA-256)
     content_store_dir: Path = _REPO_ROOT / "data" / "content-store"
@@ -25,6 +29,15 @@ class Settings(BaseSettings):
 
     # URL-префикс, по которому Nginx раздаёт файлы контента
     content_files_url: str = "/content/files/"
+
+    @property
+    def path_prefix(self) -> str:
+        p = self.public_path_prefix.strip().rstrip("/")
+        return "/" + p.lstrip("/") if p else ""
+
+    @property
+    def public_content_files_url(self) -> str:
+        return self.path_prefix + self.content_files_url
 
 
 @lru_cache

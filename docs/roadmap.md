@@ -29,8 +29,9 @@
 6. Проверка контента по JSON Schema из `/shared` с сообщениями на русском.
 7. Nginx: раздача файлов с поддержкой докачки (HTTP Range) и вечным кэшем, прокси к API, заготовка WebSocket.
 8. Бэкапы: ежедневно база + контент, хранение 14 дней, скрипт восстановления.
-9. GitHub Actions: тесты на каждый push; при push в `main` — деплой по SSH с проверкой `/health` и автооткатом.
-10. Скрипты для VPS: проверка портов, установка Docker, деплой, восстановление.
+9. Подключение к `https://tts-ufa.ru/games/server` через ваш основной Nginx (скрипт с резервной копией и автооткатом).
+10. GitHub Actions: тесты на каждый push; при push в `main` — деплой по SSH с проверкой `/health` и автооткатом.
+11. Скрипты для VPS: проверка портов, установка Docker, деплой, восстановление.
 
 ## Этап 1 — как проверить
 
@@ -38,14 +39,14 @@
 
 ```bash
 cd ~/ufagame
-curl http://127.0.0.1:8080/health
+curl https://tts-ufa.ru/games/server/health
 ```
-Ожидается: `{"status":"ok", ... "database":"ok","redis":"ok"}` (порт — ваш `HTTP_PORT`).
+Ожидается: `{"status":"ok", ... "database":"ok","redis":"ok"}`.
 
 ```bash
-curl http://127.0.0.1:8080/api/v1/content/manifest
+curl https://tts-ufa.ru/games/server/api/v1/content/manifest
 ```
-Ожидается: JSON с `"release":1` и пакетами `core`, `tutorial`, `chapter_1`, `chapter_2`.
+Ожидается: JSON с `"release":1`, `"base_url":"/games/server/content/files/"` и пакетами `core`, `tutorial`, `chapter_1`, `chapter_2`.
 
 ```bash
 docker compose exec api python -m app.cli content status
@@ -57,8 +58,8 @@ docker compose exec backup /bin/sh /backup/backup-now.sh && ls backups/
 ```
 Ожидается: `[backup] готово: ...` и папка с датой в `backups/`.
 
-С телефона (в той же сети или через интернет) откройте в браузере
-`http://IP_ВАШЕГО_VPS:8080/health` — должен показаться тот же JSON.
+С телефона откройте в браузере `https://tts-ufa.ru/games/server/health` — должен показаться тот же JSON.
+Проверьте, что сайт tts-ufa.ru и сервис на порту 5000 работают как раньше.
 
 Проверка автодеплоя: сделайте любой коммит в `main` (например, поправьте README на GitHub),
 откройте вкладку **Actions** — задача **Deploy** должна стать зелёной, а `/health`

@@ -42,4 +42,4 @@ docker compose run --rm -T --no-deps -v "$(realpath "$SRC")":/restore:ro api \
 
 echo ">>> Запускаю сервисы"
 docker compose up -d
-echo "Готово. Проверка: curl http://127.0.0.1:${HTTP_PORT:-8080}/health"
+echo "Готово. Проверка: curl http://127.0.0.1:${HTTP_PORT:-8085}/health"

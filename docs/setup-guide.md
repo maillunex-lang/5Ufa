@@ -8,7 +8,6 @@
 |---|---|---|
 | `IP_VPS` | IP-адрес вашего VPS | `185.10.20.30` |
 | `ПОЛЬЗОВАТЕЛЬ` | имя пользователя, под которым вы входите на VPS | `ubuntu` |
-| `8080` | порт игры, если выберете другой на шаге 2.4 — подставляйте свой | `8081` |
 
 > Команды копируйте целиком. Строки, начинающиеся с `#`, — комментарии, их вводить не нужно.
 
@@ -123,13 +122,14 @@ docker ps
 ```
 Результат: таблица (возможно, с вашими существующими контейнерами), **без** ошибки `permission denied`.
 
-### 2.6. Выбрать свободный порт
+### 2.6. Убедиться, что порт 8085 свободен
 
 ```bash
 bash scripts/check-ports.sh
 ```
-Что делает: проверяет порты и предлагает свободный. Ничего не меняет.
-Результат: строка `Рекомендую: HTTP_PORT=8080` (или другой номер). Запомните его.
+Что делает: показывает занятые порты. Ничего не меняет.
+Результат: в списке кандидатов строка `8085 — свободен`.
+Там же видно, кто занимает 80/443 (ваш основной веб-сервер для tts-ufa.ru).
 
 ### 2.7. Создать файл настроек `.env` с паролями
 
@@ -139,41 +139,33 @@ sed -i "s/^POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=$(openssl rand -hex 24)/" .env
 sed -i "s/^SECRET_KEY=.*/SECRET_KEY=$(openssl rand -hex 32)/" .env
 chmod 600 .env
 ```
-Что делает: копирует пример настроек, генерирует случайные надёжные пароль базы и секретный ключ и записывает их в `.env`, закрывает файл от других пользователей.
-
-Если на шаге 2.6 рекомендован порт **не 8080**, замените (пример для 8081):
-```bash
-sed -i "s/^HTTP_PORT=.*/HTTP_PORT=8081/" .env
-```
+Что делает: копирует пример настроек, генерирует случайные надёжные пароль базы и секретный ключ,
+записывает их в `.env` и закрывает файл от других пользователей.
+Порт `8085`, домен `tts-ufa.ru`, путь `/games/server` и время бэкапа (05:00 по Уфе) уже прописаны в примере.
 
 Проверка:
 ```bash
-grep -E "HTTP_PORT|POSTGRES_PASSWORD" .env
+grep -E "HTTP_PORT|HTTP_BIND|DOMAIN|PUBLIC_PATH_PREFIX|BACKUP_HOUR|POSTGRES_PASSWORD" .env
 ```
-Результат: `HTTP_PORT=8080` и `POSTGRES_PASSWORD=` с длинной строкой из букв и цифр (не `CHANGE_ME`).
+Результат:
+```
+HTTP_PORT=8085
+HTTP_BIND=127.0.0.1
+DOMAIN=tts-ufa.ru
+PUBLIC_PATH_PREFIX=/games/server
+POSTGRES_PASSWORD=<длинная строка из букв и цифр, не CHANGE_ME>
+BACKUP_HOUR=0
+```
 
 > Пароли знать не нужно — они используются только внутри сервера. Не публикуйте содержимое `.env`.
+> Файрвол (ufw) трогать **не нужно**: порт 8085 слушает только `127.0.0.1` и снаружи недоступен.
 
-### 2.8. Открыть порт в файрволе (если он включён)
-
-```bash
-sudo ufw status
-```
-- Если `Status: inactive` — ничего делать не нужно.
-- Если `Status: active`, разрешите порт игры (свой номер):
-```bash
-sudo ufw allow 8080/tcp
-```
-Результат: `Rule added`. Ваш SSH и другие сервисы это не затрагивает.
-
-> Если у хостинга есть свой файрвол в панели управления — откройте там TCP-порт 8080 тоже.
-
-### 2.9. Первый запуск
+### 2.8. Первый запуск
 
 ```bash
 bash scripts/deploy.sh main
 ```
-Что делает: собирает образы, запускает базу, Redis, API, Nginx и бэкапы, применяет миграции,
+Что делает: собирает образы, запускает базу, Redis, API, Nginx игры и бэкапы, применяет миграции,
 загружает базовый контент и проверяет `/health`. Первый раз занимает 3–7 минут (скачиваются образы).
 Результат — последние строки:
 ```
@@ -185,17 +177,65 @@ bash scripts/deploy.sh main
 ```bash
 docker compose ps
 ```
-Результат: 5 сервисов (`api`, `nginx`, `postgres`, `redis`, `backup`) в состоянии `Up`, у `api`/`postgres`/`redis` — `(healthy)`.
-Только у `nginx` есть порт наружу: `0.0.0.0:8080->80/tcp`.
+Результат: 5 сервисов (`api`, `nginx`, `postgres`, `redis`, `backup`) в состоянии `Up`,
+у `api`/`postgres`/`redis` — `(healthy)`. Порт есть только у `nginx`: `127.0.0.1:8085->80/tcp`.
 
 ```bash
-curl http://127.0.0.1:8080/health
+curl http://127.0.0.1:8085/health
 ```
 Результат: `{"status":"ok","version":"...","content_release":1,"database":"ok","redis":"ok"}`
 
-И с телефона/компьютера в браузере: `http://IP_VPS:8080/health` — тот же текст.
+### 2.9. Подключить игру к tts-ufa.ru/games/server
 
-Проверьте, что ваш сервис на порту 5000 продолжает работать (как вы обычно его проверяете).
+Сначала — пробный прогон, он **ничего не меняет**, только показывает, что будет сделано:
+```bash
+sudo python3 scripts/connect_host_nginx.py --dry-run
+```
+Ожидаемый результат:
+```
+Домен: tts-ufa.ru   путь: /games/server/   ->   127.0.0.1:8085
+Порты 80/443 занимает: nginx
+  подключить в: /etc/nginx/sites-available/<файл вашего сайта> (строка N, блок SSL)
+--- Будет создан файл /etc/nginx/snippets/ufagame-server.conf ---
+...
+(--dry-run: ничего не изменено)
+```
+Если вместо этого скрипт пишет, что веб-сервер — не Nginx, что он в Docker, или что блок для
+домена не найден, — **остановитесь** и пришлите мне его вывод.
+
+Если всё как в примере — выполняем по-настоящему:
+```bash
+sudo python3 scripts/connect_host_nginx.py
+```
+Что делает: создаёт файл с правилами для `/games/server/`, добавляет в блок вашего сайта одну строку
+`include snippets/ufagame-server.conf;`, делает резервную копию в `/etc/nginx/ufagame-backups/`,
+проверяет конфигурацию (`nginx -t`) и мягко перезагружает Nginx (без обрыва соединений).
+Если проверка не прошла — сам возвращает всё как было.
+Результат:
+```
+nginx -t: OK
+Nginx перезагружен.
+Проверка:  curl https://tts-ufa.ru/games/server/health
+```
+
+Проверка:
+```bash
+curl https://tts-ufa.ru/games/server/health
+```
+Результат: `{"status":"ok",...,"database":"ok","redis":"ok"}`.
+Откройте этот же адрес в браузере телефона — тот же текст.
+
+```bash
+curl -s https://tts-ufa.ru/games/server/api/v1/content/manifest | head -c 300
+```
+Результат: начало JSON с `"release":1` и `"base_url":"/games/server/content/files/"`.
+
+**Обязательно** проверьте, что ваш сайт tts-ufa.ru и сервис на порту 5000 работают как раньше.
+
+Если что-то не так — отключение одной командой (возвращает конфиг вашего Nginx в исходное состояние):
+```bash
+sudo python3 scripts/connect_host_nginx.py --remove
+```
 
 ---
 
@@ -254,7 +294,7 @@ cd ~/ufagame && pwd
 3. Через 2–5 минут обе должны быть с зелёной галочкой.
 4. Проверка на VPS:
    ```bash
-   curl http://127.0.0.1:8080/health
+   curl https://tts-ufa.ru/games/server/health
    ```
    Поле `version` должно совпадать с хэшем последнего коммита (виден на GitHub рядом с коммитом).
 
@@ -270,11 +310,12 @@ cd ~/ufagame && pwd
 | Симптом | Причина и решение |
 |---|---|
 | `permission denied ... docker.sock` | Не перезашли после установки Docker: `exit`, снова `ssh ...` |
-| `Bind for 0.0.0.0:8080 failed: port is already allocated` | Порт занят: `bash scripts/check-ports.sh`, поменяйте `HTTP_PORT` в `.env`, снова `bash scripts/deploy.sh main` |
+| `Bind for 127.0.0.1:8085 failed: port is already allocated` | Порт занят: `bash scripts/check-ports.sh`, поменяйте `HTTP_PORT` в `.env`, снова `bash scripts/deploy.sh main` и `sudo python3 scripts/connect_host_nginx.py` |
 | `ERROR: нет файла .env` | Не выполнен шаг 2.7 |
 | В Actions: `Permission denied (publickey)` | Проверьте `VPS_USER`, `VPS_SSH_KEY` (весь текст с BEGIN/END) и что выполнена команда `cat ~/.ssh/gh_actions.pub >> ~/.ssh/authorized_keys` |
 | В Actions: `Host key verification failed` | Пересоздайте секрет `VPS_KNOWN_HOSTS` командой из шага 3 (с правильным IP и портом) |
-| `/health` открывается на VPS, но не с телефона | Порт закрыт файрволом: шаг 2.8 и панель хостинга |
+| `curl http://127.0.0.1:8085/health` работает, а `https://tts-ufa.ru/games/server/health` — нет | Не выполнен шаг 2.9, или он завершился ошибкой — пришлите его вывод |
+| `https://tts-ufa.ru/games/server/health` отвечает `502 Bad Gateway` | Игра не запущена: `docker compose ps`, `docker compose logs --tail=100 api` |
 | Нужно посмотреть логи | `docker compose logs --tail=100 api` (или `nginx`, `postgres`) |
 
 ## Полезные команды (на VPS, в папке `~/ufagame`)

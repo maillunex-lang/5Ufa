@@ -6,7 +6,7 @@
 # Ручной запуск: docker compose exec backup /bin/sh /backup/backup-now.sh
 set -eu
 
-HOUR="${BACKUP_HOUR:-3}"
+HOUR="${BACKUP_HOUR:-0}"
 echo "[backup] сервис бэкапов запущен, ежедневный бэкап в ${HOUR}:00 UTC, хранение ${BACKUP_RETENTION_DAYS:-14} дн."
 
 last_day=""

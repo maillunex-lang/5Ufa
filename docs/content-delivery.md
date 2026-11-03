@@ -17,6 +17,8 @@ APK содержит только код-загрузчик. Вся график
 
 ### `GET /api/v1/content/manifest?channel=live`
 
+Полный адрес: `https://tts-ufa.ru/games/server/api/v1/content/manifest`
+
 Ответ (схема: `shared/schemas/manifest.schema.json`):
 
 ```json
@@ -26,7 +28,7 @@ APK содержит только код-загрузчик. Вся график
   "channel": "live",
   "content_hash": "6578…",
   "min_client_version": "0.1.0",
-  "base_url": "/content/files/",
+  "base_url": "/games/server/content/files/",
   "total_size": 7061,
   "packages": [
     {
@@ -47,7 +49,9 @@ APK содержит только код-загрузчик. Вся график
 
 ### Файлы
 
-`GET {base_url}{sha256[0:2]}/{sha256}` — например `/content/files/11/115d0c03…`
+`GET {base_url}{sha256[0:2]}/{sha256}` — например `https://tts-ufa.ru/games/server/content/files/11/115d0c03…`
+
+`base_url` учитывает `PUBLIC_PATH_PREFIX` из `.env`; клиент склеивает его с адресом домена.
 
 - Отдаёт Nginx напрямую (быстро, без нагрузки на API).
 - Поддерживается `Range: bytes=N-` → ответ `206` — **докачка после обрыва**.

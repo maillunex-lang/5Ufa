@@ -3,6 +3,8 @@
 Онлайн-игра для Android (Godot 4) + отдельное приложение-админка + сервер (FastAPI).
 Тёмное фэнтези в ярком мультяшном стиле, кампания по карте Республики Башкортостан.
 
+Сервер: `https://tts-ufa.ru/games/server` · ID приложения: `lunex.ufa` · язык: русский.
+
 ## Структура репозитория
 
 | Папка | Что внутри |
@@ -25,7 +27,8 @@
 4. Загрузка контента (манифест) — [docs/content-delivery.md](docs/content-delivery.md).
 5. Формат ZIP-патчей — [docs/patch-format.md](docs/patch-format.md).
 6. Бэкапы и восстановление — [docs/backups.md](docs/backups.md).
-7. HTTPS — [docs/https.md](docs/https.md).
+7. HTTPS и подключение к домену — [docs/https.md](docs/https.md).
+8. Принятые решения — [docs/decisions.md](docs/decisions.md).
 
 ## Правило безопасности
 

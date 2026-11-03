@@ -27,7 +27,7 @@ if [ ! -f .env ]; then
     exit 1
 fi
 set -a; . ./.env; set +a
-HTTP_PORT="${HTTP_PORT:-8080}"
+HTTP_PORT="${HTTP_PORT:-8085}"
 BACKUP_DIR="${BACKUP_DIR:-./backups}"
 mkdir -p "$BACKUP_DIR/predeploy"
 

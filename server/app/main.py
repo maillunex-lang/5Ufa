@@ -18,6 +18,7 @@ app = FastAPI(
     docs_url="/api/docs",
     openapi_url="/api/openapi.json",
     redoc_url=None,
+    root_path=settings.path_prefix,
 )
 
 app.include_router(health.router)
