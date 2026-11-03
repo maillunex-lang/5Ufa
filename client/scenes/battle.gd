@@ -72,7 +72,7 @@ func _connect_live() -> bool:
 	socket = WebSocketPeer.new()
 	socket.inbound_buffer_size = 2 * 1024 * 1024
 	socket.handshake_headers = PackedStringArray(["Authorization: Bearer " + Api.access_token])
-	var url: String = Api.api_url("/ws/battle/test")
+	var url: String = Api.api_url("/ws/battle/campaign" if get_tree().has_meta("campaign_stage") else "/ws/battle/test")
 	url = ("wss://" + url.substr(8)) if url.begins_with("https://") else ("ws://" + url.substr(7))
 	if socket.connect_to_url(url) != OK:
 		_live_error("Не удалось подключиться к бою")
@@ -244,6 +244,8 @@ func _poll_live() -> void:
 			"end":
 				events.append_array(msg.get("events", []))
 				log_data["result"] = msg["result"]
+				if get_tree().has_meta("campaign_stage") and msg.get("campaign_reward") is Dictionary:
+					get_tree().set_meta("campaign_reward", msg["campaign_reward"])
 				live_ended = true
 				socket.send_text(JSON.stringify({"type": "ack"}))
 				if _skip_requested:

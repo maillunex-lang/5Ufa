@@ -1,6 +1,9 @@
+import asyncio
+import threading
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
+from fastapi.testclient import TestClient
 from app.campaign.rewards import DENOMINATOR, claim, pending, quick, settle
 from app.config import get_settings
 from app.content.releases import import_directory, publish
@@ -74,3 +77,46 @@ async def test_victory_reward_only_once(client, monkeypatch):
     repeat = (await client.post("/api/v1/campaign/fight", headers=headers, json=body)).json()
     assert repeat["reward"] == {"gold": 0, "hero_xp": 0}
     assert repeat["status"]["cleared"] == 1
+
+
+async def test_live_campaign_rewards_and_disconnect(client, monkeypatch):
+    from app.api import battle
+    from app.main import app
+    async with get_sessionmaker()() as session:
+        release, _ = await import_directory(session, get_settings().base_content_dir)
+        await publish(session, release.id, "live")
+        await session.commit()
+    monkeypatch.setattr(battle.secrets, "randbits", lambda _: 7)
+    settled = threading.Event()
+    original_award = battle._award_campaign
+    async def record_award(game, context):
+        result = await original_award(game, context)
+        if context[1] == 2:
+            settled.set()
+        return result
+    monkeypatch.setattr(battle, "_award_campaign", record_award)
+    guest = (await client.post("/api/v1/auth/guest", json={"device_id": "campaign-live-123"})).json()
+    headers = {"Authorization": "Bearer " + guest["access_token"]}
+    team = [{"hero": h, "slot": i} for i, h in enumerate(["alpamysha", "ural_batyr", "zayatulyak", "humai", "hyuhylu"])]
+
+    def exercise():
+        with TestClient(app) as sync:
+            with sync.websocket_connect("/ws/battle/campaign", headers=headers) as ws:
+                ws.send_json({"stage": 1, "team": team})
+                assert ws.receive_json()["type"] == "start"
+                ws.send_json({"type": "skip"})
+                while True:
+                    msg = ws.receive_json()
+                    if msg["type"] == "end":
+                        assert msg["result"]["winner"] == 0
+                        assert msg["campaign_reward"] == {"gold": 100, "hero_xp": 50}
+                        ws.send_json({"type": "ack"})
+                        break
+            with sync.websocket_connect("/ws/battle/campaign", headers=headers) as ws:
+                ws.send_json({"stage": 2, "team": team})
+                assert ws.receive_json()["type"] == "start"
+                ws.close()
+                assert settled.wait(3), "После обрыва бой не был завершён"
+    await asyncio.to_thread(exercise)
+    result = (await client.get("/api/v1/campaign", headers=headers)).json()
+    assert result["cleared"] == 2 and result["gold"] == 200 and result["hero_xp"] == 100

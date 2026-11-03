@@ -73,10 +73,7 @@ func _ready() -> void:
 	_auto_start = CheckButton.new()
 	_auto_start.text = "Авто с начала боя"
 	_auto_start.button_pressed = true
-	if not get_tree().has_meta("campaign_stage"):
-		col.add_child(_auto_start)
-	else:
-		_auto_start.queue_free()
+	col.add_child(_auto_start)
 	_status = Ui.label("", 22)
 	col.add_child(_status)
 	var buttons := HBoxContainer.new()
@@ -93,7 +90,9 @@ func _ready() -> void:
 	_refresh()
 	if not get_tree().has_meta("campaign_stage"):
 		_load_enemies()
-	elif Config.autotest:
+	elif Config.autotest and "--autotest-campaign-select" not in OS.get_cmdline_user_args():
+		if "--autotest-campaign-live" in OS.get_cmdline_user_args():
+			_auto_start.button_pressed = false
 		_start_battle()
 
 
@@ -221,6 +220,16 @@ func _start_battle() -> void:
 		_fight.disabled = true
 		_status.text = "Бой…"
 		_save_team()
+		if not _auto_start.button_pressed:
+			if not await Api.refresh():
+				_status.text = "Не удалось обновить сессию. Проверьте связь и попробуйте снова."
+				_fight.disabled = false
+				return
+			get_tree().set_meta("battle_live", {"team": _team(), "stage": int(get_tree().get_meta("campaign_stage"))})
+			get_tree().set_meta("battle_enemy_name", "Кампания")
+			get_tree().set_meta("campaign_reward", {"gold": 0, "hero_xp": 0})
+			get_tree().change_scene_to_file("res://scenes/battle.tscn")
+			return
 		var campaign_result: Dictionary = await Api.request_json(HTTPClient.METHOD_POST, "/api/v1/campaign/fight", {"team": _team(), "stage": int(get_tree().get_meta("campaign_stage"))})
 		if not campaign_result.ok:
 			_status.text = campaign_result.error

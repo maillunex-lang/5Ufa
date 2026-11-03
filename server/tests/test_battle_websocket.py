@@ -63,6 +63,7 @@ async def test_live_battle_and_authorization(client, monkeypatch):
                     if msg["type"] == "end":
                         assert msg["result"]["winner"] in (0, 1)
                         assert any(e["e"] == "end" for e in events)
+                        ws.send_json({"type": "ack"})
                         break
             auto_finished.clear()
             with sync.websocket_connect("/ws/battle/test", headers=headers) as ws:

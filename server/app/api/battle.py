@@ -4,6 +4,7 @@ from __future__ import annotations
 import secrets
 import asyncio
 import time
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel, Field
@@ -80,11 +81,15 @@ async def test_battle(body: TestBattleIn, player: Player = Depends(current_playe
     return {"enemy": {"id": enemy["id"], "name": enemy["name"]}, "log": log}
 
 
+@ws_router.websocket("/ws/battle/campaign")
 @ws_router.websocket("/ws/battle/test")
 async def live_test_battle(ws: WebSocket):
-    """Живой тестовый бой. Токен передаётся заголовком, не в URL."""
+    """Живой бой. Токен передаётся заголовком, не в URL."""
     await ws.accept()
     battle = None
+    campaign_context = None
+    campaign_awarded = False
+    campaign_reward = None
     try:
         header = ws.headers.get("authorization", "")
         player_id = decode_access_token(header[7:].strip()) if header.lower().startswith("bearer ") else None
@@ -94,23 +99,40 @@ async def live_test_battle(ws: WebSocket):
                 raise HTTPException(401, "Нужно войти в игру")
             ensure_not_banned(player)
             try:
-                await check_rate_limit(f"battle:test:{player.id}", 30, 60)
+                mode = "campaign" if ws.url.path.endswith("/campaign") else "test"
+                await check_rate_limit(f"battle:{mode}:{player.id}", 30, 60)
             except RateLimited:
                 raise HTTPException(429, "Слишком много боёв подряд")
             raw = await asyncio.wait_for(ws.receive_json(), 10)
-            body = TestBattleIn.model_validate(raw)
             view = await content_for(player, session)
             heroes = view.heroes()
+            if mode == "campaign":
+                # Импорт отложен: модуль кампании использует общую проверку отряда.
+                from app.api.campaign import FightIn, data
+                from app.campaign.service import locked_progress
+                body = FightIn.model_validate(raw)
+                config, _, stages = data(view)
+                progress = await locked_progress(session, player.id)
+                if body.stage > progress.cleared + 1:
+                    raise HTTPException(403, "Сначала пройдите предыдущий этап")
+                stage = stages[body.stage - 1]
+                enemy = view.teams().get(stage["enemy"])
+                campaign_context = (player.id, body.stage, stage["reward"], config)
+            else:
+                body = TestBattleIn.model_validate(raw)
+                enemy = view.teams().get(body.enemy)
             team = validate_team(body.team, heroes)
-            enemy = view.teams().get(body.enemy)
             if enemy is None:
                 raise HTTPException(422, "Неизвестный отряд противника")
-            battle = Battle(view.battle_config(), view.factions(), heroes, team, enemy["units"],
+            enemy_units = ([{**unit, "stat_multiplier": stage["enemy_multiplier"]} for unit in enemy["units"]]
+                           if mode == "campaign" else enemy["units"])
+            battle = Battle(view.battle_config(), view.factions(), heroes, team, enemy_units,
                             secrets.randbits(31), auto=(False, True))
             initial = battle.log()
             initial["content_release"] = view.release_id
             initial.pop("result")
-            await ws.send_json({"type": "start", "log": initial})
+            await session.commit()
+        await ws.send_json({"type": "start", "log": initial})
         sent = len(battle.events)
         start = time.monotonic()
         while not battle.finished:
@@ -139,7 +161,11 @@ async def live_test_battle(ws: WebSocket):
         # После пропуска журнал может быть больше буфера одного пакета клиента.
         for offset in range(sent, len(battle.events), 40):
             await ws.send_json({"type": "events", "until": battle.t, "events": battle.events[offset:offset + 40]})
-        await ws.send_json({"type": "end", "events": [], "result": battle.log()["result"]})
+        if campaign_context:
+            campaign_reward = await _award_campaign(battle, campaign_context)
+            campaign_awarded = True
+        await ws.send_json({"type": "end", "events": [], "result": battle.log()["result"],
+                            "campaign_reward": campaign_reward})
         # Дождаться обработки результата клиентом до закрытия соединения.
         await asyncio.wait_for(ws.receive_json(), 5)
     except WebSocketDisconnect:
@@ -153,7 +179,27 @@ async def live_test_battle(ws: WebSocket):
         if battle is not None and not battle.finished:
             battle.set_auto(0, True)
             battle.run()
+        if battle is not None and campaign_context and not campaign_awarded:
+            await _award_campaign(battle, campaign_context)
         try:
             await ws.close()
         except (RuntimeError, WebSocketDisconnect):
             pass
+
+
+async def _award_campaign(battle: Battle, context: tuple) -> dict:
+    from app.campaign.rewards import settle
+    from app.campaign.service import locked_progress
+
+    player_id, stage_number, stage_reward, config = context
+    async with get_sessionmaker()() as session:
+        progress = await locked_progress(session, player_id)
+        settle(progress, config, datetime.now(timezone.utc))
+        reward = {"gold": 0, "hero_xp": 0}
+        if battle.winner == 0 and stage_number == progress.cleared + 1:
+            reward = stage_reward
+            progress.gold += reward["gold"]
+            progress.hero_xp += reward["hero_xp"]
+            progress.cleared += 1
+        await session.commit()
+        return reward

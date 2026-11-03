@@ -224,7 +224,7 @@ func _autotest() -> void:
 		"play_text": Content.t("ui.button.play"),
 	}
 	print("AUTOTEST RESULT: ", JSON.stringify(summary))
-	if "--autotest-campaign-battle" in OS.get_cmdline_user_args():
+	if "--autotest-campaign-battle" in OS.get_cmdline_user_args() or "--autotest-campaign-live" in OS.get_cmdline_user_args() or "--autotest-campaign-select" in OS.get_cmdline_user_args():
 		get_tree().set_meta("campaign_stage", 1)
 		get_tree().change_scene_to_file("res://scenes/team_select.tscn")
 		return

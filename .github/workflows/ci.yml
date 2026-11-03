@@ -150,6 +150,8 @@ jobs:
           grep -q 'AUTOTEST CAMPAIGN: {.*"ok":true' /tmp/out.txt || { cat /tmp/out.txt; exit 1; }
           run --autotest-campaign-battle
           grep -q 'AUTOTEST BATTLE: {.*"ok":true' /tmp/out.txt || { cat /tmp/out.txt; exit 1; }
+          run --autotest-campaign-live
+          grep -q 'AUTOTEST BATTLE: {.*"ok":true' /tmp/out.txt || { cat /tmp/out.txt; exit 1; }
           echo "--- обновление приложения: загружаем «новую версию», клиент её скачивает и проверяет"
           { printf 'PK\003\004'; head -c 300000 /dev/urandom; } > /tmp/fake.apk
           curl -fsS -X PUT --data-binary @/tmp/fake.apk -H "X-Upload-Token: ci-token" \
