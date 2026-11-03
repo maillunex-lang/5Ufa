@@ -15,7 +15,7 @@ CONFIG = {"afk_cap_seconds": 43200, "gold_per_hour": 60, "hero_xp_per_hour": 30,
 
 def progress(now):
     return SimpleNamespace(cleared=0, gold=0, hero_xp=0, gold_fraction=0, xp_fraction=0,
-                           crystal_fraction=0, essence_fraction=0,
+                           crystal_fraction=0, essence_fraction=0, ore_fraction=0, equipment_fraction=0,
                            elapsed_us=0, updated_at=now, quick_day="", quick_count=0)
 
 
@@ -25,12 +25,12 @@ def test_rewards_cap_and_change_of_rate():
     settle(p, CONFIG, start + timedelta(hours=1))
     p.cleared = 1
     settle(p, CONFIG, start + timedelta(hours=2))
-    assert pending(p) == {"gold": 123, "hero_xp": 61, "crystals": 0, "essence": 0}
-    assert claim(p) == {"gold": 123, "hero_xp": 61, "crystals": 0, "essence": 0}
+    assert pending(p) == {"gold": 123, "hero_xp": 61, "crystals": 0, "essence": 0, "ore": 0, "equipment": 0}
+    assert claim(p) == {"gold": 123, "hero_xp": 61, "crystals": 0, "essence": 0, "ore": 0, "equipment": 0}
     assert p.xp_fraction == DENOMINATOR // 2
     settle(p, CONFIG, start + timedelta(hours=30))
     assert p.elapsed_us == 43200 * 1_000_000
-    assert pending(p) == {"gold": 756, "hero_xp": 378, "crystals": 0, "essence": 0}
+    assert pending(p) == {"gold": 756, "hero_xp": 378, "crystals": 0, "essence": 0, "ore": 0, "equipment": 0}
 
 
 def test_quick_ufa_day_and_does_not_empty_chest():
@@ -38,9 +38,9 @@ def test_quick_ufa_day_and_does_not_empty_chest():
     p = progress(now)
     settle(p, CONFIG, now + timedelta(minutes=1))
     before = p.elapsed_us
-    assert quick(p, CONFIG, now) == {"gold": 120, "hero_xp": 60, "crystals": 0, "essence": 0}
+    assert quick(p, CONFIG, now) == {"gold": 120, "hero_xp": 60, "crystals": 0, "essence": 0, "ore": 0, "equipment": 0}
     assert quick(p, CONFIG, now) is None
-    assert quick(p, CONFIG, now + timedelta(minutes=1)) == {"gold": 120, "hero_xp": 60, "crystals": 0, "essence": 0}
+    assert quick(p, CONFIG, now + timedelta(minutes=1)) == {"gold": 120, "hero_xp": 60, "crystals": 0, "essence": 0, "ore": 0, "equipment": 0}
     assert p.elapsed_us == before
 
 
@@ -54,7 +54,8 @@ async def test_api_quick_and_locked_stage(client):
     initial = (await client.get("/api/v1/campaign", headers=headers)).json()
     assert len(initial["chapters"]) == 5 and initial["cleared"] == 0
     reward = await client.post("/api/v1/campaign/quick", headers=headers)
-    assert reward.json()["reward"] == {"gold": 120, "hero_xp": 60, "crystals": 10, "essence": 20}
+    assert reward.json()["reward"] == {"gold": 120, "hero_xp": 60, "crystals": 10, "essence": 20, "ore": 4, "equipment": 1}
+    assert len(reward.json()["items"]) == 1 and reward.json()["items"][0]["quality"] == "common"
     assert (await client.post("/api/v1/campaign/quick", headers=headers)).status_code == 409
     locked = await client.post("/api/v1/campaign/fight", headers=headers,
                                json={"stage": 2, "team": [{"hero": "ural_batyr", "slot": 0}]})
@@ -74,7 +75,8 @@ async def test_victory_reward_only_once(client, monkeypatch):
     body = {"stage": 1, "team": team}
     first = (await client.post("/api/v1/campaign/fight", headers=headers, json=body)).json()
     assert first["log"]["result"]["winner"] == 0
-    assert first["reward"] == {"gold": 100, "hero_xp": 50, "crystals": 20}
+    assert first["reward"] == {"gold": 100, "hero_xp": 50, "crystals": 20, "equipment": 1}
+    assert len(first["items"]) == 1
     repeat = (await client.post("/api/v1/campaign/fight", headers=headers, json=body)).json()
     assert repeat["reward"] == {"gold": 0, "hero_xp": 0}
     assert repeat["status"]["cleared"] == 1
@@ -110,7 +112,8 @@ async def test_live_campaign_rewards_and_disconnect(client, monkeypatch):
                     msg = ws.receive_json()
                     if msg["type"] == "end":
                         assert msg["result"]["winner"] == 0
-                        assert msg["campaign_reward"] == {"gold": 100, "hero_xp": 50, "crystals": 20}
+                        assert msg["campaign_reward"] == {"gold": 100, "hero_xp": 50, "crystals": 20, "equipment": 1}
+                        assert len(msg["campaign_items"]) == 1
                         ws.send_json({"type": "ack"})
                         break
             with sync.websocket_connect("/ws/battle/campaign", headers=headers) as ws:

@@ -6,5 +6,7 @@
   "quick_seconds": 7200,
   "quick_daily_limit": 1,
   "crystals_per_hour": 5,
-  "essence_per_hour": 10
+  "essence_per_hour": 10,
+  "ore_per_hour": 2,
+  "equipment_per_100h": 50
 }

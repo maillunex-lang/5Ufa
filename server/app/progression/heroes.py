@@ -70,25 +70,36 @@ def effective_level(cfg: dict, h: PlayerHero, crystal: int | None) -> int:
     return h.level
 
 
-def hero_public(cfg: dict, content_heroes: dict, h: PlayerHero, crystal: int | None) -> dict:
+def hero_public(cfg: dict, content_heroes: dict, h: PlayerHero, crystal: int | None,
+                eq_cfg: dict | None = None, worn: dict | None = None) -> dict:
+    """worn — {слот: PlayerItem} надетого снаряжения; eq_cfg — config/equipment.json (None — без снаряжения)."""
+    from app.progression import equipment as eq
     data = content_heroes.get(h.hero_id, {})
     lvl = effective_level(cfg, h, crystal)
     mult = stat_multiplier(cfg, h.tier, lvl)
     st = data.get("stats", {})
     t = tiers(cfg)[h.tier]
     nxt = next((r for r in cfg["ascension"] if r["from"] == h.tier), None)
-    return {
+    sig_mult = eq.signature_stat_mult(eq_cfg, h.signature_level) if eq_cfg else 1.0
+    bonus = eq.hero_bonus(eq_cfg, worn or {}, data.get("faction")) if eq_cfg else {}
+    stats = {k: round(st.get(k, 0) * mult * sig_mult) + bonus.get(k, 0) for k in ("hp", "atk", "def")}
+    out = {
         "id": h.id, "hero": h.hero_id, "name": data.get("name", h.hero_id), "faction": data.get("faction"),
         "role": data.get("role"), "tier": h.tier, "tier_name": t["name"], "tier_color": t.get("color", "#FFFFFF"),
         "level": lvl, "own_level": h.level, "level_cap": int(t["level_cap"]), "crystal_slot": h.crystal_slot,
-        "power": int(round((st.get("hp", 0) / 10 + st.get("atk", 0) * 2 + st.get("def", 0)) * mult)),
-        "stats": {"hp": round(st.get("hp", 0) * mult), "atk": round(st.get("atk", 0) * mult), "def": round(st.get("def", 0) * mult)},
+        "power": int(round(stats["hp"] / 10 + stats["atk"] * 2 + stats["def"])),
+        "stats": stats,
         "level_cost": level_cost(cfg, h.level) if h.level < int(t["level_cap"]) and h.crystal_slot is None else None,
         "next_tier": nxt["to"] if nxt else None,
         "next_tier_name": tier_name(cfg, nxt["to"]) if nxt else None,
         "ascension_requires": [_describe_req(cfg, content_heroes, h, r) for r in nxt["requires"]] if nxt else [],
         "dismiss_essence": int(cfg.get("dismiss_essence", {}).get(h.tier, 0)),
     }
+    if eq_cfg:
+        out["equipment_kind"] = eq.kind_for_role(eq_cfg, data.get("role"))
+        out["equipment"] = {slot: eq.item_public(eq_cfg, it, data.get("faction")) for slot, it in (worn or {}).items()}
+        out["signature"] = eq.signature_public(cfg, eq_cfg, h)
+    return out
 
 
 def _describe_req(cfg, content_heroes, h, req) -> str:
@@ -167,6 +178,8 @@ async def ascend(session, player_id, cfg, content_heroes, instance_id: int) -> t
     if missing:
         raise HTTPException(409, "Для вознесения не хватает: " + "; ".join(missing))
     spent = [{"id": x.id, "hero": x.hero_id, "tier": x.tier} for x in chosen]
+    from app.progression import equipment as eq
+    await eq.release_from(session, [x.id for x in chosen])  # снаряжение корма — в сумку
     for x in chosen:
         await session.delete(x)
     h.tier = rule["to"]
@@ -202,23 +215,46 @@ async def dismiss(session, player_id, cfg, instance_id: int) -> int:
     essence = int(cfg.get("dismiss_essence", {}).get(h.tier, 0))
     if essence <= 0:
         raise HTTPException(409, f"Героя редкости «{tier_name(cfg, h.tier)}» нельзя распустить")
+    from app.progression import equipment as eq
+    await eq.release_from(session, [h.id])
     await session.delete(h)
     await wallet.add(session, player_id, {"essence": essence})
     return essence
 
 
-async def build_team(session, player_id, cfg, content_heroes, team: list[dict]) -> list[dict]:
-    """Отряд для боя из своих героев: для каждого выбранного героя берётся сильнейший экземпляр."""
+async def build_team(session, player_id, cfg, content_heroes, team: list[dict], eq_cfg: dict | None = None) -> list[dict]:
+    """Отряд для боя из своих героев: для каждого выбранного героя берётся сильнейший экземпляр.
+    С eq_cfg учитываются снаряжение (прибавка bonus) и уникальный предмет (множитель и сила ультимейта)."""
+    from app.progression import equipment as eq
     roster = await heroes_of(session, player_id)
     crystal = crystal_level(cfg, roster)
+    worn = eq.worn_map(await eq.items_of(session, player_id)) if eq_cfg else {}
     out = []
     for unit in team:
         own = [h for h in roster if h.hero_id == unit["hero"]]
         if not own:
             name = content_heroes.get(unit["hero"], {}).get("name", unit["hero"])
             raise HTTPException(422, f"У вас нет героя «{name}»")
-        best = max(own, key=lambda h: (stat_multiplier(cfg, h.tier, effective_level(cfg, h, crystal)), h.id))
+        faction = content_heroes.get(unit["hero"], {}).get("faction")
+
+        def strength(h):
+            m = stat_multiplier(cfg, h.tier, effective_level(cfg, h, crystal))
+            if eq_cfg:
+                m *= eq.signature_stat_mult(eq_cfg, h.signature_level)
+                b = eq.hero_bonus(eq_cfg, worn.get(h.id, {}), faction)
+                return (m, b["hp"] / 10 + b["atk"] * 2 + b["def"], h.id)
+            return (m, 0, h.id)
+
+        best = max(own, key=strength)
         lvl = effective_level(cfg, best, crystal)
-        out.append({"hero": unit["hero"], "slot": unit["slot"], "stat_multiplier": stat_multiplier(cfg, best.tier, lvl),
-                    "level": lvl, "tier": best.tier})
+        mult = stat_multiplier(cfg, best.tier, lvl)
+        entry = {"hero": unit["hero"], "slot": unit["slot"], "level": lvl, "tier": best.tier}
+        if eq_cfg:
+            mult = round(mult * eq.signature_stat_mult(eq_cfg, best.signature_level), 6)
+            entry["bonus"] = eq.hero_bonus(eq_cfg, worn.get(best.id, {}), faction)
+            ult = eq.signature_ult_percent(eq_cfg, best.signature_level)
+            if ult:
+                entry["ult_power"] = round(1 + ult / 100, 4)
+        entry["stat_multiplier"] = mult
+        out.append(entry)
     return out

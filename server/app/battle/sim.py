@@ -50,6 +50,7 @@ class Unit:
     moving: bool = False
     target: "Unit | None" = None
     low_hp_fired: bool = False
+    ult_power: float = 1.0                         # множитель силы ультимейта (уникальный предмет)
     shields: list = field(default_factory=list)   # [amount, expire_tick]
     buffs: list = field(default_factory=list)     # [stat, percent, expire_tick]
     dots: list = field(default_factory=list)      # [src, per_tick_raw, next_tick, expire_tick]
@@ -123,11 +124,13 @@ class Battle:
         dmg = self.cfg["damage"]
         field_cfg = self.cfg["field"]
         mult = float(entry.get("stat_multiplier", 1.0))
+        bonus = entry.get("bonus") or {}  # прибавка от снаряжения (этап 5б)
         dist = field_cfg["front_x"] if entry["slot"] in FRONT_SLOTS else field_cfg["back_x"]
         u = Unit(
             uid=uid, side=side, slot=entry["slot"], hero=hero,
             x=-dist if side == 0 else dist, lane=field_cfg["lanes"][entry["slot"]],
-            max_hp=round(st["hp"] * mult), atk_base=st["atk"] * mult, def_base=st["def"] * mult,
+            max_hp=round(st["hp"] * mult + bonus.get("hp", 0)), atk_base=st["atk"] * mult + bonus.get("atk", 0),
+            def_base=st["def"] * mult + bonus.get("def", 0),
             interval_ms=st["attack_interval_ms"],
             crit_chance=st.get("crit_chance", dmg["crit_chance"]), crit_damage=st.get("crit_damage", dmg["crit_damage"]),
             range=st.get("range", role.get("range", 1.5)), speed=st.get("move_speed", role.get("move_speed", 1.5)),
@@ -136,6 +139,7 @@ class Battle:
             targeting=role.get("targeting", "nearest"),
         )
         u.hp = u.max_hp
+        u.ult_power = float(entry.get("ult_power", 1.0))  # уникальный предмет усиливает ультимейт
         u.energy = int(self.cfg["energy"].get("start", 0))
         for s in hero["skills"]:
             if s["type"] == "active":
@@ -421,6 +425,7 @@ class Battle:
 
     def _apply_effects(self, u: Unit, skill: dict, permanent: bool = False) -> None:
         targets_hit = []
+        power = u.ult_power if skill.get("type") == "ultimate" else 1.0
         for eff in skill["effects"]:
             targets = self._select(u, eff.get("target", {"side": "enemy", "select": "current"}))
             kind = eff["kind"]
@@ -430,11 +435,11 @@ class Battle:
                     continue
                 targets_hit.append(tg.uid)
                 if kind == "damage":
-                    self._damage(u, tg, eff.get("multiplier", 1.0), "skill", can_crit=True, skill_id=skill["id"])
+                    self._damage(u, tg, eff.get("multiplier", 1.0) * power, "skill", can_crit=True, skill_id=skill["id"])
                 elif kind == "heal":
-                    self._heal(u, tg, eff.get("multiplier", 1.0))
+                    self._heal(u, tg, eff.get("multiplier", 1.0) * power)
                 elif kind == "shield":
-                    amount = round(u.atk() * eff.get("multiplier", 1.0))
+                    amount = round(u.atk() * eff.get("multiplier", 1.0) * power)
                     tg.shields.append([amount, self.t + self._ms(eff.get("duration_ms", 5000))])
                     u.stats["shielded"] += amount
                     self._emit("shield", u=tg.uid, value=tg.shield_total(), src=u.uid)

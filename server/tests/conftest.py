@@ -38,11 +38,12 @@ async def db():
 
 @pytest_asyncio.fixture
 async def client(db):
+    import fakeredis
     import fakeredis.aioredis
     from httpx import ASGITransport, AsyncClient
 
     from app.main import app
     from app.redis_client import set_redis
-    set_redis(fakeredis.aioredis.FakeRedis(decode_responses=True))
+    set_redis(fakeredis.aioredis.FakeRedis(server=fakeredis.FakeServer(), decode_responses=True))  # свой Redis на каждый тест
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
         yield c

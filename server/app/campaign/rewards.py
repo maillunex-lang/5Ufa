@@ -9,12 +9,16 @@ from datetime import datetime, timezone, timedelta
 DENOMINATOR = 3600 * 1_000_000 * 100
 UFA = timezone(timedelta(hours=5))
 
-# ресурс -> (ключ ставки в config/campaign.json, поле доли в campaign_progress)
+# ресурс -> (ключ ставки в config/campaign.json, поле доли в campaign_progress, делитель ставки)
+# Делитель 100 — ставка задана «за 100 часов» (так задаются редкие награды вроде предметов).
+# "equipment" — количество предметов снаряжения; сами предметы создаёт вызывающий код.
 RESOURCES = {
-    "gold": ("gold_per_hour", "gold_fraction"),
-    "hero_xp": ("hero_xp_per_hour", "xp_fraction"),
-    "crystals": ("crystals_per_hour", "crystal_fraction"),
-    "essence": ("essence_per_hour", "essence_fraction"),
+    "gold": ("gold_per_hour", "gold_fraction", 1),
+    "hero_xp": ("hero_xp_per_hour", "xp_fraction", 1),
+    "crystals": ("crystals_per_hour", "crystal_fraction", 1),
+    "essence": ("essence_per_hour", "essence_fraction", 1),
+    "ore": ("ore_per_hour", "ore_fraction", 1),
+    "equipment": ("equipment_per_100h", "equipment_fraction", 100),
 }
 
 
@@ -34,7 +38,7 @@ def settle(progress, config, now):
     cap = config["afk_cap_seconds"] * 1_000_000
     added = min(micros, max(0, cap - progress.elapsed_us))
     rate = rate_percent(progress, config)
-    for _, (rate_key, field) in RESOURCES.items():
+    for _, (rate_key, field, _div) in RESOURCES.items():
         per_hour = int(config.get(rate_key, 0))
         if per_hour:
             setattr(progress, field, getattr(progress, field) + added * per_hour * rate)
@@ -43,14 +47,14 @@ def settle(progress, config, now):
 
 
 def pending(progress):
-    return {res: getattr(progress, field) // DENOMINATOR for res, (_, field) in RESOURCES.items()}
+    return {res: getattr(progress, field) // (DENOMINATOR * div) for res, (_, field, div) in RESOURCES.items()}
 
 
 def claim(progress):
     """Забрать целую часть сундука; остатки долей сохраняются. Начисление в кошелёк — вызывающий код."""
     reward = pending(progress)
-    for _, (_, field) in RESOURCES.items():
-        setattr(progress, field, getattr(progress, field) % DENOMINATOR)
+    for _, (_, field, div) in RESOURCES.items():
+        setattr(progress, field, getattr(progress, field) % (DENOMINATOR * div))
     progress.elapsed_us = 0
     return reward
 
@@ -65,8 +69,8 @@ def quick(progress, config, now):
         return None
     rate = rate_percent(progress, config)
     reward = {}
-    for res, (rate_key, _) in RESOURCES.items():
+    for res, (rate_key, _, div) in RESOURCES.items():
         # Дробные остатки быстрой награды не относятся к накоплениям сундука.
-        reward[res] = config["quick_seconds"] * 1_000_000 * int(config.get(rate_key, 0)) * rate // DENOMINATOR
+        reward[res] = config["quick_seconds"] * 1_000_000 * int(config.get(rate_key, 0)) * rate // (DENOMINATOR * div)
     progress.quick_count += 1
     return reward

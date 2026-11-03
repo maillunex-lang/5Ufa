@@ -105,6 +105,8 @@ class CampaignProgress(Base):
     xp_fraction: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
     crystal_fraction: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
     essence_fraction: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
+    ore_fraction: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
+    equipment_fraction: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
     elapsed_us: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow)
     quick_day: Mapped[str] = mapped_column(String(10), nullable=False, default="")
@@ -144,6 +146,7 @@ class PlayerHero(Base):
     tier: Mapped[str] = mapped_column(String(32), nullable=False)
     level: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     crystal_slot: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    signature_level: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
 
 
@@ -169,3 +172,24 @@ class PlayerState(Base):
 
     player_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("players.id", ondelete="CASCADE"), primary_key=True)
     starter_granted: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    equipment_starter_granted: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
+
+# ---------------------------------------------------------------------------
+# Этап 5б: снаряжение
+# ---------------------------------------------------------------------------
+class PlayerItem(Base):
+    """Предмет снаряжения в инвентаре. hero_instance_id — на ком надет (NULL — лежит в сумке)."""
+    __tablename__ = "player_items"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    player_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("players.id", ondelete="CASCADE"), index=True)
+    slot: Mapped[str] = mapped_column(String(32), nullable=False)
+    kind: Mapped[str] = mapped_column(String(32), nullable=False)
+    quality: Mapped[str] = mapped_column(String(32), nullable=False)
+    faction: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    level: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    ore_spent: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    hero_instance_id: Mapped[int | None] = mapped_column(
+        ForeignKey("player_heroes.id", ondelete="SET NULL"), nullable=True, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)

@@ -1,0 +1,45 @@
+{
+  "$schema": "../../shared/schemas/equipment.schema.json",
+  "slots": [
+    {"id": "weapon", "name": "Оружие", "stats": {"atk": 20}},
+    {"id": "armor", "name": "Доспех", "stats": {"hp": 200, "def": 8}},
+    {"id": "helmet", "name": "Шлем", "stats": {"hp": 300}},
+    {"id": "boots", "name": "Сапоги", "stats": {"atk": 6, "hp": 120}}
+  ],
+  "kinds": [
+    {"id": "strength", "name": "Сила", "roles": ["tank", "warrior"],
+     "item_names": {"weapon": "Меч", "armor": "Латы", "helmet": "Шлем", "boots": "Сапоги"}},
+    {"id": "agility", "name": "Ловкость", "roles": ["archer", "assassin"],
+     "item_names": {"weapon": "Лук", "armor": "Кожаный доспех", "helmet": "Капюшон", "boots": "Лёгкие сапоги"}},
+    {"id": "mystic", "name": "Мистика", "roles": ["mage", "support"],
+     "item_names": {"weapon": "Посох", "armor": "Мантия", "helmet": "Венец", "boots": "Туфли"}}
+  ],
+  "qualities": [
+    {"id": "common", "name": "Обычный", "mult": 1.0, "color": "#B8B8B8", "dismantle_ore": 2},
+    {"id": "rare", "name": "Редкий", "mult": 1.6, "color": "#5AA9E6", "dismantle_ore": 5},
+    {"id": "elite", "name": "Элитный", "mult": 2.56, "color": "#B06CE0", "dismantle_ore": 12},
+    {"id": "legendary", "name": "Легендарный", "mult": 4.1, "color": "#F2B544", "dismantle_ore": 30},
+    {"id": "mythic", "name": "Мифический", "mult": 6.55, "color": "#FF7A3A", "dismantle_ore": 75}
+  ],
+  "faction_bonus_percent": 15,
+  "upgrade": {
+    "max_level": 10,
+    "stat_percent_per_level": 8,
+    "gold_base": 100,
+    "ore_base": 3,
+    "refund_percent": 50
+  },
+  "inventory_limit": 500,
+  "drops": {
+    "campaign_quality_by_chapter": ["common", "rare", "rare", "elite", "elite"],
+    "chapter_end_legacy_shards": 20
+  },
+  "start": {"per_kind": 4, "quality": "common"},
+  "signature": {
+    "unlock_tier": "mythic",
+    "max_level": 10,
+    "stat_percent_per_level": 3,
+    "cost": {"legacy_shards": {"base": 10, "per_level": 5}, "gold": {"base": 2000, "per_level": 2000}},
+    "ult_bonus": [{"level": 5, "percent": 10}, {"level": 10, "percent": 20}]
+  }
+}

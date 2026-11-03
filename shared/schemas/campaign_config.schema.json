@@ -43,6 +43,16 @@
     "essence_per_hour": {
       "type": "integer",
       "minimum": 0
+    },
+    "ore_per_hour": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Руда в AFK-сундуке за час"
+    },
+    "equipment_per_100h": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Предметов снаряжения за 100 часов AFK (50 = 1 предмет в 2 часа)"
     }
   }
 }

@@ -62,9 +62,16 @@ async def owned_team(session: AsyncSession, player: Player, view: ContentView, t
         cfg = view.json("config/progression.json")
     except KeyError:
         return team  # правила прогрессии ещё не опубликованы — как раньше
+    from app.progression import equipment as eq
+    try:
+        eq_cfg = view.json("config/equipment.json")
+    except KeyError:
+        eq_cfg = None  # снаряжение ещё не опубликовано
     await prog.lock_player(session, player.id)
     await prog.ensure_starter(session, player.id, cfg)
-    return await prog.build_team(session, player.id, cfg, view.heroes(), team)
+    if eq_cfg:
+        await eq.ensure_starter(session, player.id, eq_cfg)
+    return await prog.build_team(session, player.id, cfg, view.heroes(), team, eq_cfg)
 
 
 @router.get("/test-teams")
@@ -109,6 +116,7 @@ async def live_test_battle(ws: WebSocket):
     campaign_context = None
     campaign_awarded = False
     campaign_reward = None
+    campaign_items: list = []
     try:
         header = ws.headers.get("authorization", "")
         player_id = decode_access_token(header[7:].strip()) if header.lower().startswith("bearer ") else None
@@ -136,7 +144,7 @@ async def live_test_battle(ws: WebSocket):
                     raise HTTPException(403, "Сначала пройдите предыдущий этап")
                 stage = stages[body.stage - 1]
                 enemy = view.teams().get(stage["enemy"])
-                campaign_context = (player.id, body.stage, stage["reward"], config)
+                campaign_context = (player.id, body.stage, stage["reward"], config, view)
             else:
                 body = TestBattleIn.model_validate(raw)
                 enemy = view.teams().get(body.enemy)
@@ -183,10 +191,11 @@ async def live_test_battle(ws: WebSocket):
         for offset in range(sent, len(battle.events), 40):
             await ws.send_json({"type": "events", "until": battle.t, "events": battle.events[offset:offset + 40]})
         if campaign_context:
-            campaign_reward = await _award_campaign(battle, campaign_context)
+            got = await _award_campaign(battle, campaign_context)
+            campaign_reward, campaign_items = got["reward"], got["items"]
             campaign_awarded = True
         await ws.send_json({"type": "end", "events": [], "result": battle.log()["result"],
-                            "campaign_reward": campaign_reward})
+                            "campaign_reward": campaign_reward, "campaign_items": campaign_items})
         # Дождаться обработки результата клиентом до закрытия соединения.
         await asyncio.wait_for(ws.receive_json(), 5)
     except WebSocketDisconnect:
@@ -209,18 +218,14 @@ async def live_test_battle(ws: WebSocket):
 
 
 async def _award_campaign(battle: Battle, context: tuple) -> dict:
+    from app.api.campaign import award_stage
     from app.campaign.rewards import settle
     from app.campaign.service import locked_progress
 
-    player_id, stage_number, stage_reward, config = context
+    player_id, stage_number, stage_reward, config, view = context
     async with get_sessionmaker()() as session:
-        from app.progression import wallet
         progress = await locked_progress(session, player_id)
         settle(progress, config, datetime.now(timezone.utc))
-        reward = {"gold": 0, "hero_xp": 0}
-        if battle.winner == 0 and stage_number == progress.cleared + 1:
-            reward = dict(stage_reward)
-            await wallet.add(session, player_id, reward)
-            progress.cleared += 1
+        got = await award_stage(session, player_id, view, progress, stage_number, stage_reward, battle.winner == 0)
         await session.commit()
-        return reward
+        return got

@@ -16,6 +16,8 @@ CURRENCY_NAMES = {
     "crystals": "кристаллов",
     "essence": "эссенции",
     "scrolls": "свитков призыва",
+    "ore": "руды",
+    "legacy_shards": "осколков наследия",
 }
 
 

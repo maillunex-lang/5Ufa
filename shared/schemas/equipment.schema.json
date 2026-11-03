@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.ufagame.local/equipment.schema.json",
+  "title": "Снаряжение (config/equipment.json): слоты, типы, редкости, улучшение, добыча, уникальный предмет",
+  "type": "object",
+  "required": ["slots", "kinds", "qualities", "faction_bonus_percent", "upgrade", "inventory_limit", "drops", "start", "signature"],
+  "additionalProperties": false,
+  "$defs": {
+    "stats": {
+      "type": "object", "additionalProperties": false, "minProperties": 1,
+      "properties": {"hp": {"type": "number", "minimum": 0}, "atk": {"type": "number", "minimum": 0}, "def": {"type": "number", "minimum": 0}}
+    },
+    "lin": {
+      "type": "object", "required": ["base", "per_level"], "additionalProperties": false,
+      "description": "Цена уровня L→L+1 = base + per_level × L",
+      "properties": {"base": {"type": "integer", "minimum": 0}, "per_level": {"type": "integer", "minimum": 0}}
+    }
+  },
+  "properties": {
+    "$schema": {"type": "string"},
+    "slots": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object", "required": ["id", "name", "stats"], "additionalProperties": false,
+        "properties": {
+          "id": {"$ref": "common.schema.json#/$defs/id"},
+          "name": {"type": "string", "minLength": 1},
+          "stats": {"$ref": "#/$defs/stats", "description": "Характеристики обычного предмета +0"}
+        }
+      }
+    },
+    "kinds": {
+      "type": "array", "minItems": 1,
+      "description": "Типы предметов; герой носит только тип своей роли",
+      "items": {
+        "type": "object", "required": ["id", "name", "roles", "item_names"], "additionalProperties": false,
+        "properties": {
+          "id": {"$ref": "common.schema.json#/$defs/id"},
+          "name": {"type": "string", "minLength": 1},
+          "roles": {"type": "array", "minItems": 1, "items": {"enum": ["tank", "warrior", "archer", "mage", "support", "assassin"]}},
+          "item_names": {"type": "object", "additionalProperties": {"type": "string", "minLength": 1}}
+        }
+      }
+    },
+    "qualities": {
+      "type": "array", "minItems": 1, "description": "Редкости по возрастанию",
+      "items": {
+        "type": "object", "required": ["id", "name", "mult", "dismantle_ore"], "additionalProperties": false,
+        "properties": {
+          "id": {"$ref": "common.schema.json#/$defs/id"},
+          "name": {"type": "string", "minLength": 1},
+          "mult": {"type": "number", "exclusiveMinimum": 0},
+          "color": {"$ref": "common.schema.json#/$defs/color"},
+          "dismantle_ore": {"type": "integer", "minimum": 0}
+        }
+      }
+    },
+    "faction_bonus_percent": {"type": "number", "minimum": 0, "description": "Прибавка к предмету, если фракция совпала с героем"},
+    "upgrade": {
+      "type": "object", "required": ["max_level", "stat_percent_per_level", "gold_base", "ore_base", "refund_percent"],
+      "additionalProperties": false,
+      "description": "Цена L→L+1: золото gold_base×(L+1)×(редкость+1), руда ore_base×(L+1)×(редкость+1)",
+      "properties": {
+        "max_level": {"type": "integer", "minimum": 0},
+        "stat_percent_per_level": {"type": "number", "minimum": 0},
+        "gold_base": {"type": "integer", "minimum": 0},
+        "ore_base": {"type": "integer", "minimum": 0},
+        "refund_percent": {"type": "number", "minimum": 0, "maximum": 100, "description": "Сколько руды улучшений возвращает разбор"}
+      }
+    },
+    "inventory_limit": {"type": "integer", "minimum": 1},
+    "drops": {
+      "type": "object", "required": ["campaign_quality_by_chapter"], "additionalProperties": false,
+      "properties": {
+        "campaign_quality_by_chapter": {"type": "array", "minItems": 1, "items": {"type": "string"},
+                                        "description": "Редкость предмета за первую победу и из сундука по номеру главы"},
+        "chapter_end_legacy_shards": {"type": "integer", "minimum": 0}
+      }
+    },
+    "start": {
+      "type": "object", "required": ["per_kind", "quality"], "additionalProperties": false,
+      "properties": {"per_kind": {"type": "integer", "minimum": 0}, "quality": {"type": "string"}}
+    },
+    "signature": {
+      "type": "object", "required": ["unlock_tier", "max_level", "stat_percent_per_level", "cost", "ult_bonus"],
+      "additionalProperties": false,
+      "properties": {
+        "unlock_tier": {"type": "string", "description": "С какой ступени героя открывается уникальный предмет"},
+        "max_level": {"type": "integer", "minimum": 1},
+        "stat_percent_per_level": {"type": "number", "minimum": 0},
+        "cost": {"type": "object", "additionalProperties": {"$ref": "#/$defs/lin"}},
+        "ult_bonus": {
+          "type": "array",
+          "items": {"type": "object", "required": ["level", "percent"], "additionalProperties": false,
+                    "properties": {"level": {"type": "integer", "minimum": 1}, "percent": {"type": "number", "minimum": 0}}}
+        }
+      }
+    }
+  }
+}
