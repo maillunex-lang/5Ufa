@@ -50,6 +50,20 @@ jobs:
           export GODOT_ANDROID_KEYSTORE_RELEASE_USER=test
           export GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD=temporary123
           bash scripts/build-apk.sh
+          AAPT="$(find "$ANDROID_SDK/build-tools" -name aapt -type f | sort -V | tail -1)"
+          "$AAPT" dump xmltree client/build/ufa.apk AndroidManifest.xml > /tmp/ufa-manifest.txt
+          grep -q 'org.godotengine.plugin.notification.NotificationReceiver' /tmp/ufa-manifest.txt
+          grep -q 'android.permission.POST_NOTIFICATIONS' /tmp/ufa-manifest.txt
+          if grep -Eq 'android.permission.(SCHEDULE_EXACT_ALARM|REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)' /tmp/ufa-manifest.txt; then
+            echo 'Обнаружено лишнее разрешение уведомлений' >&2
+            exit 1
+          fi
+          unzip -Z1 client/build/ufa.apk > /tmp/ufa-apk-files.txt
+          grep -q '^lib/arm64-v8a/' /tmp/ufa-apk-files.txt
+          if grep -Eq '^lib/(armeabi-v7a|x86|x86_64)/' /tmp/ufa-apk-files.txt; then
+            echo 'APK содержит неподдерживаемую архитектуру' >&2
+            exit 1
+          fi
 
   server-tests:
     runs-on: ubuntu-latest

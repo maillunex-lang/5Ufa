@@ -67,6 +67,13 @@ func _render() -> void:
 					body.add_child(Ui.label(str(chapter["dialogue_end"]), 21))
 				var button := Ui.button("Этап %d-%d — в бой" % [number, passed + 1], _fight.bind(cleared + 1))
 				body.add_child(button)
+	if cleared > 0:
+		var replay := OptionButton.new()
+		replay.custom_minimum_size = Vector2(0, 64)
+		for index in range(cleared):
+			replay.add_item("Этап %d-%d" % [int(index / 5) + 1, index % 5 + 1])
+		body.add_child(replay)
+		body.add_child(Ui.button("Повторить выбранный этап", func(): _fight(replay.selected + 1)))
 	var chest: Dictionary = data["pending"]
 	body.add_child(Ui.label("AFK-сундук: %d / 12 ч\nЗолото: %d · Опыт: %d" % [int(data["elapsed_seconds"]) / 3600, int(chest["gold"]), int(chest["hero_xp"])], 25, "accent"))
 	body.add_child(Ui.label("Всего: %d золота · %d опыта" % [int(data["gold"]), int(data["hero_xp"])], 22))

@@ -27,7 +27,11 @@ func _ready() -> void:
 	margin.add_theme_constant_override("margin_top", 40)
 	margin.add_theme_constant_override("margin_bottom", 28)
 	_load_data()
-	col.add_child(Ui.label("Кампания — этап %d" % int(get_tree().get_meta("campaign_stage")) if get_tree().has_meta("campaign_stage") else "Тестовый бой", 40, "accent"))
+	var heading := "Тестовый бой"
+	if get_tree().has_meta("campaign_stage"):
+		var stage_number: int = int(get_tree().get_meta("campaign_stage"))
+		heading = "Кампания — этап %d-%d" % [int((stage_number - 1) / 5) + 1, (stage_number - 1) % 5 + 1]
+	col.add_child(Ui.label(heading, 40, "accent"))
 	col.add_child(Ui.label("Выберите до 5 героев. Нажмите на место в отряде, чтобы убрать.", 20))
 
 	col.add_child(_row_title("Передний ряд"))
