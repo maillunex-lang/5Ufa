@@ -1,0 +1,110 @@
+{
+  "id": "zarkum",
+  "name": "Заркум",
+  "title": "Змеиный царевич",
+  "faction": "underworld",
+  "role": "assassin",
+  "rarity": "legendary",
+  "description": "Сын змеиного царя, принимающий облик юноши.",
+  "lore": "Заркум умеет становиться то змеем, то человеком. Он подкрадывается бесшумно и жалит тех, кто стоит позади.",
+  "stats": {
+    "hp": 3240,
+    "atk": 235,
+    "def": 80,
+    "attack_interval_ms": 900,
+    "crit_chance": 0.15
+  },
+  "skills": [
+    {
+      "id": "zar_ult",
+      "name": "Смертельный укус",
+      "description": "Бьёт врага в заднем ряду на 300% атаки и отравляет: 30% атаки в секунду 4 с.",
+      "type": "ultimate",
+      "cast_time_ms": 900,
+      "animation": "ultimate",
+      "effects": [
+        {
+          "kind": "damage",
+          "target": {
+            "side": "enemy",
+            "select": "backline"
+          },
+          "multiplier": 3.0
+        },
+        {
+          "kind": "dot",
+          "target": {
+            "side": "enemy",
+            "select": "backline"
+          },
+          "multiplier": 0.3,
+          "duration_ms": 4000
+        }
+      ]
+    },
+    {
+      "id": "zar_s1",
+      "name": "Змеиный бросок",
+      "description": "Бьёт врага с наименьшим здоровьем на 190% атаки.",
+      "type": "active",
+      "cooldown_ms": 6000,
+      "first_cast_ms": 2500,
+      "cast_time_ms": 500,
+      "animation": "skill",
+      "effects": [
+        {
+          "kind": "damage",
+          "target": {
+            "side": "enemy",
+            "select": "lowest_hp"
+          },
+          "multiplier": 1.9
+        }
+      ]
+    },
+    {
+      "id": "zar_s2",
+      "name": "Сброс кожи",
+      "description": "Щит себе на 200% атаки.",
+      "type": "active",
+      "cooldown_ms": 11000,
+      "first_cast_ms": 5000,
+      "cast_time_ms": 500,
+      "animation": "skill",
+      "effects": [
+        {
+          "kind": "shield",
+          "target": {
+            "side": "ally",
+            "select": "self"
+          },
+          "multiplier": 2.0,
+          "duration_ms": 5000
+        }
+      ]
+    },
+    {
+      "id": "zar_p",
+      "name": "Холодная кровь",
+      "description": "Шанс крита +5%.",
+      "type": "passive",
+      "trigger": "battle_start",
+      "effects": [
+        {
+          "kind": "stat",
+          "target": {
+            "side": "ally",
+            "select": "self"
+          },
+          "stat": "crit_chance",
+          "percent": 5
+        }
+      ]
+    }
+  ],
+  "art": {
+    "portrait": "heroes/zarkum/portrait.png",
+    "full": "heroes/zarkum/full.png",
+    "skeleton": "heroes/zarkum/skeleton.json"
+  }
+}

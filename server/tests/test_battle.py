@@ -31,9 +31,15 @@ def h(log):
     return hashlib.sha256(json.dumps(log, sort_keys=True).encode()).hexdigest()
 
 
-def test_15_heroes_4_factions():
-    assert len(HEROES) == 15
+def test_heroes_and_factions():
+    assert len(HEROES) == 19
+    assert len(FAC) == 6
     assert {x["faction"] for x in HEROES.values()} == set(FAC)
+    # Круг из 4 фракций + пара Небожители <-> Подземное царство
+    assert FAC["sky_dwellers"]["strong_against"] == ["underworld"]
+    assert FAC["underworld"]["strong_against"] == ["sky_dwellers"]
+    for f in ("ural_batyrs", "evil_spirits", "forest_spirits", "steppe_nomads"):
+        assert not set(FAC[f]["strong_against"]) & {"sky_dwellers", "underworld"}
     for hero in HEROES.values():
         types = [s["type"] for s in hero["skills"]]
         assert types.count("ultimate") == 1 and len(types) == 4, hero["id"]

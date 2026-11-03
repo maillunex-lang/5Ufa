@@ -35,6 +35,24 @@
         "ural_batyrs"
       ],
       "description": "Вольные всадники, лучники и шаманы бескрайней степи."
+    },
+    {
+      "id": "sky_dwellers",
+      "name": "Небожители",
+      "color": "#7FB8E8",
+      "strong_against": [
+        "underworld"
+      ],
+      "description": "Царь птиц Самрау и его небесный род — свет над Уралом."
+    },
+    {
+      "id": "underworld",
+      "name": "Подземное царство",
+      "color": "#5B3A8C",
+      "strong_against": [
+        "sky_dwellers"
+      ],
+      "description": "Владения Катил-падиши и змеиного царя — мрак под горами."
     }
   ]
 }

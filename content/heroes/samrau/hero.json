@@ -1,0 +1,120 @@
+{
+  "id": "samrau",
+  "name": "Самрау",
+  "title": "Царь птиц",
+  "faction": "sky_dwellers",
+  "role": "mage",
+  "rarity": "legendary",
+  "description": "Владыка небес, отец Хумай.",
+  "lore": "Самрау правит птицами и солнечным светом. Его дочери — Хумай и Айхылыу — несут свет солнца и луны.",
+  "stats": {
+    "hp": 2700,
+    "atk": 250,
+    "def": 60,
+    "attack_interval_ms": 1500
+  },
+  "skills": [
+    {
+      "id": "sam_ult",
+      "name": "Солнечный гнев",
+      "description": "Бьёт всех врагов на 220% атаки и снижает их защиту на 15% на 5 с.",
+      "type": "ultimate",
+      "cast_time_ms": 900,
+      "animation": "ultimate",
+      "effects": [
+        {
+          "kind": "damage",
+          "target": {
+            "side": "enemy",
+            "select": "all"
+          },
+          "multiplier": 2.2
+        },
+        {
+          "kind": "buff",
+          "target": {
+            "side": "enemy",
+            "select": "all"
+          },
+          "stat": "def",
+          "percent": -15,
+          "duration_ms": 5000
+        }
+      ]
+    },
+    {
+      "id": "sam_s1",
+      "name": "Луч",
+      "description": "Бьёт врага с наибольшей атакой на 260% атаки.",
+      "type": "active",
+      "cooldown_ms": 7000,
+      "first_cast_ms": 3000,
+      "cast_time_ms": 500,
+      "animation": "skill",
+      "effects": [
+        {
+          "kind": "damage",
+          "target": {
+            "side": "enemy",
+            "select": "highest_atk"
+          },
+          "multiplier": 2.6
+        }
+      ]
+    },
+    {
+      "id": "sam_s2",
+      "name": "Взмах крыла",
+      "description": "Оглушает двух ближайших врагов на 1 с.",
+      "type": "active",
+      "cooldown_ms": 12000,
+      "first_cast_ms": 6000,
+      "cast_time_ms": 500,
+      "animation": "skill",
+      "effects": [
+        {
+          "kind": "stun",
+          "target": {
+            "side": "enemy",
+            "select": "nearest",
+            "count": 2
+          },
+          "duration_ms": 1000
+        }
+      ]
+    },
+    {
+      "id": "sam_p",
+      "name": "Небесная кровь",
+      "description": "Атака +12%, здоровье +8%.",
+      "type": "passive",
+      "trigger": "battle_start",
+      "effects": [
+        {
+          "kind": "stat",
+          "target": {
+            "side": "ally",
+            "select": "self"
+          },
+          "stat": "atk",
+          "percent": 12
+        },
+        {
+          "kind": "stat",
+          "target": {
+            "side": "ally",
+            "select": "self"
+          },
+          "stat": "hp",
+          "percent": 8
+        }
+      ]
+    }
+  ],
+  "art": {
+    "portrait": "heroes/samrau/portrait.png",
+    "full": "heroes/samrau/full.png",
+    "skeleton": "heroes/samrau/skeleton.json",
+    "projectile": "heroes/samrau/projectile.png"
+  }
+}

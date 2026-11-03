@@ -53,6 +53,32 @@
       ]
     },
     {
+      "id": "test_underworld",
+      "name": "Подземное войско",
+      "units": [
+        {
+          "hero": "deyeu",
+          "slot": 0
+        },
+        {
+          "hero": "katil",
+          "slot": 1
+        },
+        {
+          "hero": "zarkum",
+          "slot": 2
+        },
+        {
+          "hero": "azhdaha",
+          "slot": 3
+        },
+        {
+          "hero": "albasty",
+          "slot": 4
+        }
+      ]
+    },
+    {
       "id": "test_weak",
       "name": "Учебный отряд",
       "units": [

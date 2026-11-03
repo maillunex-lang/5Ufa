@@ -1,0 +1,111 @@
+{
+  "id": "katil",
+  "name": "Катил-падиша",
+  "title": "Царь дивов",
+  "faction": "underworld",
+  "role": "warrior",
+  "rarity": "legendary",
+  "description": "Владыка подземного царства, враг Урал-батыра.",
+  "lore": "Катил-падиша приносил людей в жертву и держал в страхе всю землю. Его трон стоит в пещере, где не бывает света.",
+  "stats": {
+    "hp": 4500,
+    "atk": 200,
+    "def": 110,
+    "attack_interval_ms": 1100
+  },
+  "skills": [
+    {
+      "id": "kat_ult",
+      "name": "Жертвоприношение",
+      "description": "Бьёт двух ближайших врагов на 210% атаки и лечит себя на 150% атаки.",
+      "type": "ultimate",
+      "cast_time_ms": 900,
+      "animation": "ultimate",
+      "effects": [
+        {
+          "kind": "damage",
+          "target": {
+            "side": "enemy",
+            "select": "nearest",
+            "count": 2
+          },
+          "multiplier": 2.1
+        },
+        {
+          "kind": "heal",
+          "target": {
+            "side": "ally",
+            "select": "self"
+          },
+          "multiplier": 1.5
+        }
+      ]
+    },
+    {
+      "id": "kat_s1",
+      "name": "Тяжёлый удар",
+      "description": "Бьёт цель на 200% атаки.",
+      "type": "active",
+      "cooldown_ms": 7000,
+      "first_cast_ms": 3000,
+      "cast_time_ms": 500,
+      "animation": "skill",
+      "effects": [
+        {
+          "kind": "damage",
+          "target": {
+            "side": "enemy",
+            "select": "current"
+          },
+          "multiplier": 2.0
+        }
+      ]
+    },
+    {
+      "id": "kat_s2",
+      "name": "Власть тьмы",
+      "description": "Снижает атаку двух ближайших врагов на 15% на 4 с.",
+      "type": "active",
+      "cooldown_ms": 15000,
+      "first_cast_ms": 7000,
+      "cast_time_ms": 500,
+      "animation": "skill",
+      "effects": [
+        {
+          "kind": "buff",
+          "target": {
+            "side": "enemy",
+            "select": "nearest",
+            "count": 2
+          },
+          "stat": "atk",
+          "percent": -15,
+          "duration_ms": 4000
+        }
+      ]
+    },
+    {
+      "id": "kat_p",
+      "name": "Подземный трон",
+      "description": "Здоровье +10%.",
+      "type": "passive",
+      "trigger": "battle_start",
+      "effects": [
+        {
+          "kind": "stat",
+          "target": {
+            "side": "ally",
+            "select": "self"
+          },
+          "stat": "hp",
+          "percent": 10
+        }
+      ]
+    }
+  ],
+  "art": {
+    "portrait": "heroes/katil/portrait.png",
+    "full": "heroes/katil/full.png",
+    "skeleton": "heroes/katil/skeleton.json"
+  }
+}

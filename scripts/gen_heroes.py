@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Генератор стартового контента этапа 3: 15 героев-заглушек, фракции, формулы боя, тестовые отряды.
+"""Генератор стартового контента этапа 3: 19 героев-заглушек (6 фракций), фракции, формулы боя, тестовые отряды.
 
 Рисует части тела в PNG (единый мультяшный стиль, цвета фракций), собирает skeleton.json
 с анимациями idle/attack/skill/ultimate/hit/death/victory, портрет и полный арт.
@@ -31,6 +31,12 @@ FACTIONS = [
      "description": "Шурале, водяные девы и хозяева лесов."},
     {"id": "steppe_nomads", "name": "Степные кочевники", "color": "#C9693B", "strong_against": ["ural_batyrs"],
      "description": "Вольные всадники, лучники и шаманы бескрайней степи."},
+    # Две отдельные фракции (как Небожители и Гипогеи в AFK Arena):
+    # +25% урона друг другу, с четырьмя основными фракциями — нейтральны.
+    {"id": "sky_dwellers", "name": "Небожители", "color": "#7FB8E8", "strong_against": ["underworld"],
+     "description": "Царь птиц Самрау и его небесный род — свет над Уралом."},
+    {"id": "underworld", "name": "Подземное царство", "color": "#5B3A8C", "strong_against": ["sky_dwellers"],
+     "description": "Владения Катил-падиши и змеиного царя — мрак под горами."},
 ]
 FCOLOR = {f["id"]: f["color"] for f in FACTIONS}
 
@@ -261,6 +267,57 @@ HEROES = [
                  passive("azh_p", "Подземный жар", "Атака +10%.", [{"kind": "stat", "target": T("ally", "self"), "stat": "atk", "percent": 10}])]),
 ]
 
+HEROES += [
+    # --- Небожители ---
+    dict(id="samrau", name="Самрау", title="Царь птиц", faction="sky_dwellers", role="mage",
+         description="Владыка небес, отец Хумай.",
+         lore="Самрау правит птицами и солнечным светом. Его дочери — Хумай и Айхылыу — несут свет солнца и луны.",
+         look=dict(skin="#F6E3C0", hair="#F2B544", acc="halo"),
+         skills=[ult("sam_ult", "Солнечный гнев", "Бьёт всех врагов на 220% атаки и снижает их защиту на 15% на 5 с.",
+                     [dmg(T("enemy", "all"), 2.2), {"kind": "buff", "target": T("enemy", "all"), "stat": "def", "percent": -15, "duration_ms": 5000}]),
+                 active("sam_s1", "Луч", "Бьёт врага с наибольшей атакой на 260% атаки.", [dmg(T("enemy", "highest_atk"), 2.6)], 7000, 3000),
+                 active("sam_s2", "Взмах крыла", "Оглушает двух ближайших врагов на 1 с.",
+                        [{"kind": "stun", "target": T("enemy", "nearest", 2), "duration_ms": 1000}], 12000, 6000),
+                 passive("sam_p", "Небесная кровь", "Атака +12%, здоровье +8%.",
+                         [{"kind": "stat", "target": T("ally", "self"), "stat": "atk", "percent": 12},
+                          {"kind": "stat", "target": T("ally", "self"), "stat": "hp", "percent": 8}])]),
+    dict(id="aihylu", name="Айхылыу", title="Лунная дева", faction="sky_dwellers", role="support",
+         description="Дочь Самрау, хранительница лунного света.",
+         lore="Айхылыу выходит на небо по ночам. Её свет возвращает силы раненым и не даёт тьме подойти близко.",
+         look=dict(skin="#EDE6F6", hair="#C9D6F0", acc="halo"),
+         skills=[ult("aih_ult", "Полнолуние", "Лечит всех союзников на 220% атаки и даёт щит на 120% атаки.",
+                     [{"kind": "heal", "target": T("ally", "all"), "multiplier": 2.2},
+                      {"kind": "shield", "target": T("ally", "all"), "multiplier": 1.2, "duration_ms": 6000}]),
+                 active("aih_s1", "Лунный свет", "Лечит самого раненого союзника на 320% атаки.",
+                        [{"kind": "heal", "target": T("ally", "lowest_hp"), "multiplier": 3.2}], 7000, 4000),
+                 active("aih_s2", "Сон", "Оглушает врага с наибольшей атакой на 2 с.",
+                        [{"kind": "stun", "target": T("enemy", "highest_atk"), "duration_ms": 2000}], 13000, 7000),
+                 passive("aih_p", "Тихий свет", "В начале боя союзники получают щит на 100% атаки.",
+                         [{"kind": "shield", "target": T("ally", "all"), "multiplier": 1.0, "duration_ms": 8000}])]),
+    # --- Подземное царство ---
+    dict(id="katil", name="Катил-падиша", title="Царь дивов", faction="underworld", role="warrior",
+         description="Владыка подземного царства, враг Урал-батыра.",
+         lore="Катил-падиша приносил людей в жертву и держал в страхе всю землю. Его трон стоит в пещере, где не бывает света.",
+         look=dict(skin="#8C6F8F", hair="#1A0E1E", acc="crown"),
+         skills=[ult("kat_ult", "Жертвоприношение", "Бьёт двух ближайших врагов на 210% атаки и лечит себя на 150% атаки.",
+                     [dmg(T("enemy", "nearest", 2), 2.1), {"kind": "heal", "target": T("ally", "self"), "multiplier": 1.5}]),
+                 active("kat_s1", "Тяжёлый удар", "Бьёт цель на 200% атаки.", [dmg(T("enemy", "current"), 2.0)], 7000, 3000),
+                 active("kat_s2", "Власть тьмы", "Снижает атаку двух ближайших врагов на 15% на 4 с.",
+                        [{"kind": "buff", "target": T("enemy", "nearest", 2), "stat": "atk", "percent": -15, "duration_ms": 4000}], 15000, 7000),
+                 passive("kat_p", "Подземный трон", "Здоровье +10%.",
+                         [{"kind": "stat", "target": T("ally", "self"), "stat": "hp", "percent": 10}])]),
+    dict(id="zarkum", name="Заркум", title="Змеиный царевич", faction="underworld", role="assassin",
+         description="Сын змеиного царя, принимающий облик юноши.",
+         lore="Заркум умеет становиться то змеем, то человеком. Он подкрадывается бесшумно и жалит тех, кто стоит позади.",
+         look=dict(skin="#9DBA8A", hair="#2E3A1E", acc="horns"),
+         skills=[ult("zar_ult", "Смертельный укус", "Бьёт врага в заднем ряду на 300% атаки и отравляет: 30% атаки в секунду 4 с.",
+                     [dmg(T("enemy", "backline"), 3.0), {"kind": "dot", "target": T("enemy", "backline"), "multiplier": 0.3, "duration_ms": 4000}]),
+                 active("zar_s1", "Змеиный бросок", "Бьёт врага с наименьшим здоровьем на 190% атаки.", [dmg(T("enemy", "lowest_hp"), 1.9)], 6000, 2500),
+                 active("zar_s2", "Сброс кожи", "Щит себе на 200% атаки.",
+                        [{"kind": "shield", "target": T("ally", "self"), "multiplier": 2.0, "duration_ms": 5000}], 11000, 5000),
+                 passive("zar_p", "Холодная кровь", "Шанс крита +5%.", [{"kind": "stat", "target": T("ally", "self"), "stat": "crit_chance", "percent": 5}])]),
+]
+
 TEST_TEAMS = {"teams": [
     {"id": "test_evil", "name": "Отряд Шульгена", "units": [
         {"hero": "deyeu", "slot": 0}, {"hero": "shulgen", "slot": 1},
@@ -268,6 +325,9 @@ TEST_TEAMS = {"teams": [
     {"id": "test_forest", "name": "Лесная засада", "units": [
         {"hero": "urman_huzha", "slot": 0}, {"hero": "shurale", "slot": 1},
         {"hero": "hyuhylu", "slot": 2}, {"hero": "bisura", "slot": 3}, {"hero": "mergen", "slot": 4}]},
+    {"id": "test_underworld", "name": "Подземное войско", "units": [
+        {"hero": "deyeu", "slot": 0}, {"hero": "katil", "slot": 1},
+        {"hero": "zarkum", "slot": 2}, {"hero": "azhdaha", "slot": 3}, {"hero": "albasty", "slot": 4}]},
     {"id": "test_weak", "name": "Учебный отряд", "units": [
         {"hero": "kusyak_biy", "slot": 0, "stat_multiplier": 0.5}, {"hero": "mergen", "slot": 3, "stat_multiplier": 0.5}]},
 ]}
@@ -339,6 +399,8 @@ def draw_head(hero, path):
         for i in range(1 if acc == "feather" else 3):
             x = 20 + i * 8
             poly(d, [(x, 16), (x - 6, 0), (x + 4, 2)], accent)
+    elif acc == "halo":
+        d.ellipse([14 * S, 0, 58 * S, 12 * S], outline=rgb("#FFE27A"), width=4 * S)
     elif acc == "fin":
         poly(d, [(36, 10), (26, 0), (52, 2), (46, 12)], rgb("#7FC8D8"))
     done(img, path)

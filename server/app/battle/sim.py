@@ -328,6 +328,13 @@ class Battle:
         # 2. Цель
         if u.target is None or not u.target.alive or u.targeting == "lowest_hp":
             u.target = self._pick_target(u)
+        elif u.targeting in ("nearest", "frontline") and u.range <= 2.5:
+            # Бойцы ближнего боя переключаются на заметно более близкого врага
+            # (например, на убийцу, прорвавшегося мимо них); стрелки и маги держат цель.
+            cand = self._pick_target(u)
+            if cand is not None and cand is not u.target and \
+                    self._dist(u, cand) + 0.75 < self._dist(u, u.target):
+                u.target = cand
         if u.target is None:
             return
         in_range = self._dist(u, u.target) <= u.range + 1e-6
