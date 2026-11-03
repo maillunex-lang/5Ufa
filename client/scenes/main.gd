@@ -34,6 +34,7 @@ func _ready() -> void:
 	col.add_child(Ui.button("Проверить файлы игры", _on_verify))
 	_bg_label = Ui.label("", 22)
 	col.add_child(_bg_label)
+	col.add_child(Ui.label("Версия %s (сборка %d)" % [Config.client_version, Updater.current_code()], 20))
 
 	Api.player_changed.connect(func(_p): _refresh_account())
 	Content.background_progress.connect(_on_bg_progress)
