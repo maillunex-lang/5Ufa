@@ -44,7 +44,17 @@ async def test_manifest_publish_rollback(client, tmp_path):
         await publish(s, rel2.id, "test")
         await s.commit()
     assert (await client.get("/api/v1/content/manifest")).json()["release"] == rel1.id
-    assert (await client.get("/api/v1/content/manifest?channel=test")).json()["release"] == rel2.id
+    # Обычный игрок видит live, тестовый — test
+    g = (await client.post("/api/v1/auth/guest", json={"device_id": "dev-manifest-1"})).json()
+    hdr = {"Authorization": f"Bearer {g['access_token']}"}
+    assert (await client.get("/api/v1/content/manifest", headers=hdr)).json()["release"] == rel1.id
+    from app.models import Player
+    import uuid
+    async with get_sessionmaker()() as s:
+        (await s.get(Player, uuid.UUID(g["player"]["id"]))).is_test = True
+        await s.commit()
+    m = (await client.get("/api/v1/content/manifest", headers=hdr)).json()
+    assert m["release"] == rel2.id and m["channel"] == "test"
 
     # Публикация и откат
     async with get_sessionmaker()() as s:

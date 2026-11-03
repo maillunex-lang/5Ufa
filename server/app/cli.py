@@ -6,6 +6,9 @@
     docker compose exec api python -m app.cli content import --publish
     docker compose exec api python -m app.cli content publish 3 --channel live
     docker compose exec api python -m app.cli content validate
+    docker compose exec api python -m app.cli player list
+    docker compose exec api python -m app.cli player set-test 1001
+    docker compose exec api python -m app.cli player ban 1001 --days 7 --reason "мат в чате"
 """
 from __future__ import annotations
 
@@ -21,7 +24,7 @@ from app.content.builder import build_manifest
 from app.content.releases import get_channel_release, import_directory, publish
 from app.content.validation import ContentError, get_schema_registry
 from app.db import get_sessionmaker
-from app.models import CHANNELS, ContentRelease
+from app.models import CHANNELS, ContentRelease, Player
 
 
 def _mb(n: int) -> str:
@@ -90,6 +93,67 @@ async def cmd_validate(args) -> int:
     return 0
 
 
+async def _find_player(session, ref: str) -> Player:
+    """Найти игрока по номеру (1001), почте или id."""
+    import uuid as _uuid
+    q = select(Player)
+    if ref.isdigit():
+        q = q.where(Player.number == int(ref))
+    elif "@" in ref:
+        q = q.where(Player.email == ref.strip().lower())
+    else:
+        try:
+            q = q.where(Player.id == _uuid.UUID(ref))
+        except ValueError:
+            raise ContentError([f"Не понимаю «{ref}»: укажите номер игрока, почту или id"])
+    p = (await session.execute(q)).scalar_one_or_none()
+    if p is None:
+        raise ContentError([f"Игрок «{ref}» не найден"])
+    return p
+
+
+def _player_line(p: Player) -> str:
+    kind = p.email or "гость"
+    flags = []
+    if p.is_test:
+        flags.append("ТЕСТОВЫЙ")
+    if p.banned_until:
+        flags.append(f"бан до {p.banned_until:%Y-%m-%d}")
+    return f"#{p.number:<6} {p.display_name:<16} {kind:<30} {' '.join(flags)}"
+
+
+async def cmd_player_list(args) -> int:
+    async with get_sessionmaker()() as session:
+        rows = (await session.execute(select(Player).order_by(Player.number.desc()).limit(args.limit))).scalars()
+        for p in rows:
+            print(_player_line(p))
+    return 0
+
+
+async def cmd_player_set_test(args) -> int:
+    async with get_sessionmaker()() as session:
+        p = await _find_player(session, args.player)
+        p.is_test = not args.off
+        await session.commit()
+        print(_player_line(p))
+        print("Теперь получает контент из канала test." if p.is_test else "Снова обычный игрок (канал live).")
+    return 0
+
+
+async def cmd_player_ban(args) -> int:
+    from datetime import datetime, timedelta, timezone
+    async with get_sessionmaker()() as session:
+        p = await _find_player(session, args.player)
+        if args.days <= 0:
+            p.banned_until, p.ban_reason = None, ""
+        else:
+            p.banned_until = datetime.now(timezone.utc) + timedelta(days=args.days)
+            p.ban_reason = args.reason
+        await session.commit()
+        print(_player_line(p))
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="app.cli")
     sub = parser.add_subparsers(dest="group", required=True)
@@ -117,11 +181,25 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--dir")
     p.set_defaults(func=cmd_validate)
 
+    player = sub.add_parser("player", help="Игроки").add_subparsers(dest="cmd", required=True)
+    p = player.add_parser("list", help="Последние игроки")
+    p.add_argument("--limit", type=int, default=30)
+    p.set_defaults(func=cmd_player_list)
+    p = player.add_parser("set-test", help="Сделать игрока тестовым (видит канал test)")
+    p.add_argument("player", help="номер (#1001 -> 1001), почта или id")
+    p.add_argument("--off", action="store_true", help="снять отметку")
+    p.set_defaults(func=cmd_player_set_test)
+    p = player.add_parser("ban", help="Заблокировать игрока (--days 0 — разблокировать)")
+    p.add_argument("player")
+    p.add_argument("--days", type=int, default=3650)
+    p.add_argument("--reason", default="")
+    p.set_defaults(func=cmd_player_ban)
+
     args = parser.parse_args(argv)
     try:
         return asyncio.run(args.func(args))
     except ContentError as e:
-        print("ОШИБКИ КОНТЕНТА:", file=sys.stderr)
+        print("ОШИБКА:", file=sys.stderr)
         for m in e.messages:
             print("  - " + m, file=sys.stderr)
         return 2

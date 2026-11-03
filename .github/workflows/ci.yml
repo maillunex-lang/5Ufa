@@ -39,3 +39,65 @@ jobs:
         run: |
           cp .env.example .env
           docker compose config --quiet
+
+  client-e2e:
+    # Настоящий клиент Godot (headless) против настоящего сервера в Docker:
+    # вход гостем, манифест, загрузка всех пакетов, проверка SHA-256.
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GODOT_VERSION: "4.7.2"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Кэш Godot
+        id: godot-bin
+        uses: actions/cache@v4
+        with:
+          path: ~/godot-bin
+          key: godot-bin-${{ env.GODOT_VERSION }}
+
+      - name: Установка Godot
+        if: steps.godot-bin.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/godot-bin && cd ~/godot-bin
+          curl -fsSL -o g.zip "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          unzip -q g.zip && rm g.zip && mv Godot_v* godot && chmod +x godot
+
+      - name: Запуск сервера
+        run: |
+          cp .env.example .env
+          sed -i "s/^POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=ci$(openssl rand -hex 8)/" .env
+          sed -i "s/^SECRET_KEY=.*/SECRET_KEY=$(openssl rand -hex 16)/" .env
+          sed -i "s/^PUBLIC_PATH_PREFIX=.*/PUBLIC_PATH_PREFIX=/" .env
+          docker compose build -q
+          docker compose up -d postgres redis
+          docker compose run --rm -T api alembic upgrade head
+          docker compose run --rm -T api python -m app.cli content import --publish
+          docker compose up -d
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:8085/health && break; sleep 2; done
+
+      - name: Автопроверка клиента
+        working-directory: client
+        run: |
+          G=~/godot-bin/godot
+          $G --headless --path . --import >/dev/null 2>&1 || true
+          run() {
+            local rc=0
+            timeout 180 $G --headless --path . -- --server=http://127.0.0.1:8085 --autotest "$@" > /tmp/out.txt 2>&1 || rc=$?
+            grep -E "AUTOTEST|SCRIPT ERROR|ERROR:" /tmp/out.txt || true
+            [ "$rc" -eq 0 ] && grep -q "AUTOTEST RESULT" /tmp/out.txt
+          }
+          echo "--- первый запуск: гость, загрузка всего контента"
+          run
+          echo "--- привязка почты"
+          run --autotest-link=ci@example.com:abcd1234
+          grep -q '"ok":true' /tmp/out.txt
+          echo "--- «другой телефон»: вход по почте"
+          rm -rf ~/.local/share/godot/app_userdata
+          run --autotest-login=ci@example.com:abcd1234
+          grep -q '"ok":true' /tmp/out.txt
+
+      - name: Логи сервера при ошибке
+        if: failure()
+        run: docker compose logs --tail=100

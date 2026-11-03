@@ -3,7 +3,7 @@ import logging
 
 from fastapi import FastAPI
 
-from app.api import content, health
+from app.api import auth, content, health
 from app.config import get_settings
 
 settings = get_settings()
@@ -23,3 +23,5 @@ app = FastAPI(
 
 app.include_router(health.router)
 app.include_router(content.router)
+app.include_router(auth.router)
+app.include_router(auth.me_router)

@@ -1,0 +1,38 @@
+; Проект игры (Godot 4.7). Открывается в редакторе Godot: Импорт -> client/project.godot
+; APK содержит только код-загрузчик; весь контент скачивается с сервера.
+
+config_version=5
+
+[application]
+
+config/name="[НАЗВАНИЕ]"
+config/version="0.1.0"
+run/main_scene="res://scenes/boot.tscn"
+config/features=PackedStringArray("4.7", "GL Compatibility")
+config/icon="res://icon.svg"
+boot_splash/bg_color=Color(0.086, 0.055, 0.141, 1)
+boot_splash/show_image=false
+
+[autoload]
+
+Config="*res://scripts/config.gd"
+Api="*res://scripts/api.gd"
+Content="*res://scripts/content.gd"
+
+[display]
+
+window/size/viewport_width=720
+window/size/viewport_height=1280
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
+window/handheld/orientation=1
+
+[input_devices]
+
+pointing/emulate_touch_from_mouse=true
+
+[rendering]
+
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+textures/vram_compression/import_etc2_astc=true

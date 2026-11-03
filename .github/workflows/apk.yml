@@ -1,0 +1,138 @@
+# Сборка APK игры: Godot headless export -> подпись -> GitHub Releases.
+# Запускается при изменениях в client/ в ветке main, либо вручную (Actions -> APK -> Run workflow).
+#
+# Секреты для подписи (Settings -> Secrets and variables -> Actions), см. docs/apk-signing.md:
+#   ANDROID_KEYSTORE_BASE64   — файл ключа release.keystore в base64
+#   ANDROID_KEYSTORE_PASSWORD — пароль ключа
+#   ANDROID_KEY_ALIAS         — имя ключа (alias), например ufa
+# Если секретов нет — APK подписывается временным ключом и выкладывается только
+# как артефакт сборки (не в Releases): такой APK годится для проверки, но обновлять его нельзя.
+name: APK
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "client/**"
+      - "scripts/build-apk.sh"
+      - ".github/workflows/apk.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: apk-build
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+env:
+  GODOT_VERSION: "4.7.2"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Кэш Godot и шаблонов экспорта
+        id: godot-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/godot
+            ~/.local/share/godot/export_templates
+          key: godot-${{ env.GODOT_VERSION }}
+
+      - name: Установка Godot ${{ env.GODOT_VERSION }}
+        if: steps.godot-cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/godot && cd ~/godot
+          BASE=https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable
+          curl -fsSL -o godot.zip "$BASE/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          unzip -q godot.zip && rm godot.zip
+          mv Godot_v${GODOT_VERSION}-stable_linux.x86_64 godot && chmod +x godot
+          curl -fsSL -o tpl.tpz "$BASE/Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
+          unzip -q tpl.tpz && rm tpl.tpz
+          mkdir -p ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable
+          mv templates/* ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable/
+
+      - name: Android build-tools (apksigner)
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "build-tools;34.0.0" "platform-tools" >/dev/null
+          ls "$ANDROID_HOME/build-tools"
+
+      - name: Ключ подписи
+        id: keystore
+        env:
+          KS_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KS_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KS_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          KS="$RUNNER_TEMP/release.keystore"
+          if [ -n "$KS_B64" ] && [ -n "$KS_PASS" ] && [ -n "$KS_ALIAS" ]; then
+            printf '%s' "$KS_B64" | tr -d '[:space:]' | base64 -d > "$KS"
+            ALIAS="$(printf '%s' "$KS_ALIAS" | tr -d '[:space:]')"
+            PASS="$(printf '%s' "$KS_PASS" | tr -d '\r\n')"
+            echo "temp=false" >> "$GITHUB_OUTPUT"
+            echo "Используется постоянный ключ подписи"
+          else
+            ALIAS=temp; PASS="temp-$(openssl rand -hex 12)"
+            keytool -genkeypair -keystore "$KS" -storetype PKCS12 -alias "$ALIAS" -keyalg RSA -keysize 2048 \
+              -validity 3650 -storepass "$PASS" -keypass "$PASS" -dname "CN=Temporary build key" >/dev/null
+            echo "temp=true" >> "$GITHUB_OUTPUT"
+            echo "::warning::Секреты ключа подписи не заданы — APK подписан ВРЕМЕННЫМ ключом (см. docs/apk-signing.md)"
+          fi
+          echo "::add-mask::$PASS"
+          {
+            echo "GODOT_ANDROID_KEYSTORE_RELEASE_PATH=$KS"
+            echo "GODOT_ANDROID_KEYSTORE_RELEASE_USER=$ALIAS"
+            echo "GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD=$PASS"
+          } >> "$GITHUB_ENV"
+
+      - name: Сборка APK
+        id: build
+        env:
+          GODOT: ~/godot/godot
+        run: |
+          BASE="$(grep -oP '^config/version="\K[0-9]+\.[0-9]+' client/project.godot)"
+          export VERSION_NAME="$BASE.${{ github.run_number }}"
+          export VERSION_CODE="${{ github.run_number }}"
+          export ANDROID_SDK="$ANDROID_HOME"
+          export GODOT="$HOME/godot/godot"
+          bash scripts/build-apk.sh
+          cp client/build/ufa.apk "client/build/ufa-$VERSION_NAME.apk"
+
+      - name: Артефакт сборки
+        uses: actions/upload-artifact@v4
+        with:
+          name: ufa-${{ steps.build.outputs.version_name }}${{ steps.keystore.outputs.temp == 'true' && '-TEMPKEY' || '' }}
+          path: client/build/ufa-${{ steps.build.outputs.version_name }}.apk
+          retention-days: 30
+
+      - name: Публикация в Releases
+        if: steps.keystore.outputs.temp == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          V: ${{ steps.build.outputs.version_name }}
+          SIZE: ${{ steps.build.outputs.apk_size_mb }}
+        run: |
+          gh release create "client-v$V" "client/build/ufa-$V.apk" \
+            --title "Игра $V" \
+            --notes "Сборка из коммита ${GITHUB_SHA::8}. Размер APK: $SIZE МБ. Android 12+.
+
+          Установка: скачайте ufa-$V.apk на телефон и откройте файл (разрешите установку из этого источника)."
+
+      - name: Итог
+        run: |
+          echo "### APK ${{ steps.build.outputs.version_name }} — ${{ steps.build.outputs.apk_size_mb }} МБ" >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ steps.keystore.outputs.temp }}" = "true" ]; then
+            echo "Подписан временным ключом: скачайте из раздела Artifacts этой сборки." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Опубликован в Releases: client-v${{ steps.build.outputs.version_name }}" >> "$GITHUB_STEP_SUMMARY"
+          fi

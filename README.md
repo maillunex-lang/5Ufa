@@ -10,7 +10,7 @@
 | Папка | Что внутри |
 |---|---|
 | `/server` | Сервер: Python 3.12 + FastAPI, PostgreSQL, Redis, миграции Alembic |
-| `/client` | Игра (Godot 4, APK-загрузчик) — этап 2 |
+| `/client` | Игра (Godot 4.7, APK-загрузчик) |
 | `/admin` | Админка (Godot 4, отдельный APK) — этап 6 |
 | `/shared` | JSON Schema всех типов контента — единый источник правды |
 | `/content` | Базовый контент (заглушки), из него собирается первый релиз |
@@ -29,6 +29,8 @@
 6. Бэкапы и восстановление — [docs/backups.md](docs/backups.md).
 7. HTTPS и подключение к домену — [docs/https.md](docs/https.md).
 8. Принятые решения — [docs/decisions.md](docs/decisions.md).
+9. Аккаунты игроков — [docs/accounts.md](docs/accounts.md).
+10. Ключ подписи и сборка APK — [docs/apk-signing.md](docs/apk-signing.md).
 
 ## Правило безопасности
 
