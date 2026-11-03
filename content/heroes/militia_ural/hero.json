@@ -1,0 +1,61 @@
+{
+  "id": "militia_ural",
+  "name": "Ополченец Урала",
+  "title": "Простой герой",
+  "faction": "ural_batyrs",
+  "role": "warrior",
+  "rarity": "rare",
+  "description": "Простой защитник горных селений.",
+  "lore": "Простой защитник горных селений. Годится в корм для вознесения или в эссенцию.",
+  "stats": {
+    "hp": 3600,
+    "atk": 160,
+    "def": 88,
+    "attack_interval_ms": 1100
+  },
+  "skills": [
+    {
+      "id": "militia_ural_ult",
+      "name": "Удар копьём",
+      "description": "Бьёт цель на 200% атаки.",
+      "type": "ultimate",
+      "cast_time_ms": 900,
+      "animation": "ultimate",
+      "effects": [
+        {
+          "kind": "damage",
+          "target": {
+            "side": "enemy",
+            "select": "current"
+          },
+          "multiplier": 2.0
+        }
+      ]
+    },
+    {
+      "id": "militia_ural_s1",
+      "name": "Обычный приём",
+      "description": "Бьёт цель на 130% атаки.",
+      "type": "active",
+      "cooldown_ms": 8000,
+      "first_cast_ms": 4000,
+      "cast_time_ms": 500,
+      "animation": "skill",
+      "effects": [
+        {
+          "kind": "damage",
+          "target": {
+            "side": "enemy",
+            "select": "current"
+          },
+          "multiplier": 1.3
+        }
+      ]
+    }
+  ],
+  "art": {
+    "portrait": "heroes/militia_ural/portrait.png",
+    "full": "heroes/militia_ural/full.png",
+    "skeleton": "heroes/militia_ural/skeleton.json"
+  }
+}

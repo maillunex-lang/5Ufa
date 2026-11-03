@@ -33,7 +33,8 @@ async def test_live_battle_and_authorization(client, monkeypatch):
     headers = {"Authorization": "Bearer " + guest["access_token"]}
     teams = (await client.get("/api/v1/battle/test-teams", headers=headers)).json()["teams"]
     team = teams[0]["units"][:1]
-    body = {"team": [{"hero": team[0]["hero"], "slot": 0}], "enemy": teams[0]["id"]}
+    # Обычный игрок воюет своими героями — берём героя из стартового набора
+    body = {"team": [{"hero": "alpamysha", "slot": 0}], "enemy": teams[0]["id"]}
 
     def exercise():
         with TestClient(app) as sync:

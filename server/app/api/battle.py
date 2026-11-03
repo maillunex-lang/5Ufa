@@ -51,6 +51,22 @@ def validate_team(team: list[TeamUnit], heroes: dict) -> list[dict]:
     return [{"hero": u.hero, "slot": u.slot} for u in team]
 
 
+async def owned_team(session: AsyncSession, player: Player, view: ContentView, team: list[dict]) -> list[dict]:
+    """Отряд из своих героев игрока: уровень и редкость влияют на характеристики.
+
+    Тестовые аккаунты в тестовом бою могут брать любых героев (базовые характеристики) —
+    для проверки контента; во всех остальных случаях — только своих.
+    """
+    from app.progression import heroes as prog
+    try:
+        cfg = view.json("config/progression.json")
+    except KeyError:
+        return team  # правила прогрессии ещё не опубликованы — как раньше
+    await prog.lock_player(session, player.id)
+    await prog.ensure_starter(session, player.id, cfg)
+    return await prog.build_team(session, player.id, cfg, view.heroes(), team)
+
+
 @router.get("/test-teams")
 async def test_teams(player: Player = Depends(current_player), session: AsyncSession = Depends(get_session)):
     view = await content_for(player, session)
@@ -68,6 +84,9 @@ async def test_battle(body: TestBattleIn, player: Player = Depends(current_playe
     view = await content_for(player, session)
     heroes = view.heroes()
     team = validate_team(body.team, heroes)
+    if not player.is_test:
+        team = await owned_team(session, player, view, team)
+        await session.commit()
     enemy = view.teams().get(body.enemy)
     if enemy is None:
         raise HTTPException(422, f"Неизвестный отряд противника «{body.enemy}»")
@@ -122,6 +141,8 @@ async def live_test_battle(ws: WebSocket):
                 body = TestBattleIn.model_validate(raw)
                 enemy = view.teams().get(body.enemy)
             team = validate_team(body.team, heroes)
+            if mode == "campaign" or not player.is_test:
+                team = await owned_team(session, player, view, team)
             if enemy is None:
                 raise HTTPException(422, "Неизвестный отряд противника")
             enemy_units = ([{**unit, "stat_multiplier": stage["enemy_multiplier"]} for unit in enemy["units"]]
@@ -193,13 +214,13 @@ async def _award_campaign(battle: Battle, context: tuple) -> dict:
 
     player_id, stage_number, stage_reward, config = context
     async with get_sessionmaker()() as session:
+        from app.progression import wallet
         progress = await locked_progress(session, player_id)
         settle(progress, config, datetime.now(timezone.utc))
         reward = {"gold": 0, "hero_xp": 0}
         if battle.winner == 0 and stage_number == progress.cleared + 1:
-            reward = stage_reward
-            progress.gold += reward["gold"]
-            progress.hero_xp += reward["hero_xp"]
+            reward = dict(stage_reward)
+            await wallet.add(session, player_id, reward)
             progress.cleared += 1
         await session.commit()
         return reward

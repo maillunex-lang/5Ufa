@@ -16,7 +16,7 @@ func _ready() -> void:
 
 	var logo := TextureRect.new()
 	logo.texture = Content.load_texture("ui/logo.png")
-	logo.custom_minimum_size = Vector2(0, 220)
+	logo.custom_minimum_size = Vector2(0, 150)
 	logo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	logo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	logo.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
@@ -28,6 +28,15 @@ func _ready() -> void:
 	col.add_child(_player_label)
 	col.add_child(Ui.spacer())
 	col.add_child(Ui.button("Кампания", func(): get_tree().change_scene_to_file("res://scenes/campaign.tscn")))
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 16)
+	var heroes_btn := Ui.button("Герои", func(): get_tree().change_scene_to_file("res://scenes/heroes.tscn"))
+	heroes_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(heroes_btn)
+	var summon_btn := Ui.button("Призыв", func(): get_tree().change_scene_to_file("res://scenes/summon.tscn"))
+	summon_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(summon_btn)
+	col.add_child(row)
 	col.add_child(Ui.button("Тестовый бой", _on_play))
 	_account_box = VBoxContainer.new()
 	_account_box.add_theme_constant_override("separation", 20)
@@ -227,6 +236,9 @@ func _autotest() -> void:
 	if "--autotest-campaign-battle" in OS.get_cmdline_user_args() or "--autotest-campaign-live" in OS.get_cmdline_user_args() or "--autotest-campaign-select" in OS.get_cmdline_user_args():
 		get_tree().set_meta("campaign_stage", 1)
 		get_tree().change_scene_to_file("res://scenes/team_select.tscn")
+		return
+	if "--autotest-heroes" in OS.get_cmdline_user_args():
+		get_tree().change_scene_to_file("res://scenes/heroes.tscn")
 		return
 	if "--autotest-campaign" in OS.get_cmdline_user_args():
 		get_tree().change_scene_to_file("res://scenes/campaign.tscn")

@@ -1,0 +1,69 @@
+{
+  "id": "under_guard",
+  "name": "Подземный страж",
+  "title": "Простой герой",
+  "faction": "underworld",
+  "role": "tank",
+  "rarity": "rare",
+  "description": "Стражник пещер Катил-падиши.",
+  "lore": "Стражник пещер Катил-падиши. Годится в корм для вознесения или в эссенцию.",
+  "stats": {
+    "hp": 4896,
+    "atk": 96,
+    "def": 144,
+    "attack_interval_ms": 1400
+  },
+  "skills": [
+    {
+      "id": "under_guard_ult",
+      "name": "Каменный удар",
+      "description": "Бьёт цель на 150% атаки и оглушает на 1 с.",
+      "type": "ultimate",
+      "cast_time_ms": 900,
+      "animation": "ultimate",
+      "effects": [
+        {
+          "kind": "damage",
+          "target": {
+            "side": "enemy",
+            "select": "current"
+          },
+          "multiplier": 1.5
+        },
+        {
+          "kind": "stun",
+          "target": {
+            "side": "enemy",
+            "select": "current"
+          },
+          "duration_ms": 1000
+        }
+      ]
+    },
+    {
+      "id": "under_guard_s1",
+      "name": "Обычный приём",
+      "description": "Бьёт цель на 130% атаки.",
+      "type": "active",
+      "cooldown_ms": 8000,
+      "first_cast_ms": 4000,
+      "cast_time_ms": 500,
+      "animation": "skill",
+      "effects": [
+        {
+          "kind": "damage",
+          "target": {
+            "side": "enemy",
+            "select": "current"
+          },
+          "multiplier": 1.3
+        }
+      ]
+    }
+  ],
+  "art": {
+    "portrait": "heroes/under_guard/portrait.png",
+    "full": "heroes/under_guard/full.png",
+    "skeleton": "heroes/under_guard/skeleton.json"
+  }
+}

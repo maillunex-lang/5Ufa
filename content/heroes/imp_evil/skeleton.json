@@ -1,0 +1,732 @@
+{
+  "format": "ufa-skeleton",
+  "version": 1,
+  "size": [
+    96,
+    130
+  ],
+  "bones": [
+    {
+      "name": "root"
+    },
+    {
+      "name": "hips",
+      "parent": "root",
+      "x": 0,
+      "y": -34
+    },
+    {
+      "name": "leg_back",
+      "parent": "hips",
+      "x": -7,
+      "y": 0
+    },
+    {
+      "name": "leg_front",
+      "parent": "hips",
+      "x": 7,
+      "y": 0
+    },
+    {
+      "name": "torso",
+      "parent": "hips",
+      "x": 0,
+      "y": 0
+    },
+    {
+      "name": "head",
+      "parent": "torso",
+      "x": 2,
+      "y": -48
+    },
+    {
+      "name": "arm_back",
+      "parent": "torso",
+      "x": -12,
+      "y": -42
+    },
+    {
+      "name": "arm_front",
+      "parent": "torso",
+      "x": 12,
+      "y": -42
+    },
+    {
+      "name": "weapon",
+      "parent": "arm_front",
+      "x": 0,
+      "y": 34,
+      "rotation": 0
+    }
+  ],
+  "slots": [
+    {
+      "name": "arm_back",
+      "bone": "arm_back",
+      "image": "parts/arm.png",
+      "pivot": [
+        8,
+        6
+      ]
+    },
+    {
+      "name": "leg_back",
+      "bone": "leg_back",
+      "image": "parts/leg.png",
+      "pivot": [
+        9,
+        4
+      ]
+    },
+    {
+      "name": "leg_front",
+      "bone": "leg_front",
+      "image": "parts/leg.png",
+      "pivot": [
+        9,
+        4
+      ]
+    },
+    {
+      "name": "torso",
+      "bone": "torso",
+      "image": "parts/torso.png",
+      "pivot": [
+        24,
+        52
+      ]
+    },
+    {
+      "name": "head",
+      "bone": "head",
+      "image": "parts/head.png",
+      "pivot": [
+        36,
+        64
+      ]
+    },
+    {
+      "name": "arm_front",
+      "bone": "arm_front",
+      "image": "parts/arm.png",
+      "pivot": [
+        8,
+        6
+      ]
+    },
+    {
+      "name": "weapon",
+      "bone": "weapon",
+      "image": "parts/weapon.png",
+      "pivot": [
+        7,
+        36
+      ]
+    }
+  ],
+  "anchors": {
+    "projectile": {
+      "bone": "weapon",
+      "x": 0,
+      "y": -30
+    },
+    "hit": {
+      "bone": "torso",
+      "x": 0,
+      "y": -26
+    },
+    "overhead": {
+      "bone": "head",
+      "x": 0,
+      "y": -70
+    }
+  },
+  "animations": {
+    "idle": {
+      "duration": 1.2,
+      "loop": true,
+      "bones": {
+        "torso": {
+          "scale": [
+            [
+              0,
+              1,
+              1
+            ],
+            [
+              0.6,
+              1.0,
+              1.03
+            ],
+            [
+              1.2,
+              1,
+              1
+            ]
+          ]
+        },
+        "head": {
+          "translate": [
+            [
+              0,
+              0,
+              0
+            ],
+            [
+              0.6,
+              0,
+              -1.5
+            ],
+            [
+              1.2,
+              0,
+              0
+            ]
+          ]
+        },
+        "arm_front": {
+          "rotate": [
+            [
+              0,
+              0
+            ],
+            [
+              0.6,
+              -5
+            ],
+            [
+              1.2,
+              0
+            ]
+          ]
+        },
+        "arm_back": {
+          "rotate": [
+            [
+              0,
+              0
+            ],
+            [
+              0.6,
+              5
+            ],
+            [
+              1.2,
+              0
+            ]
+          ]
+        }
+      }
+    },
+    "walk": {
+      "duration": 0.6,
+      "loop": true,
+      "bones": {
+        "leg_front": {
+          "rotate": [
+            [
+              0,
+              -25
+            ],
+            [
+              0.3,
+              25
+            ],
+            [
+              0.6,
+              -25
+            ]
+          ]
+        },
+        "leg_back": {
+          "rotate": [
+            [
+              0,
+              25
+            ],
+            [
+              0.3,
+              -25
+            ],
+            [
+              0.6,
+              25
+            ]
+          ]
+        },
+        "hips": {
+          "translate": [
+            [
+              0,
+              0,
+              0
+            ],
+            [
+              0.15,
+              0,
+              -3
+            ],
+            [
+              0.3,
+              0,
+              0
+            ],
+            [
+              0.45,
+              0,
+              -3
+            ],
+            [
+              0.6,
+              0,
+              0
+            ]
+          ]
+        },
+        "arm_back": {
+          "rotate": [
+            [
+              0,
+              -15
+            ],
+            [
+              0.3,
+              15
+            ],
+            [
+              0.6,
+              -15
+            ]
+          ]
+        }
+      }
+    },
+    "attack": {
+      "duration": 0.6,
+      "bones": {
+        "arm_front": {
+          "rotate": [
+            [
+              0,
+              0
+            ],
+            [
+              0.22,
+              -150
+            ],
+            [
+              0.35,
+              30
+            ],
+            [
+              0.6,
+              0
+            ]
+          ]
+        },
+        "torso": {
+          "rotate": [
+            [
+              0,
+              0
+            ],
+            [
+              0.22,
+              -8
+            ],
+            [
+              0.35,
+              10
+            ],
+            [
+              0.6,
+              0
+            ]
+          ]
+        },
+        "root": {
+          "translate": [
+            [
+              0,
+              0,
+              0
+            ],
+            [
+              0.35,
+              6,
+              0
+            ],
+            [
+              0.6,
+              0,
+              0
+            ]
+          ]
+        }
+      },
+      "events": [
+        {
+          "t": 0.35,
+          "name": "hit"
+        }
+      ]
+    },
+    "skill": {
+      "duration": 0.8,
+      "bones": {
+        "arm_front": {
+          "rotate": [
+            [
+              0,
+              0
+            ],
+            [
+              0.3,
+              -170
+            ],
+            [
+              0.5,
+              40
+            ],
+            [
+              0.8,
+              0
+            ]
+          ]
+        },
+        "torso": {
+          "rotate": [
+            [
+              0,
+              0
+            ],
+            [
+              0.3,
+              -12
+            ],
+            [
+              0.5,
+              14
+            ],
+            [
+              0.8,
+              0
+            ]
+          ]
+        },
+        "root": {
+          "translate": [
+            [
+              0,
+              0,
+              0
+            ],
+            [
+              0.5,
+              14,
+              0
+            ],
+            [
+              0.8,
+              0,
+              0
+            ]
+          ],
+          "scale": [
+            [
+              0,
+              1,
+              1
+            ],
+            [
+              0.5,
+              1.1,
+              1.1
+            ],
+            [
+              0.8,
+              1,
+              1
+            ]
+          ]
+        }
+      },
+      "events": [
+        {
+          "t": 0.5,
+          "name": "hit"
+        }
+      ]
+    },
+    "ultimate": {
+      "duration": 1.2,
+      "bones": {
+        "hips": {
+          "translate": [
+            [
+              0,
+              0,
+              0
+            ],
+            [
+              0.3,
+              0,
+              6
+            ],
+            [
+              0.6,
+              0,
+              -24
+            ],
+            [
+              0.9,
+              0,
+              0
+            ],
+            [
+              1.2,
+              0,
+              0
+            ]
+          ]
+        },
+        "arm_front": {
+          "rotate": [
+            [
+              0,
+              0
+            ],
+            [
+              0.6,
+              -175
+            ],
+            [
+              0.9,
+              50
+            ],
+            [
+              1.2,
+              0
+            ]
+          ]
+        },
+        "arm_back": {
+          "rotate": [
+            [
+              0,
+              0
+            ],
+            [
+              0.6,
+              120
+            ],
+            [
+              1.2,
+              0
+            ]
+          ]
+        },
+        "root": {
+          "scale": [
+            [
+              0,
+              1,
+              1
+            ],
+            [
+              0.6,
+              1.25,
+              1.25
+            ],
+            [
+              1.0,
+              1.1,
+              1.1
+            ],
+            [
+              1.2,
+              1,
+              1
+            ]
+          ]
+        }
+      },
+      "events": [
+        {
+          "t": 0.9,
+          "name": "hit"
+        }
+      ]
+    },
+    "hit": {
+      "duration": 0.3,
+      "bones": {
+        "torso": {
+          "rotate": [
+            [
+              0,
+              0
+            ],
+            [
+              0.1,
+              -12
+            ],
+            [
+              0.3,
+              0
+            ]
+          ]
+        },
+        "root": {
+          "translate": [
+            [
+              0,
+              0,
+              0
+            ],
+            [
+              0.1,
+              -6,
+              0
+            ],
+            [
+              0.3,
+              0,
+              0
+            ]
+          ]
+        },
+        "head": {
+          "rotate": [
+            [
+              0,
+              0
+            ],
+            [
+              0.1,
+              -10
+            ],
+            [
+              0.3,
+              0
+            ]
+          ]
+        }
+      }
+    },
+    "death": {
+      "duration": 0.9,
+      "bones": {
+        "root": {
+          "rotate": [
+            [
+              0,
+              0
+            ],
+            [
+              0.5,
+              -85
+            ],
+            [
+              0.9,
+              -90
+            ]
+          ],
+          "translate": [
+            [
+              0,
+              0,
+              0
+            ],
+            [
+              0.5,
+              -14,
+              -6
+            ],
+            [
+              0.9,
+              -16,
+              0
+            ]
+          ]
+        }
+      },
+      "alpha": [
+        [
+          0,
+          1
+        ],
+        [
+          0.6,
+          1
+        ],
+        [
+          0.9,
+          0.35
+        ]
+      ]
+    },
+    "victory": {
+      "duration": 1.0,
+      "loop": true,
+      "bones": {
+        "root": {
+          "translate": [
+            [
+              0,
+              0,
+              0
+            ],
+            [
+              0.3,
+              0,
+              -18
+            ],
+            [
+              0.6,
+              0,
+              0
+            ],
+            [
+              1.0,
+              0,
+              0
+            ]
+          ]
+        },
+        "arm_front": {
+          "rotate": [
+            [
+              0,
+              -160
+            ],
+            [
+              0.5,
+              -140
+            ],
+            [
+              1.0,
+              -160
+            ]
+          ]
+        },
+        "arm_back": {
+          "rotate": [
+            [
+              0,
+              150
+            ],
+            [
+              0.5,
+              130
+            ],
+            [
+              1.0,
+              150
+            ]
+          ]
+        }
+      }
+    }
+  }
+}

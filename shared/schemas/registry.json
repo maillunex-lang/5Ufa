@@ -36,6 +36,14 @@
     {
       "pattern": "campaign/chapter_*/chapter.json",
       "schema": "campaign_chapter.schema.json"
+    },
+    {
+      "pattern": "config/progression.json",
+      "schema": "progression.schema.json"
+    },
+    {
+      "pattern": "summon/banners.json",
+      "schema": "summon.schema.json"
     }
   ]
 }

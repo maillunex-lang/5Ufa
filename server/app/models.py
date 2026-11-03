@@ -103,6 +103,8 @@ class CampaignProgress(Base):
     hero_xp: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
     gold_fraction: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
     xp_fraction: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
+    crystal_fraction: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
+    essence_fraction: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
     elapsed_us: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow)
     quick_day: Mapped[str] = mapped_column(String(10), nullable=False, default="")
@@ -127,3 +129,43 @@ class ClientRelease(Base):
     # Выключенную версию игроки не получают (откат неудачной сборки)
     active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+# ---------------------------------------------------------------------------
+# Этап 5а: герои игрока, кошелёк, призыв
+# ---------------------------------------------------------------------------
+class PlayerHero(Base):
+    """Экземпляр героя у игрока. Копии одного героя — отдельные строки (нужны для вознесения)."""
+    __tablename__ = "player_heroes"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    player_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("players.id", ondelete="CASCADE"), index=True)
+    hero_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    tier: Mapped[str] = mapped_column(String(32), nullable=False)
+    level: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    crystal_slot: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+class WalletEntry(Base):
+    __tablename__ = "player_wallet"
+
+    player_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("players.id", ondelete="CASCADE"), primary_key=True)
+    code: Mapped[str] = mapped_column(String(48), primary_key=True)
+    amount: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
+
+
+class SummonState(Base):
+    __tablename__ = "summon_state"
+
+    player_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("players.id", ondelete="CASCADE"), primary_key=True)
+    banner_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    pity: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    total: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+
+class PlayerState(Base):
+    __tablename__ = "player_state"
+
+    player_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("players.id", ondelete="CASCADE"), primary_key=True)
+    starter_granted: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)

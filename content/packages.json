@@ -13,7 +13,8 @@
         "ui/**",
         "fonts/**",
         "factions/**",
-        "battle/**"
+        "battle/**",
+        "summon/**"
       ]
     },
     {

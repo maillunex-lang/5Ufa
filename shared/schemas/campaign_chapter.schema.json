@@ -84,6 +84,14 @@
               "hero_xp": {
                 "type": "integer",
                 "minimum": 0
+              },
+              "crystals": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "scrolls": {
+                "type": "integer",
+                "minimum": 0
               }
             }
           }

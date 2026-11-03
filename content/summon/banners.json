@@ -1,0 +1,110 @@
+{
+  "pity_legendary": 30,
+  "first_summon_legendary": true,
+  "rates": {
+    "rare": 0.516,
+    "elite": 0.437,
+    "legendary": 0.047
+  },
+  "banners": [
+    {
+      "id": "normal",
+      "name": "Обычный призыв",
+      "type": "normal",
+      "description": "Герои четырёх основных фракций",
+      "costs": [
+        {
+          "scrolls": 1
+        },
+        {
+          "crystals": 300
+        }
+      ],
+      "factions": [
+        "ural_batyrs",
+        "evil_spirits",
+        "forest_spirits",
+        "steppe_nomads"
+      ]
+    },
+    {
+      "id": "faction_ural_batyrs",
+      "name": "Призыв: Батыры Урала",
+      "type": "faction",
+      "description": "Только герои фракции «Батыры Урала»",
+      "costs": [
+        {
+          "faction_scroll_ural_batyrs": 1
+        }
+      ],
+      "factions": [
+        "ural_batyrs"
+      ]
+    },
+    {
+      "id": "faction_evil_spirits",
+      "name": "Призыв: Нечисть",
+      "type": "faction",
+      "description": "Только герои фракции «Нечисть»",
+      "costs": [
+        {
+          "faction_scroll_evil_spirits": 1
+        }
+      ],
+      "factions": [
+        "evil_spirits"
+      ]
+    },
+    {
+      "id": "faction_forest_spirits",
+      "name": "Призыв: Лесные духи",
+      "type": "faction",
+      "description": "Только герои фракции «Лесные духи»",
+      "costs": [
+        {
+          "faction_scroll_forest_spirits": 1
+        }
+      ],
+      "factions": [
+        "forest_spirits"
+      ]
+    },
+    {
+      "id": "faction_steppe_nomads",
+      "name": "Призыв: Степные кочевники",
+      "type": "faction",
+      "description": "Только герои фракции «Степные кочевники»",
+      "costs": [
+        {
+          "faction_scroll_steppe_nomads": 1
+        }
+      ],
+      "factions": [
+        "steppe_nomads"
+      ]
+    },
+    {
+      "id": "event_humai",
+      "name": "Баннер: Хумай",
+      "type": "event",
+      "description": "Повышенный шанс на Хумай среди легенд",
+      "costs": [
+        {
+          "crystals": 270
+        }
+      ],
+      "factions": [
+        "ural_batyrs",
+        "evil_spirits",
+        "forest_spirits",
+        "steppe_nomads"
+      ],
+      "featured": [
+        "humai"
+      ],
+      "featured_share": 0.5,
+      "starts_at": "2026-11-01T00:00:00+05:00",
+      "ends_at": "2026-12-31T23:59:59+05:00"
+    }
+  ]
+}

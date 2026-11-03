@@ -32,7 +32,8 @@ def h(log):
 
 
 def test_heroes_and_factions():
-    assert len(HEROES) == 19
+    assert len(HEROES) == 25
+    assert sum(1 for x in HEROES.values() if x["rarity"] == "rare") == 6
     assert len(FAC) == 6
     assert {x["faction"] for x in HEROES.values()} == set(FAC)
     # Круг из 4 фракций + пара Небожители <-> Подземное царство
@@ -42,7 +43,8 @@ def test_heroes_and_factions():
         assert not set(FAC[f]["strong_against"]) & {"sky_dwellers", "underworld"}
     for hero in HEROES.values():
         types = [s["type"] for s in hero["skills"]]
-        assert types.count("ultimate") == 1 and len(types) == 4, hero["id"]
+        expected = 2 if hero["rarity"] == "rare" else 4  # простые герои: ульт + 1 навык
+        assert types.count("ultimate") == 1 and len(types) == expected, hero["id"]
 
 
 def test_deterministic():

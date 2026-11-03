@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.ufagame.local/progression.schema.json",
+  "title": "Прогрессия героев (config/progression.json): редкости, уровни, вознесение, кристалл, старт",
+  "type": "object",
+  "required": ["tiers", "level", "ascension", "resonance", "start"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {"type": "string"},
+    "tiers": {
+      "type": "array", "minItems": 2,
+      "description": "Ступени редкости по возрастанию",
+      "items": {
+        "type": "object", "required": ["id", "name", "level_cap", "stat_mult"], "additionalProperties": false,
+        "properties": {
+          "id": {"$ref": "common.schema.json#/$defs/id"},
+          "name": {"type": "string", "minLength": 1},
+          "level_cap": {"type": "integer", "minimum": 1, "description": "Предел уровня на этой ступени"},
+          "stat_mult": {"type": "number", "exclusiveMinimum": 0, "description": "Множитель характеристик ступени"},
+          "color": {"$ref": "common.schema.json#/$defs/color"}
+        }
+      }
+    },
+    "level": {
+      "type": "object", "required": ["stat_growth_percent", "gold", "hero_xp"], "additionalProperties": false,
+      "properties": {
+        "stat_growth_percent": {"type": "number", "minimum": 0, "description": "Прирост характеристик за уровень, %"},
+        "gold": {"$ref": "#/$defs/cost"},
+        "hero_xp": {"$ref": "#/$defs/cost"},
+        "essence": {"$ref": "#/$defs/cost"}
+      }
+    },
+    "ascension": {
+      "type": "array",
+      "items": {
+        "type": "object", "required": ["from", "to", "requires"], "additionalProperties": false,
+        "properties": {
+          "from": {"$ref": "common.schema.json#/$defs/id"},
+          "to": {"$ref": "common.schema.json#/$defs/id"},
+          "requires": {
+            "type": "array", "minItems": 1,
+            "items": {
+              "type": "object", "required": ["kind", "tier", "count"], "additionalProperties": false,
+              "properties": {
+                "kind": {"enum": ["same", "faction"], "description": "same — копия того же героя; faction — любой герой той же фракции"},
+                "tier": {"$ref": "common.schema.json#/$defs/id"},
+                "count": {"type": "integer", "minimum": 1}
+              }
+            }
+          }
+        }
+      }
+    },
+    "resonance": {
+      "type": "object", "required": ["slots", "top"], "additionalProperties": false,
+      "properties": {
+        "slots": {"type": "integer", "minimum": 0, "description": "Мест в Кристалле резонанса"},
+        "top": {"type": "integer", "minimum": 1, "description": "Сколько сильнейших героев задают уровень кристалла"}
+      }
+    },
+    "start": {
+      "type": "object", "required": ["heroes"], "additionalProperties": false,
+      "properties": {
+        "heroes": {"type": "array", "items": {"type": "object", "required": ["hero", "tier"], "additionalProperties": false,
+                   "properties": {"hero": {"$ref": "common.schema.json#/$defs/id"}, "tier": {"$ref": "common.schema.json#/$defs/id"}}}},
+        "currencies": {"type": "object", "additionalProperties": {"type": "integer", "minimum": 0}}
+      }
+    },
+    "dismiss_essence": {"type": "object", "additionalProperties": {"type": "integer", "minimum": 0},
+                        "description": "Сколько эссенции за роспуск героя данной редкости (0/нет — нельзя)"}
+  },
+  "$defs": {
+    "cost": {
+      "type": "object", "required": ["base", "exponent"], "additionalProperties": false,
+      "description": "Стоимость уровня L = round(base × n^exponent), n = L − from_level + 1",
+      "properties": {
+        "base": {"type": "number", "minimum": 0},
+        "exponent": {"type": "number", "minimum": 0},
+        "from_level": {"type": "integer", "minimum": 1}
+      }
+    }
+  }
+}

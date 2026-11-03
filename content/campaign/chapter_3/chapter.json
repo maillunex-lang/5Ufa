@@ -13,7 +13,8 @@
       "enemy_multiplier": 0.7,
       "reward": {
         "gold": 100,
-        "hero_xp": 50
+        "hero_xp": 50,
+        "crystals": 20
       }
     },
     {
@@ -23,7 +24,8 @@
       "enemy_multiplier": 0.725,
       "reward": {
         "gold": 100,
-        "hero_xp": 50
+        "hero_xp": 50,
+        "crystals": 20
       }
     },
     {
@@ -33,7 +35,8 @@
       "enemy_multiplier": 0.75,
       "reward": {
         "gold": 100,
-        "hero_xp": 50
+        "hero_xp": 50,
+        "crystals": 20
       }
     },
     {
@@ -43,7 +46,8 @@
       "enemy_multiplier": 0.775,
       "reward": {
         "gold": 100,
-        "hero_xp": 50
+        "hero_xp": 50,
+        "crystals": 20
       }
     },
     {
@@ -53,7 +57,9 @@
       "enemy_multiplier": 0.88,
       "reward": {
         "gold": 100,
-        "hero_xp": 50
+        "hero_xp": 50,
+        "crystals": 20,
+        "scrolls": 1
       }
     }
   ]

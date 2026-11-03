@@ -1,0 +1,189 @@
+{
+  "tiers": [
+    {
+      "id": "rare",
+      "name": "Редкий",
+      "level_cap": 60,
+      "stat_mult": 0.85,
+      "color": "#5AA9E6"
+    },
+    {
+      "id": "elite",
+      "name": "Элита",
+      "level_cap": 100,
+      "stat_mult": 1.0,
+      "color": "#B06CE0"
+    },
+    {
+      "id": "elite_plus",
+      "name": "Элита+",
+      "level_cap": 120,
+      "stat_mult": 1.15,
+      "color": "#C88CF0"
+    },
+    {
+      "id": "legendary",
+      "name": "Легенда",
+      "level_cap": 140,
+      "stat_mult": 1.3,
+      "color": "#F2B544"
+    },
+    {
+      "id": "legendary_plus",
+      "name": "Легенда+",
+      "level_cap": 160,
+      "stat_mult": 1.45,
+      "color": "#FFD27A"
+    },
+    {
+      "id": "mythic",
+      "name": "Миф",
+      "level_cap": 180,
+      "stat_mult": 1.65,
+      "color": "#E2504A"
+    },
+    {
+      "id": "mythic_plus",
+      "name": "Миф+",
+      "level_cap": 200,
+      "stat_mult": 1.85,
+      "color": "#FF7A6E"
+    },
+    {
+      "id": "ascended",
+      "name": "Вознесённый",
+      "level_cap": 240,
+      "stat_mult": 2.2,
+      "color": "#F4ECDD"
+    }
+  ],
+  "level": {
+    "stat_growth_percent": 2.0,
+    "gold": {
+      "base": 15,
+      "exponent": 1.2
+    },
+    "hero_xp": {
+      "base": 10,
+      "exponent": 1.25
+    },
+    "essence": {
+      "from_level": 100,
+      "base": 20,
+      "exponent": 1.2
+    }
+  },
+  "ascension": [
+    {
+      "from": "elite",
+      "to": "elite_plus",
+      "requires": [
+        {
+          "kind": "same",
+          "tier": "elite",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "from": "elite_plus",
+      "to": "legendary",
+      "requires": [
+        {
+          "kind": "same",
+          "tier": "elite",
+          "count": 1
+        },
+        {
+          "kind": "faction",
+          "tier": "elite",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "from": "legendary",
+      "to": "legendary_plus",
+      "requires": [
+        {
+          "kind": "same",
+          "tier": "legendary",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "from": "legendary_plus",
+      "to": "mythic",
+      "requires": [
+        {
+          "kind": "faction",
+          "tier": "legendary_plus",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "from": "mythic",
+      "to": "mythic_plus",
+      "requires": [
+        {
+          "kind": "same",
+          "tier": "elite",
+          "count": 1
+        },
+        {
+          "kind": "faction",
+          "tier": "mythic",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "from": "mythic_plus",
+      "to": "ascended",
+      "requires": [
+        {
+          "kind": "faction",
+          "tier": "elite_plus",
+          "count": 2
+        }
+      ]
+    }
+  ],
+  "resonance": {
+    "slots": 5,
+    "top": 5
+  },
+  "start": {
+    "heroes": [
+      {
+        "hero": "alpamysha",
+        "tier": "elite"
+      },
+      {
+        "hero": "ural_batyr",
+        "tier": "elite"
+      },
+      {
+        "hero": "zayatulyak",
+        "tier": "elite"
+      },
+      {
+        "hero": "humai",
+        "tier": "elite"
+      },
+      {
+        "hero": "hyuhylu",
+        "tier": "elite"
+      }
+    ],
+    "currencies": {
+      "scrolls": 10,
+      "crystals": 1000
+    }
+  },
+  "dismiss_essence": {
+    "rare": 100
+  }
+}

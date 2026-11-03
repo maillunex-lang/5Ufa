@@ -1,0 +1,62 @@
+{
+  "id": "sky_guard",
+  "name": "Небесный страж",
+  "title": "Простой герой",
+  "faction": "sky_dwellers",
+  "role": "support",
+  "rarity": "rare",
+  "description": "Младший служитель царя птиц.",
+  "lore": "Младший служитель царя птиц. Годится в корм для вознесения или в эссенцию.",
+  "stats": {
+    "hp": 2520,
+    "atk": 112,
+    "def": 68,
+    "attack_interval_ms": 1400
+  },
+  "skills": [
+    {
+      "id": "sky_guard_ult",
+      "name": "Свет",
+      "description": "Лечит самого раненого союзника на 200% атаки.",
+      "type": "ultimate",
+      "cast_time_ms": 900,
+      "animation": "ultimate",
+      "effects": [
+        {
+          "kind": "heal",
+          "target": {
+            "side": "ally",
+            "select": "lowest_hp"
+          },
+          "multiplier": 2.0
+        }
+      ]
+    },
+    {
+      "id": "sky_guard_s1",
+      "name": "Обычный приём",
+      "description": "Бьёт цель на 130% атаки.",
+      "type": "active",
+      "cooldown_ms": 8000,
+      "first_cast_ms": 4000,
+      "cast_time_ms": 500,
+      "animation": "skill",
+      "effects": [
+        {
+          "kind": "damage",
+          "target": {
+            "side": "enemy",
+            "select": "current"
+          },
+          "multiplier": 1.3
+        }
+      ]
+    }
+  ],
+  "art": {
+    "portrait": "heroes/sky_guard/portrait.png",
+    "full": "heroes/sky_guard/full.png",
+    "skeleton": "heroes/sky_guard/skeleton.json",
+    "projectile": "heroes/sky_guard/projectile.png"
+  }
+}

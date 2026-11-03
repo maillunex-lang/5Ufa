@@ -137,3 +137,32 @@ static func line_edit(placeholder: String, secret := false) -> LineEdit:
 	e.secret = secret
 	e.custom_minimum_size = Vector2(0, 88)
 	return e
+
+
+const CURRENCY_LABELS := {"gold": "золото", "hero_xp": "опыт", "essence": "эссенция",
+		"crystals": "кристаллы", "scrolls": "свитки"}
+
+
+## Строка с балансом валют: «золото 1 200 · опыт 300 · …»
+static func wallet_text(w: Dictionary) -> String:
+	var parts: Array = []
+	for code in ["gold", "hero_xp", "essence", "crystals", "scrolls"]:
+		parts.append("%s: %d" % [CURRENCY_LABELS[code], int(w.get(code, 0))])
+	var faction_scrolls := 0
+	for code in w.keys():
+		if str(code).begins_with("faction_scroll_"):
+			faction_scrolls += int(w[code])
+	if faction_scrolls > 0:
+		parts.append("свитки фракций: %d" % faction_scrolls)
+	return " · ".join(parts)
+
+
+## Стоимость: {"gold": 30, "hero_xp": 20} -> «30 золото, 20 опыт»
+static func cost_text(cost: Dictionary) -> String:
+	var parts: Array = []
+	for code in cost.keys():
+		if int(cost[code]) == 0:
+			continue
+		var name: String = "свитки фракции" if str(code).begins_with("faction_scroll_") else CURRENCY_LABELS.get(code, code)
+		parts.append("%s: %d" % [name, int(cost[code])])
+	return ", ".join(parts) if not parts.is_empty() else "ничего"

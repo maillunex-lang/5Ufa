@@ -318,6 +318,37 @@ HEROES += [
                  passive("zar_p", "Холодная кровь", "Шанс крита +5%.", [{"kind": "stat", "target": T("ally", "self"), "stat": "crit_chance", "percent": 5}])]),
 ]
 
+# --- Простые (редкие) герои: результат «Редкий» в призыве, корм и эссенция. По одному на фракцию ---
+RARE = [
+    ("militia_ural", "Ополченец Урала", "ural_batyrs", "warrior", "helmet", "#E8B98A",
+     "Простой защитник горных селений.", "Удар копьём", "Бьёт цель на 200% атаки."),
+    ("imp_evil", "Упырь", "evil_spirits", "assassin", "horns", "#A99AA8",
+     "Мелкая нечисть, что бродит по ночам.", "Укус", "Бьёт врага с наименьшим здоровьем на 220% атаки."),
+    ("forest_archer", "Лесной стрелок", "forest_spirits", "archer", "feather", "#9FBF7A",
+     "Дух-охотник с луком из ветки рябины.", "Меткая стрела", "Бьёт врага с наименьшим здоровьем на 200% атаки."),
+    ("steppe_rider", "Степной всадник", "steppe_nomads", "warrior", "feather", "#D9A577",
+     "Лихой наездник из кочевого рода.", "Наскок", "Бьёт цель на 200% атаки."),
+    ("sky_guard", "Небесный страж", "sky_dwellers", "support", "halo", "#F0E6D0",
+     "Младший служитель царя птиц.", "Свет", "Лечит самого раненого союзника на 200% атаки."),
+    ("under_guard", "Подземный страж", "underworld", "tank", "horns", "#8C7A8F",
+     "Стражник пещер Катил-падиши.", "Каменный удар", "Бьёт цель на 150% атаки и оглушает на 1 с."),
+]
+for rid, rname, rfac, rrole, racc, rskin, rdesc, rult, rultd in RARE:
+    if rrole == "support":
+        ult_eff = [{"kind": "heal", "target": T("ally", "lowest_hp"), "multiplier": 2.0}]
+    elif rrole == "tank":
+        ult_eff = [dmg(T("enemy", "current"), 1.5), {"kind": "stun", "target": T("enemy", "current"), "duration_ms": 1000}]
+    elif rrole in ("assassin", "archer"):
+        ult_eff = [dmg(T("enemy", "lowest_hp"), 2.2 if rrole == "assassin" else 2.0)]
+    else:
+        ult_eff = [dmg(T("enemy", "current"), 2.0)]
+    HEROES.append(dict(
+        id=rid, name=rname, title="Простой герой", faction=rfac, role=rrole, rarity="rare",
+        description=rdesc, lore=rdesc + " Годится в корм для вознесения или в эссенцию.",
+        look=dict(skin=rskin, hair="#3A2A1A", acc=racc),
+        skills=[ult(f"{rid}_ult", rult, rultd, ult_eff),
+                active(f"{rid}_s1", "Обычный приём", "Бьёт цель на 130% атаки.", [dmg(T("enemy", "current"), 1.3)], 8000, 4000)]))
+
 TEST_TEAMS = {"teams": [
     {"id": "test_evil", "name": "Отряд Шульгена", "units": [
         {"hero": "deyeu", "slot": 0}, {"hero": "shulgen", "slot": 1},
@@ -670,9 +701,12 @@ def main():
             art["projectile"] = f"heroes/{hid}/projectile.png"
         stats = dict(BASE_STATS[role])
         stats["hp"] = round(stats["hp"] * HP_SCALE)
+        if h.get("rarity") == "rare":  # простые герои слабее
+            for k in ("hp", "atk", "def"):
+                stats[k] = round(stats[k] * 0.8)
         hero_json = {
             "id": hid, "name": h["name"], "title": h["title"], "faction": h["faction"], "role": role,
-            "rarity": "legendary", "description": h["description"], "lore": h["lore"],
+            "rarity": h.get("rarity", "legendary"), "description": h["description"], "lore": h["lore"],
             "stats": stats, "skills": h["skills"], "art": art,
         }
         write(f"heroes/{hid}/hero.json", hero_json)

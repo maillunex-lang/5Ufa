@@ -75,8 +75,10 @@ func _render() -> void:
 		body.add_child(replay)
 		body.add_child(Ui.button("Повторить выбранный этап", func(): _fight(replay.selected + 1)))
 	var chest: Dictionary = data["pending"]
-	body.add_child(Ui.label("AFK-сундук: %d / 12 ч\nЗолото: %d · Опыт: %d" % [int(data["elapsed_seconds"]) / 3600, int(chest["gold"]), int(chest["hero_xp"])], 25, "accent"))
-	body.add_child(Ui.label("Всего: %d золота · %d опыта" % [int(data["gold"]), int(data["hero_xp"])], 22))
+	body.add_child(Ui.label("AFK-сундук: %d / 12 ч\nЗолото: %d · Опыт: %d · Кристаллы: %d · Эссенция: %d" % [
+			int(data["elapsed_seconds"]) / 3600, int(chest["gold"]), int(chest["hero_xp"]),
+			int(chest.get("crystals", 0)), int(chest.get("essence", 0))], 24, "accent"))
+	body.add_child(Ui.label("Всего: " + Ui.wallet_text(data.get("wallet", {})), 20))
 	body.add_child(Ui.button("Получить из сундука", _claim.bind("/api/v1/campaign/claim")))
 	var fast := Ui.button("Быстрая награда — 2 часа", _claim.bind("/api/v1/campaign/quick"))
 	fast.disabled = not bool(data["quick_available"])
@@ -95,7 +97,7 @@ func _claim(path: String) -> void:
 	_busy = false
 	if response.ok:
 		var reward: Dictionary = response.data["reward"]
-		_message = "Получено: %d золота и %d опыта" % [int(reward["gold"]), int(reward["hero_xp"])]
+		_message = "Получено: " + Ui.cost_text(reward.duplicate())
 	else:
 		_message = response.error
 	await _load()

@@ -35,6 +35,14 @@
     "quick_daily_limit": {
       "type": "integer",
       "minimum": 0
+    },
+    "crystals_per_hour": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "essence_per_hour": {
+      "type": "integer",
+      "minimum": 0
     }
   }
 }

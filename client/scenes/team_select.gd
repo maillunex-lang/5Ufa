@@ -16,6 +16,7 @@ var _status: Label
 var _fight: Button
 var _hero_buttons: Dictionary = {}
 var _auto_start: CheckButton
+var owned_info: Dictionary = {}   # id героя -> лучший экземпляр игрока (уровень, редкость)
 
 
 func _ready() -> void:
@@ -27,6 +28,7 @@ func _ready() -> void:
 	margin.add_theme_constant_override("margin_top", 40)
 	margin.add_theme_constant_override("margin_bottom", 28)
 	_load_data()
+	await _load_owned()
 	var heading := "Тестовый бой"
 	if get_tree().has_meta("campaign_stage"):
 		var stage_number: int = int(get_tree().get_meta("campaign_stage"))
@@ -112,6 +114,25 @@ func _load_data() -> void:
 				heroes[h["id"]] = h
 
 
+## Воевать можно только своими героями (кроме тестового боя у тестовых аккаунтов)
+func _load_owned() -> void:
+	var only_own: bool = get_tree().has_meta("campaign_stage") or not bool(Api.player.get("is_test", false))
+	if not only_own:
+		return
+	var res: Dictionary = await Api.request_json(HTTPClient.METHOD_GET, "/api/v1/heroes")
+	if not res.ok:
+		return
+	var best: Dictionary = {}
+	for h in res.data["heroes"]:
+		var hid: String = str(h["hero"])
+		if not best.has(hid) or int(h["level"]) > int(best[hid]["level"]):
+			best[hid] = h
+	for hid in heroes.keys():
+		if not best.has(hid):
+			heroes.erase(hid)
+	owned_info = best
+
+
 func _row_title(text: String) -> Label:
 	var l := Ui.label(text, 22, "accent")
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
@@ -149,8 +170,11 @@ func _on_hero(hid: String) -> void:
 	for s in h["skills"]:
 		if s["type"] == "ultimate":
 			ult = s
-	_info.text = "%s — %s, %s\nУльт «%s»: %s" % [h["name"], ROLE_NAMES.get(h["role"], h["role"]),
-			factions.get(h["faction"], {}).get("name", h["faction"]), ult.get("name", ""), ult.get("description", "")]
+	var own := ""
+	if owned_info.has(hid):
+		own = "  ·  ур. %d, %s" % [int(owned_info[hid]["level"]), owned_info[hid]["tier_name"]]
+	_info.text = "%s — %s, %s%s\nУльт «%s»: %s" % [h["name"], ROLE_NAMES.get(h["role"], h["role"]),
+			factions.get(h["faction"], {}).get("name", h["faction"]), own, ult.get("name", ""), ult.get("description", "")]
 	if hid in slots:
 		return
 	# Танки и воины — вперёд, остальные — назад, если там есть место
