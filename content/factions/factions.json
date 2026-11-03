@@ -1,0 +1,40 @@
+{
+  "factions": [
+    {
+      "id": "ural_batyrs",
+      "name": "Батыры Урала",
+      "color": "#D9A441",
+      "strong_against": [
+        "evil_spirits"
+      ],
+      "description": "Богатыри уральских гор, защитники людей и живой воды."
+    },
+    {
+      "id": "evil_spirits",
+      "name": "Нечисть",
+      "color": "#8E3B5B",
+      "strong_against": [
+        "forest_spirits"
+      ],
+      "description": "Албасты, дивы и змеи — порождения тьмы и смерти."
+    },
+    {
+      "id": "forest_spirits",
+      "name": "Лесные духи",
+      "color": "#4F9D69",
+      "strong_against": [
+        "steppe_nomads"
+      ],
+      "description": "Шурале, водяные девы и хозяева лесов."
+    },
+    {
+      "id": "steppe_nomads",
+      "name": "Степные кочевники",
+      "color": "#C9693B",
+      "strong_against": [
+        "ural_batyrs"
+      ],
+      "description": "Вольные всадники, лучники и шаманы бескрайней степи."
+    }
+  ]
+}

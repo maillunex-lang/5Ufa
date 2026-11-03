@@ -1,0 +1,121 @@
+{
+  "id": "mergen",
+  "name": "Мерген",
+  "title": "Лучница степи",
+  "faction": "steppe_nomads",
+  "role": "archer",
+  "rarity": "legendary",
+  "description": "Всадница, попадающая в беркута на лету.",
+  "lore": "Мерген — так в степи зовут лучших стрелков. Она взяла это имя, когда сбила стрелой коршуна, уносившего ягнёнка.",
+  "stats": {
+    "hp": 2880,
+    "atk": 225,
+    "def": 70,
+    "attack_interval_ms": 1200,
+    "crit_chance": 0.1
+  },
+  "skills": [
+    {
+      "id": "mer_ult",
+      "name": "Стрела бури",
+      "description": "Бьёт врага в заднем ряду на 350% атаки и оглушает на 1 с.",
+      "type": "ultimate",
+      "cast_time_ms": 900,
+      "animation": "ultimate",
+      "effects": [
+        {
+          "kind": "damage",
+          "target": {
+            "side": "enemy",
+            "select": "backline"
+          },
+          "multiplier": 3.5
+        },
+        {
+          "kind": "stun",
+          "target": {
+            "side": "enemy",
+            "select": "backline"
+          },
+          "duration_ms": 1000
+        }
+      ]
+    },
+    {
+      "id": "mer_s1",
+      "name": "Залп",
+      "description": "Три стрелы по 90% атаки в случайных врагов.",
+      "type": "active",
+      "cooldown_ms": 7000,
+      "first_cast_ms": 3000,
+      "cast_time_ms": 500,
+      "animation": "skill",
+      "effects": [
+        {
+          "kind": "damage",
+          "target": {
+            "side": "enemy",
+            "select": "random",
+            "count": 3
+          },
+          "multiplier": 0.9
+        }
+      ]
+    },
+    {
+      "id": "mer_s2",
+      "name": "Ветер степи",
+      "description": "Скорость атаки +30% на 5 с.",
+      "type": "active",
+      "cooldown_ms": 12000,
+      "first_cast_ms": 5000,
+      "cast_time_ms": 500,
+      "animation": "skill",
+      "effects": [
+        {
+          "kind": "buff",
+          "target": {
+            "side": "ally",
+            "select": "self"
+          },
+          "stat": "attack_speed",
+          "percent": 30,
+          "duration_ms": 5000
+        }
+      ]
+    },
+    {
+      "id": "mer_p",
+      "name": "Меткость",
+      "description": "Атака +8%, шанс крита +5%.",
+      "type": "passive",
+      "trigger": "battle_start",
+      "effects": [
+        {
+          "kind": "stat",
+          "target": {
+            "side": "ally",
+            "select": "self"
+          },
+          "stat": "atk",
+          "percent": 8
+        },
+        {
+          "kind": "stat",
+          "target": {
+            "side": "ally",
+            "select": "self"
+          },
+          "stat": "crit_chance",
+          "percent": 5
+        }
+      ]
+    }
+  ],
+  "art": {
+    "portrait": "heroes/mergen/portrait.png",
+    "full": "heroes/mergen/full.png",
+    "skeleton": "heroes/mergen/skeleton.json",
+    "projectile": "heroes/mergen/projectile.png"
+  }
+}

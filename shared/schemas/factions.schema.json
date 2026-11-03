@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.ufagame.local/factions.schema.json",
+  "title": "Фракции и круг преимуществ (factions/factions.json)",
+  "type": "object",
+  "required": ["factions"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {"type": "string"},
+    "factions": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "strong_against"],
+        "additionalProperties": false,
+        "properties": {
+          "id": {"$ref": "common.schema.json#/$defs/id"},
+          "name": {"type": "string", "minLength": 1},
+          "description": {"type": "string"},
+          "color": {"$ref": "common.schema.json#/$defs/color"},
+          "icon": {"$ref": "common.schema.json#/$defs/content_path"},
+          "strong_against": {"type": "array", "items": {"$ref": "common.schema.json#/$defs/id"}, "description": "По кому эта фракция наносит повышенный урон"}
+        }
+      }
+    }
+  }
+}

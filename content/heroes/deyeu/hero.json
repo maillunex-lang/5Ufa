@@ -1,0 +1,121 @@
+{
+  "id": "deyeu",
+  "name": "Дейеу",
+  "title": "Див",
+  "faction": "evil_spirits",
+  "role": "tank",
+  "rarity": "legendary",
+  "description": "Огромный див, слуга царя Катила.",
+  "lore": "Дейеу — многоголовые дивы, которых Урал-батыр сбрасывал в море. Их шкура крепче камня.",
+  "stats": {
+    "hp": 6120,
+    "atk": 120,
+    "def": 180,
+    "attack_interval_ms": 1400
+  },
+  "skills": [
+    {
+      "id": "dey_ult",
+      "name": "Рёв дива",
+      "description": "Оглушает ближайших 3 врагов на 2 с и даёт себе щит на 250% атаки.",
+      "type": "ultimate",
+      "cast_time_ms": 900,
+      "animation": "ultimate",
+      "effects": [
+        {
+          "kind": "stun",
+          "target": {
+            "side": "enemy",
+            "select": "nearest",
+            "count": 3
+          },
+          "duration_ms": 2000
+        },
+        {
+          "kind": "shield",
+          "target": {
+            "side": "ally",
+            "select": "self"
+          },
+          "multiplier": 2.5,
+          "duration_ms": 6000
+        }
+      ]
+    },
+    {
+      "id": "dey_s1",
+      "name": "Сокрушение",
+      "description": "Бьёт цель на 160% атаки и снижает её защиту на 20% на 5 с.",
+      "type": "active",
+      "cooldown_ms": 8000,
+      "first_cast_ms": 3500,
+      "cast_time_ms": 500,
+      "animation": "skill",
+      "effects": [
+        {
+          "kind": "damage",
+          "target": {
+            "side": "enemy",
+            "select": "current"
+          },
+          "multiplier": 1.6
+        },
+        {
+          "kind": "buff",
+          "target": {
+            "side": "enemy",
+            "select": "current"
+          },
+          "stat": "def",
+          "percent": -20,
+          "duration_ms": 5000
+        }
+      ]
+    },
+    {
+      "id": "dey_s2",
+      "name": "Каменная шкура",
+      "description": "Защита +35% на 6 с.",
+      "type": "active",
+      "cooldown_ms": 13000,
+      "first_cast_ms": 2000,
+      "cast_time_ms": 500,
+      "animation": "skill",
+      "effects": [
+        {
+          "kind": "buff",
+          "target": {
+            "side": "ally",
+            "select": "self"
+          },
+          "stat": "def",
+          "percent": 35,
+          "duration_ms": 6000
+        }
+      ]
+    },
+    {
+      "id": "dey_p",
+      "name": "Многоголовый",
+      "description": "Здоровье +20%.",
+      "type": "passive",
+      "trigger": "battle_start",
+      "effects": [
+        {
+          "kind": "stat",
+          "target": {
+            "side": "ally",
+            "select": "self"
+          },
+          "stat": "hp",
+          "percent": 20
+        }
+      ]
+    }
+  ],
+  "art": {
+    "portrait": "heroes/deyeu/portrait.png",
+    "full": "heroes/deyeu/full.png",
+    "skeleton": "heroes/deyeu/skeleton.json"
+  }
+}

@@ -44,7 +44,7 @@ async def cmd_import(args) -> int:
         release, created = await import_directory(session, content_dir, source="base", comment=args.comment)
         print(("Создан релиз" if created else "Контент не изменился, релиз") +
               f" №{release.id}: файлов {release.files_count}, размер {_mb(release.total_size)}")
-        if args.publish:
+        if args.publish or (args.publish_if_new and created):
             for ch in CHANNELS:
                 await publish(session, release.id, ch)
             print(f"Релиз №{release.id} опубликован в каналы: {', '.join(CHANNELS)}")
@@ -192,6 +192,8 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--dir", help="Папка контента (по умолчанию базовый контент из образа)")
     p.add_argument("--publish", action="store_true", help="Сразу опубликовать в live и test")
     p.add_argument("--if-empty", action="store_true", help="Только если релизов ещё нет (первый запуск)")
+    p.add_argument("--publish-if-new", action="store_true",
+                   help="Опубликовать, только если контент изменился (при деплое; ручной откат не перетирается)")
     p.add_argument("--comment", default="Базовый контент", help="Комментарий к релизу")
     p.set_defaults(func=cmd_import)
 

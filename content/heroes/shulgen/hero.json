@@ -1,0 +1,111 @@
+{
+  "id": "shulgen",
+  "name": "Шульген",
+  "title": "Падший брат",
+  "faction": "evil_spirits",
+  "role": "warrior",
+  "rarity": "legendary",
+  "description": "Брат Урала, выбравший сторону тьмы.",
+  "lore": "Шульген выпил запретную кровь и встал на путь зла. Он сражается вместе с дивами, но в глубине души помнит брата.",
+  "stats": {
+    "hp": 4500,
+    "atk": 200,
+    "def": 110,
+    "attack_interval_ms": 1100
+  },
+  "skills": [
+    {
+      "id": "shul_ult",
+      "name": "Проклятый клинок",
+      "description": "Бьёт текущую цель на 380% атаки и восстанавливает себе 150% атаки.",
+      "type": "ultimate",
+      "cast_time_ms": 900,
+      "animation": "ultimate",
+      "effects": [
+        {
+          "kind": "damage",
+          "target": {
+            "side": "enemy",
+            "select": "current"
+          },
+          "multiplier": 3.8
+        },
+        {
+          "kind": "heal",
+          "target": {
+            "side": "ally",
+            "select": "self"
+          },
+          "multiplier": 1.5
+        }
+      ]
+    },
+    {
+      "id": "shul_s1",
+      "name": "Тёмный взмах",
+      "description": "Бьёт двух ближайших врагов на 140% атаки.",
+      "type": "active",
+      "cooldown_ms": 7000,
+      "first_cast_ms": 3000,
+      "cast_time_ms": 500,
+      "animation": "skill",
+      "effects": [
+        {
+          "kind": "damage",
+          "target": {
+            "side": "enemy",
+            "select": "nearest",
+            "count": 2
+          },
+          "multiplier": 1.4
+        }
+      ]
+    },
+    {
+      "id": "shul_s2",
+      "name": "Ярость",
+      "description": "Атака +25% на 5 с.",
+      "type": "active",
+      "cooldown_ms": 13000,
+      "first_cast_ms": 4000,
+      "cast_time_ms": 500,
+      "animation": "skill",
+      "effects": [
+        {
+          "kind": "buff",
+          "target": {
+            "side": "ally",
+            "select": "self"
+          },
+          "stat": "atk",
+          "percent": 25,
+          "duration_ms": 5000
+        }
+      ]
+    },
+    {
+      "id": "shul_p",
+      "name": "Запретная кровь",
+      "description": "При падении здоровья ниже 30% атака +30% до конца боя.",
+      "type": "passive",
+      "trigger": "low_hp",
+      "effects": [
+        {
+          "kind": "buff",
+          "target": {
+            "side": "ally",
+            "select": "self"
+          },
+          "stat": "atk",
+          "percent": 30,
+          "duration_ms": 90000
+        }
+      ]
+    }
+  ],
+  "art": {
+    "portrait": "heroes/shulgen/portrait.png",
+    "full": "heroes/shulgen/full.png",
+    "skeleton": "heroes/shulgen/skeleton.json"
+  }
+}

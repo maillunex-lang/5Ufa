@@ -1,0 +1,102 @@
+{
+  "id": "zayatulyak",
+  "name": "Заятуляк",
+  "title": "Стрелок озёрный",
+  "faction": "ural_batyrs",
+  "role": "archer",
+  "rarity": "legendary",
+  "description": "Меткий охотник, полюбивший водяную деву.",
+  "lore": "Заятуляк подстрелил белую утку, а она обернулась девой Хыухылу. С тех пор его стрелы не знают промаха — их ведёт озёрная вода.",
+  "stats": {
+    "hp": 2880,
+    "atk": 225,
+    "def": 70,
+    "attack_interval_ms": 1200,
+    "crit_chance": 0.1
+  },
+  "skills": [
+    {
+      "id": "zay_ult",
+      "name": "Дождь стрел",
+      "description": "Обстреливает всех врагов: 150% атаки каждому.",
+      "type": "ultimate",
+      "cast_time_ms": 900,
+      "animation": "ultimate",
+      "effects": [
+        {
+          "kind": "damage",
+          "target": {
+            "side": "enemy",
+            "select": "all"
+          },
+          "multiplier": 1.5
+        }
+      ]
+    },
+    {
+      "id": "zay_s1",
+      "name": "Прицельный выстрел",
+      "description": "Бьёт врага с наименьшим здоровьем на 220% атаки.",
+      "type": "active",
+      "cooldown_ms": 8000,
+      "first_cast_ms": 3500,
+      "cast_time_ms": 500,
+      "animation": "skill",
+      "effects": [
+        {
+          "kind": "damage",
+          "target": {
+            "side": "enemy",
+            "select": "lowest_hp"
+          },
+          "multiplier": 2.2
+        }
+      ]
+    },
+    {
+      "id": "zay_s2",
+      "name": "Двойная стрела",
+      "description": "Две стрелы по 110% атаки в случайных врагов.",
+      "type": "active",
+      "cooldown_ms": 6000,
+      "first_cast_ms": 5000,
+      "cast_time_ms": 500,
+      "animation": "skill",
+      "effects": [
+        {
+          "kind": "damage",
+          "target": {
+            "side": "enemy",
+            "select": "random",
+            "count": 2
+          },
+          "multiplier": 1.1
+        }
+      ]
+    },
+    {
+      "id": "zay_p",
+      "name": "Глаз охотника",
+      "description": "Шанс крита +10%.",
+      "type": "passive",
+      "trigger": "battle_start",
+      "effects": [
+        {
+          "kind": "stat",
+          "target": {
+            "side": "ally",
+            "select": "self"
+          },
+          "stat": "crit_chance",
+          "percent": 10
+        }
+      ]
+    }
+  ],
+  "art": {
+    "portrait": "heroes/zayatulyak/portrait.png",
+    "full": "heroes/zayatulyak/full.png",
+    "skeleton": "heroes/zayatulyak/skeleton.json",
+    "projectile": "heroes/zayatulyak/projectile.png"
+  }
+}

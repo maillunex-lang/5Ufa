@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.ufagame.local/battle_config.schema.json",
+  "title": "Формулы и правила боя (config/battle.json)",
+  "type": "object",
+  "required": ["tick_rate", "max_duration_sec", "energy", "damage", "field", "roles"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {"type": "string"},
+    "tick_rate": {"type": "integer", "minimum": 5, "maximum": 60, "description": "Тиков расчёта в секунду"},
+    "max_duration_sec": {"type": "integer", "minimum": 10, "maximum": 600, "description": "По истечении — победа защиты"},
+    "energy": {
+      "type": "object",
+      "required": ["max", "on_attack", "on_hit_per_hp_percent", "on_kill"],
+      "additionalProperties": false,
+      "properties": {
+        "max": {"type": "integer", "minimum": 1},
+        "start": {"type": "integer", "minimum": 0},
+        "on_attack": {"type": "integer", "minimum": 0, "description": "За обычную атаку"},
+        "on_hit_per_hp_percent": {"type": "number", "minimum": 0, "description": "За каждый потерянный 1% здоровья"},
+        "on_kill": {"type": "integer", "minimum": 0},
+        "on_skill": {"type": "integer", "minimum": 0}
+      }
+    },
+    "damage": {
+      "type": "object",
+      "required": ["defense_constant", "faction_bonus", "crit_chance", "crit_damage"],
+      "additionalProperties": false,
+      "properties": {
+        "defense_constant": {"type": "number", "exclusiveMinimum": 0, "description": "Снижение урона = защита / (защита + это_число)"},
+        "max_reduction": {"type": "number", "minimum": 0, "maximum": 0.95},
+        "faction_bonus": {"type": "number", "minimum": 0, "description": "0.25 = +25% урона по фракции, которую бьёшь по кругу"},
+        "crit_chance": {"type": "number", "minimum": 0, "maximum": 1, "description": "Базовый шанс крита"},
+        "crit_damage": {"type": "number", "minimum": 1},
+        "variance": {"type": "number", "minimum": 0, "maximum": 0.5, "description": "Случайный разброс урона ±"},
+        "min_damage": {"type": "integer", "minimum": 0}
+      }
+    },
+    "field": {
+      "type": "object",
+      "required": ["front_x", "back_x", "lanes"],
+      "additionalProperties": false,
+      "properties": {
+        "front_x": {"type": "number", "description": "Где стоит передний ряд (расстояние от центра)"},
+        "back_x": {"type": "number"},
+        "lanes": {"type": "array", "items": {"type": "number"}, "minItems": 5, "maxItems": 5, "description": "Вертикальная позиция (для отрисовки) слотов 0..4: 0-1 передние, 2-4 задние"}
+      }
+    },
+    "roles": {
+      "type": "object",
+      "description": "Значения по умолчанию для ролей (если у героя не указано)",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "range": {"type": "number"},
+          "move_speed": {"type": "number"},
+          "attack_windup_ms": {"type": "integer", "minimum": 0, "description": "Через сколько после начала атаки урон (ближний бой)"},
+          "projectile_speed": {"type": "number", "description": "Скорость снаряда (дальний бой), единиц/сек; 0 — без снаряда"},
+          "targeting": {"enum": ["nearest", "backline", "lowest_hp", "frontline"]}
+        }
+      }
+    }
+  }
+}

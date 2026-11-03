@@ -1,0 +1,108 @@
+{
+  "id": "albasty",
+  "name": "Албасты",
+  "title": "Ночная дева",
+  "faction": "evil_spirits",
+  "role": "assassin",
+  "rarity": "legendary",
+  "description": "Злой дух в облике женщины с длинными волосами.",
+  "lore": "Албасты является в полночь и душит спящих. Её волосы — как чёрная река, а когти острее ножа.",
+  "stats": {
+    "hp": 3240,
+    "atk": 235,
+    "def": 80,
+    "attack_interval_ms": 900,
+    "crit_chance": 0.15
+  },
+  "skills": [
+    {
+      "id": "alb_ult",
+      "name": "Полночь",
+      "description": "Бьёт врага с наименьшим здоровьем на 420% атаки.",
+      "type": "ultimate",
+      "cast_time_ms": 900,
+      "animation": "ultimate",
+      "effects": [
+        {
+          "kind": "damage",
+          "target": {
+            "side": "enemy",
+            "select": "lowest_hp"
+          },
+          "multiplier": 4.2
+        }
+      ]
+    },
+    {
+      "id": "alb_s1",
+      "name": "Когти",
+      "description": "Бьёт текущую цель на 170% атаки и отравляет: 30% атаки в секунду 3 с.",
+      "type": "active",
+      "cooldown_ms": 6000,
+      "first_cast_ms": 2500,
+      "cast_time_ms": 500,
+      "animation": "skill",
+      "effects": [
+        {
+          "kind": "damage",
+          "target": {
+            "side": "enemy",
+            "select": "current"
+          },
+          "multiplier": 1.7
+        },
+        {
+          "kind": "dot",
+          "target": {
+            "side": "enemy",
+            "select": "current"
+          },
+          "multiplier": 0.3,
+          "duration_ms": 3000
+        }
+      ]
+    },
+    {
+      "id": "alb_s2",
+      "name": "Удушье",
+      "description": "Оглушает врага в заднем ряду на 1,5 с.",
+      "type": "active",
+      "cooldown_ms": 11000,
+      "first_cast_ms": 5500,
+      "cast_time_ms": 500,
+      "animation": "skill",
+      "effects": [
+        {
+          "kind": "stun",
+          "target": {
+            "side": "enemy",
+            "select": "backline"
+          },
+          "duration_ms": 1500
+        }
+      ]
+    },
+    {
+      "id": "alb_p",
+      "name": "Жажда",
+      "description": "После убийства восстанавливает 200% атаки.",
+      "type": "passive",
+      "trigger": "kill",
+      "effects": [
+        {
+          "kind": "heal",
+          "target": {
+            "side": "ally",
+            "select": "self"
+          },
+          "multiplier": 2.0
+        }
+      ]
+    }
+  ],
+  "art": {
+    "portrait": "heroes/albasty/portrait.png",
+    "full": "heroes/albasty/full.png",
+    "skeleton": "heroes/albasty/skeleton.json"
+  }
+}

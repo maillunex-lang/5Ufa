@@ -1,0 +1,72 @@
+{
+  "teams": [
+    {
+      "id": "test_evil",
+      "name": "Отряд Шульгена",
+      "units": [
+        {
+          "hero": "deyeu",
+          "slot": 0
+        },
+        {
+          "hero": "shulgen",
+          "slot": 1
+        },
+        {
+          "hero": "albasty",
+          "slot": 2
+        },
+        {
+          "hero": "azhdaha",
+          "slot": 3
+        },
+        {
+          "hero": "baksy",
+          "slot": 4
+        }
+      ]
+    },
+    {
+      "id": "test_forest",
+      "name": "Лесная засада",
+      "units": [
+        {
+          "hero": "urman_huzha",
+          "slot": 0
+        },
+        {
+          "hero": "shurale",
+          "slot": 1
+        },
+        {
+          "hero": "hyuhylu",
+          "slot": 2
+        },
+        {
+          "hero": "bisura",
+          "slot": 3
+        },
+        {
+          "hero": "mergen",
+          "slot": 4
+        }
+      ]
+    },
+    {
+      "id": "test_weak",
+      "name": "Учебный отряд",
+      "units": [
+        {
+          "hero": "kusyak_biy",
+          "slot": 0,
+          "stat_multiplier": 0.5
+        },
+        {
+          "hero": "mergen",
+          "slot": 3,
+          "stat_multiplier": 0.5
+        }
+      ]
+    }
+  ]
+}

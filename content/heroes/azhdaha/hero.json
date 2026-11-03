@@ -1,0 +1,110 @@
+{
+  "id": "azhdaha",
+  "name": "Аждаха",
+  "title": "Змей",
+  "faction": "evil_spirits",
+  "role": "mage",
+  "rarity": "legendary",
+  "description": "Огнедышащий змей подземного царства.",
+  "lore": "Аждаха стерёг подземные богатства и пожирал смельчаков. Его дыхание плавит камень.",
+  "stats": {
+    "hp": 2700,
+    "atk": 250,
+    "def": 60,
+    "attack_interval_ms": 1500
+  },
+  "skills": [
+    {
+      "id": "azh_ult",
+      "name": "Огненное дыхание",
+      "description": "Бьёт всех врагов на 190% атаки.",
+      "type": "ultimate",
+      "cast_time_ms": 900,
+      "animation": "ultimate",
+      "effects": [
+        {
+          "kind": "damage",
+          "target": {
+            "side": "enemy",
+            "select": "all"
+          },
+          "multiplier": 1.9
+        }
+      ]
+    },
+    {
+      "id": "azh_s1",
+      "name": "Пламя",
+      "description": "Бьёт цель на 160% атаки и поджигает: 35% атаки в секунду 4 с.",
+      "type": "active",
+      "cooldown_ms": 7000,
+      "first_cast_ms": 3000,
+      "cast_time_ms": 500,
+      "animation": "skill",
+      "effects": [
+        {
+          "kind": "damage",
+          "target": {
+            "side": "enemy",
+            "select": "current"
+          },
+          "multiplier": 1.6
+        },
+        {
+          "kind": "dot",
+          "target": {
+            "side": "enemy",
+            "select": "current"
+          },
+          "multiplier": 0.35,
+          "duration_ms": 4000
+        }
+      ]
+    },
+    {
+      "id": "azh_s2",
+      "name": "Чешуя",
+      "description": "Щит себе на 200% атаки.",
+      "type": "active",
+      "cooldown_ms": 12000,
+      "first_cast_ms": 6000,
+      "cast_time_ms": 500,
+      "animation": "skill",
+      "effects": [
+        {
+          "kind": "shield",
+          "target": {
+            "side": "ally",
+            "select": "self"
+          },
+          "multiplier": 2.0,
+          "duration_ms": 6000
+        }
+      ]
+    },
+    {
+      "id": "azh_p",
+      "name": "Подземный жар",
+      "description": "Атака +10%.",
+      "type": "passive",
+      "trigger": "battle_start",
+      "effects": [
+        {
+          "kind": "stat",
+          "target": {
+            "side": "ally",
+            "select": "self"
+          },
+          "stat": "atk",
+          "percent": 10
+        }
+      ]
+    }
+  ],
+  "art": {
+    "portrait": "heroes/azhdaha/portrait.png",
+    "full": "heroes/azhdaha/full.png",
+    "skeleton": "heroes/azhdaha/skeleton.json",
+    "projectile": "heroes/azhdaha/projectile.png"
+  }
+}

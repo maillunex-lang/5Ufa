@@ -1,0 +1,109 @@
+{
+  "id": "urman_huzha",
+  "name": "Урман-хужа",
+  "title": "Хозяин леса",
+  "faction": "forest_spirits",
+  "role": "tank",
+  "rarity": "legendary",
+  "description": "Древний дух-хранитель, корни которого уходят в сердце Урала.",
+  "lore": "Урман-хужа старше гор. Он просыпается, когда лесу грозит беда, и стоит стеной, как вековой дуб.",
+  "stats": {
+    "hp": 6120,
+    "atk": 120,
+    "def": 180,
+    "attack_interval_ms": 1400
+  },
+  "skills": [
+    {
+      "id": "urm_ult",
+      "name": "Корни земли",
+      "description": "Оглушает всех врагов на 1,5 с и бьёт на 100% атаки.",
+      "type": "ultimate",
+      "cast_time_ms": 900,
+      "animation": "ultimate",
+      "effects": [
+        {
+          "kind": "damage",
+          "target": {
+            "side": "enemy",
+            "select": "all"
+          },
+          "multiplier": 1.0
+        },
+        {
+          "kind": "stun",
+          "target": {
+            "side": "enemy",
+            "select": "all"
+          },
+          "duration_ms": 1500
+        }
+      ]
+    },
+    {
+      "id": "urm_s1",
+      "name": "Кора",
+      "description": "Щит на 250% атаки себе.",
+      "type": "active",
+      "cooldown_ms": 9000,
+      "first_cast_ms": 3000,
+      "cast_time_ms": 500,
+      "animation": "skill",
+      "effects": [
+        {
+          "kind": "shield",
+          "target": {
+            "side": "ally",
+            "select": "self"
+          },
+          "multiplier": 2.5,
+          "duration_ms": 6000
+        }
+      ]
+    },
+    {
+      "id": "urm_s2",
+      "name": "Удар ветвью",
+      "description": "Бьёт ближайших 2 врагов на 130% атаки.",
+      "type": "active",
+      "cooldown_ms": 7000,
+      "first_cast_ms": 5000,
+      "cast_time_ms": 500,
+      "animation": "skill",
+      "effects": [
+        {
+          "kind": "damage",
+          "target": {
+            "side": "enemy",
+            "select": "nearest",
+            "count": 2
+          },
+          "multiplier": 1.3
+        }
+      ]
+    },
+    {
+      "id": "urm_p",
+      "name": "Вековой дуб",
+      "description": "Защита +20%.",
+      "type": "passive",
+      "trigger": "battle_start",
+      "effects": [
+        {
+          "kind": "stat",
+          "target": {
+            "side": "ally",
+            "select": "self"
+          },
+          "stat": "def",
+          "percent": 20
+        }
+      ]
+    }
+  ],
+  "art": {
+    "portrait": "heroes/urman_huzha/portrait.png",
+    "full": "heroes/urman_huzha/full.png",
+    "skeleton": "heroes/urman_huzha/skeleton.json"
+  }
+}

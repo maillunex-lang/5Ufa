@@ -1,0 +1,104 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.ufagame.local/hero.schema.json",
+  "title": "Герой (heroes/<id>/hero.json)",
+  "type": "object",
+  "required": ["id", "name", "faction", "role", "rarity", "stats", "skills", "art"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {"type": "string"},
+    "id": {"$ref": "common.schema.json#/$defs/id"},
+    "name": {"type": "string", "minLength": 1, "maxLength": 40},
+    "title": {"type": "string", "maxLength": 60, "description": "Прозвище, например «Сын Янбирде»"},
+    "faction": {"$ref": "common.schema.json#/$defs/id", "description": "id фракции из factions/factions.json"},
+    "role": {"enum": ["tank", "warrior", "archer", "mage", "support", "assassin"]},
+    "rarity": {"enum": ["common", "rare", "elite", "legendary", "mythic", "ascended"], "description": "Базовая редкость героя"},
+    "description": {"type": "string", "maxLength": 500},
+    "lore": {"type": "string", "maxLength": 4000},
+    "stats": {
+      "type": "object",
+      "required": ["hp", "atk", "def", "attack_interval_ms"],
+      "additionalProperties": false,
+      "properties": {
+        "hp": {"type": "integer", "minimum": 1},
+        "atk": {"type": "integer", "minimum": 0},
+        "def": {"type": "integer", "minimum": 0},
+        "attack_interval_ms": {"type": "integer", "minimum": 200, "description": "Пауза между обычными атаками"},
+        "crit_chance": {"type": "number", "minimum": 0, "maximum": 1},
+        "crit_damage": {"type": "number", "minimum": 1, "description": "Множитель крита, например 1.5"},
+        "move_speed": {"type": "number", "minimum": 0, "description": "Скорость перемещения (единиц поля в секунду)"},
+        "range": {"type": "number", "minimum": 0.5, "description": "Дальность атаки (единиц поля). Ближний бой ~1.5"}
+      }
+    },
+    "skills": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 6,
+      "items": {"$ref": "#/$defs/skill"},
+      "description": "Ультимейт + 3 навыка"
+    },
+    "art": {
+      "type": "object",
+      "required": ["portrait", "skeleton"],
+      "additionalProperties": false,
+      "properties": {
+        "portrait": {"$ref": "common.schema.json#/$defs/content_path"},
+        "full": {"$ref": "common.schema.json#/$defs/content_path"},
+        "skeleton": {"$ref": "common.schema.json#/$defs/content_path"},
+        "projectile": {"$ref": "common.schema.json#/$defs/content_path", "description": "Снаряд (для стрелков и магов)"}
+      }
+    },
+    "sounds": {
+      "type": "object",
+      "additionalProperties": {"$ref": "common.schema.json#/$defs/content_path"},
+      "description": "Звуки по событиям: attack, skill, ultimate, hit, death"
+    }
+  },
+  "$defs": {
+    "target": {
+      "type": "object",
+      "required": ["side", "select"],
+      "additionalProperties": false,
+      "properties": {
+        "side": {"enum": ["enemy", "ally"]},
+        "select": {
+          "enum": ["current", "nearest", "farthest", "lowest_hp", "highest_atk", "frontline", "backline", "random", "all", "self"],
+          "description": "current — текущая цель атаки; lowest_hp — у кого меньше % здоровья; backline/frontline — задний/передний ряд"
+        },
+        "count": {"type": "integer", "minimum": 1, "maximum": 5}
+      }
+    },
+    "effect": {
+      "type": "object",
+      "required": ["kind"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {"enum": ["damage", "heal", "shield", "stun", "buff", "dot", "energy", "stat"]},
+        "target": {"$ref": "#/$defs/target"},
+        "multiplier": {"type": "number", "minimum": 0, "description": "Доля атаки героя (damage, heal, shield, dot за секунду)"},
+        "stat": {"enum": ["atk", "def", "crit_chance", "attack_speed", "hp"], "description": "Для buff и stat"},
+        "percent": {"type": "number", "description": "Изменение характеристики в %, отрицательное — ослабление"},
+        "amount": {"type": "integer", "description": "Для energy: сколько энергии добавить (может быть отрицательным)"},
+        "duration_ms": {"type": "integer", "minimum": 0},
+        "chance": {"type": "number", "minimum": 0, "maximum": 1}
+      }
+    },
+    "skill": {
+      "type": "object",
+      "required": ["id", "name", "type", "effects"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {"$ref": "common.schema.json#/$defs/id"},
+        "name": {"type": "string", "minLength": 1, "maxLength": 40},
+        "description": {"type": "string", "maxLength": 400},
+        "type": {"enum": ["ultimate", "active", "passive"], "description": "ultimate — по полной энергии; active — по перезарядке; passive — по условию"},
+        "trigger": {"enum": ["battle_start", "low_hp", "kill"], "description": "Только для passive"},
+        "cooldown_ms": {"type": "integer", "minimum": 0, "description": "Для active"},
+        "first_cast_ms": {"type": "integer", "minimum": 0, "description": "Для active: когда первый раз (от начала боя)"},
+        "cast_time_ms": {"type": "integer", "minimum": 0, "description": "Сколько длится анимация применения"},
+        "animation": {"enum": ["attack", "skill", "ultimate"]},
+        "effects": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/effect"}}
+      }
+    }
+  }
+}

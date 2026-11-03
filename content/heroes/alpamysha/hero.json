@@ -1,0 +1,119 @@
+{
+  "id": "alpamysha",
+  "name": "Алпамыша",
+  "title": "Несокрушимый",
+  "faction": "ural_batyrs",
+  "role": "tank",
+  "rarity": "legendary",
+  "description": "Богатырь-исполин, принимающий удары за друзей.",
+  "lore": "Алпамыша прошёл через плен и испытания, но ни разу не опустил щит. Говорят, его щит выкован из камня самой высокой вершины.",
+  "stats": {
+    "hp": 6120,
+    "atk": 120,
+    "def": 180,
+    "attack_interval_ms": 1400
+  },
+  "skills": [
+    {
+      "id": "alp_ult",
+      "name": "Каменная стена",
+      "description": "Даёт себе щит на 400% атаки и оглушает ближайших врагов на 2 с.",
+      "type": "ultimate",
+      "cast_time_ms": 900,
+      "animation": "ultimate",
+      "effects": [
+        {
+          "kind": "shield",
+          "target": {
+            "side": "ally",
+            "select": "self"
+          },
+          "multiplier": 4.0,
+          "duration_ms": 8000
+        },
+        {
+          "kind": "stun",
+          "target": {
+            "side": "enemy",
+            "select": "nearest",
+            "count": 2
+          },
+          "duration_ms": 2000
+        }
+      ]
+    },
+    {
+      "id": "alp_s1",
+      "name": "Удар щитом",
+      "description": "Бьёт цель на 140% атаки и оглушает на 1 с.",
+      "type": "active",
+      "cooldown_ms": 8000,
+      "first_cast_ms": 4000,
+      "cast_time_ms": 500,
+      "animation": "skill",
+      "effects": [
+        {
+          "kind": "damage",
+          "target": {
+            "side": "enemy",
+            "select": "current"
+          },
+          "multiplier": 1.4
+        },
+        {
+          "kind": "stun",
+          "target": {
+            "side": "enemy",
+            "select": "current"
+          },
+          "duration_ms": 1000
+        }
+      ]
+    },
+    {
+      "id": "alp_s2",
+      "name": "Твердыня",
+      "description": "Повышает защиту на 30% на 6 с.",
+      "type": "active",
+      "cooldown_ms": 12000,
+      "first_cast_ms": 2000,
+      "cast_time_ms": 500,
+      "animation": "skill",
+      "effects": [
+        {
+          "kind": "buff",
+          "target": {
+            "side": "ally",
+            "select": "self"
+          },
+          "stat": "def",
+          "percent": 30,
+          "duration_ms": 6000
+        }
+      ]
+    },
+    {
+      "id": "alp_p",
+      "name": "Кровь великанов",
+      "description": "Здоровье +15%.",
+      "type": "passive",
+      "trigger": "battle_start",
+      "effects": [
+        {
+          "kind": "stat",
+          "target": {
+            "side": "ally",
+            "select": "self"
+          },
+          "stat": "hp",
+          "percent": 15
+        }
+      ]
+    }
+  ],
+  "art": {
+    "portrait": "heroes/alpamysha/portrait.png",
+    "full": "heroes/alpamysha/full.png",
+    "skeleton": "heroes/alpamysha/skeleton.json"
+  }
+}

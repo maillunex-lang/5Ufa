@@ -1,7 +1,33 @@
 {
   "description": "Какая схема проверяет какой файл контента. Маски путей относительно корня контента. Первое совпадение побеждает. JSON-файлы без совпадения проверяются только на корректность JSON.",
   "content_files": [
-    {"pattern": "config/game_settings.json", "schema": "game_settings.schema.json"},
-    {"pattern": "localization/*.json", "schema": "localization.schema.json"}
+    {
+      "pattern": "config/game_settings.json",
+      "schema": "game_settings.schema.json"
+    },
+    {
+      "pattern": "localization/*.json",
+      "schema": "localization.schema.json"
+    },
+    {
+      "pattern": "config/battle.json",
+      "schema": "battle_config.schema.json"
+    },
+    {
+      "pattern": "factions/factions.json",
+      "schema": "factions.schema.json"
+    },
+    {
+      "pattern": "heroes/*/hero.json",
+      "schema": "hero.schema.json"
+    },
+    {
+      "pattern": "heroes/*/skeleton.json",
+      "schema": "skeleton.schema.json"
+    },
+    {
+      "pattern": "battle/*teams.json",
+      "schema": "teams.schema.json"
+    }
   ]
 }

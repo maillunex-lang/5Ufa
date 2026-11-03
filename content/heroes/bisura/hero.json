@@ -1,0 +1,114 @@
+{
+  "id": "bisura",
+  "name": "Бисура",
+  "title": "Дух-хранитель",
+  "faction": "forest_spirits",
+  "role": "support",
+  "rarity": "legendary",
+  "description": "Маленький добрый дух, оберегающий дом и друзей.",
+  "lore": "Бисура живёт за печью и в дуплах старых лип. Тем, кого любит, он дарит удачу, а врагов путает и усыпляет.",
+  "stats": {
+    "hp": 3150,
+    "atk": 140,
+    "def": 85,
+    "attack_interval_ms": 1400
+  },
+  "skills": [
+    {
+      "id": "bis_ult",
+      "name": "Оберег",
+      "description": "Щит всем союзникам на 180% атаки и +15% атаки на 6 с.",
+      "type": "ultimate",
+      "cast_time_ms": 900,
+      "animation": "ultimate",
+      "effects": [
+        {
+          "kind": "shield",
+          "target": {
+            "side": "ally",
+            "select": "all"
+          },
+          "multiplier": 1.8,
+          "duration_ms": 6000
+        },
+        {
+          "kind": "buff",
+          "target": {
+            "side": "ally",
+            "select": "all"
+          },
+          "stat": "atk",
+          "percent": 15,
+          "duration_ms": 6000
+        }
+      ]
+    },
+    {
+      "id": "bis_s1",
+      "name": "Домашнее тепло",
+      "description": "Лечит двух самых раненых союзников на 180% атаки.",
+      "type": "active",
+      "cooldown_ms": 7000,
+      "first_cast_ms": 4000,
+      "cast_time_ms": 500,
+      "animation": "skill",
+      "effects": [
+        {
+          "kind": "heal",
+          "target": {
+            "side": "ally",
+            "select": "lowest_hp",
+            "count": 2
+          },
+          "multiplier": 1.8
+        }
+      ]
+    },
+    {
+      "id": "bis_s2",
+      "name": "Морок",
+      "description": "Снижает защиту врага на 25% на 6 с.",
+      "type": "active",
+      "cooldown_ms": 10000,
+      "first_cast_ms": 6000,
+      "cast_time_ms": 500,
+      "animation": "skill",
+      "effects": [
+        {
+          "kind": "buff",
+          "target": {
+            "side": "enemy",
+            "select": "current"
+          },
+          "stat": "def",
+          "percent": -25,
+          "duration_ms": 6000
+        }
+      ]
+    },
+    {
+      "id": "bis_p",
+      "name": "Удача",
+      "description": "Шанс крита союзников +5%.",
+      "type": "passive",
+      "trigger": "battle_start",
+      "effects": [
+        {
+          "kind": "stat",
+          "target": {
+            "side": "ally",
+            "select": "all"
+          },
+          "stat": "crit_chance",
+          "percent": 5
+        }
+      ]
+    }
+  ],
+  "art": {
+    "portrait": "heroes/bisura/portrait.png",
+    "full": "heroes/bisura/full.png",
+    "skeleton": "heroes/bisura/skeleton.json",
+    "projectile": "heroes/bisura/projectile.png"
+  }
+}

@@ -1,0 +1,76 @@
+{
+  "tick_rate": 20,
+  "max_duration_sec": 90,
+  "energy": {
+    "max": 1000,
+    "start": 0,
+    "on_attack": 100,
+    "on_hit_per_hp_percent": 10,
+    "on_kill": 300,
+    "on_skill": 50
+  },
+  "damage": {
+    "defense_constant": 600,
+    "max_reduction": 0.75,
+    "faction_bonus": 0.25,
+    "crit_chance": 0.05,
+    "crit_damage": 1.5,
+    "variance": 0.05,
+    "min_damage": 1
+  },
+  "field": {
+    "front_x": 2.0,
+    "back_x": 5.0,
+    "lanes": [
+      0.35,
+      0.75,
+      0.15,
+      0.55,
+      0.95
+    ]
+  },
+  "roles": {
+    "tank": {
+      "range": 1.5,
+      "move_speed": 1.6,
+      "attack_windup_ms": 350,
+      "projectile_speed": 0,
+      "targeting": "nearest"
+    },
+    "warrior": {
+      "range": 1.5,
+      "move_speed": 1.8,
+      "attack_windup_ms": 350,
+      "projectile_speed": 0,
+      "targeting": "nearest"
+    },
+    "assassin": {
+      "range": 1.5,
+      "move_speed": 3.0,
+      "attack_windup_ms": 300,
+      "projectile_speed": 0,
+      "targeting": "backline"
+    },
+    "archer": {
+      "range": 9.0,
+      "move_speed": 1.2,
+      "attack_windup_ms": 400,
+      "projectile_speed": 16,
+      "targeting": "nearest"
+    },
+    "mage": {
+      "range": 9.0,
+      "move_speed": 1.2,
+      "attack_windup_ms": 400,
+      "projectile_speed": 11,
+      "targeting": "nearest"
+    },
+    "support": {
+      "range": 9.0,
+      "move_speed": 1.2,
+      "attack_windup_ms": 400,
+      "projectile_speed": 11,
+      "targeting": "nearest"
+    }
+  }
+}

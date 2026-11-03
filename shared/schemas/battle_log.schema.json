@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.ufagame.local/battle_log.schema.json",
+  "title": "Журнал боя (ответ сервера, проигрывается клиентом). Описание событий: docs/battle.md",
+  "type": "object",
+  "required": ["version", "seed", "tick_rate", "max_ticks", "energy_max", "field", "units", "events", "result"],
+  "properties": {
+    "version": {"const": 1},
+    "seed": {"type": "integer"},
+    "tick_rate": {"type": "integer"},
+    "max_ticks": {"type": "integer"},
+    "energy_max": {"type": "integer"},
+    "field": {"type": "object"},
+    "content_release": {"type": "integer"},
+    "units": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["uid", "side", "slot", "hero", "name", "x", "lane", "max_hp"],
+        "properties": {
+          "uid": {"type": "integer"}, "side": {"enum": [0, 1]}, "slot": {"type": "integer"},
+          "hero": {"type": "string"}, "name": {"type": "string"}, "x": {"type": "number"},
+          "lane": {"type": "number"}, "max_hp": {"type": "integer"}, "energy": {"type": "integer"}
+        }
+      }
+    },
+    "events": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["t", "e"],
+        "properties": {
+          "t": {"type": "integer", "minimum": 0},
+          "e": {"enum": ["move", "stop", "attack", "cast", "impact", "damage", "heal", "shield", "stun", "buff", "buff_end",
+                         "dot", "energy", "passive", "death", "end", "victory", "auto"]}
+        }
+      }
+    },
+    "result": {
+      "type": "object",
+      "required": ["winner", "ticks", "survivors", "stats"],
+      "properties": {
+        "winner": {"enum": [0, 1]},
+        "ticks": {"type": "integer"},
+        "survivors": {"type": "array", "items": {"type": "integer"}},
+        "stats": {"type": "array"}
+      }
+    }
+  }
+}

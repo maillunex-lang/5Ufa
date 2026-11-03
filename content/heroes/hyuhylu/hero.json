@@ -1,0 +1,110 @@
+{
+  "id": "hyuhylu",
+  "name": "Хыухылу",
+  "title": "Водяная дева",
+  "faction": "forest_spirits",
+  "role": "mage",
+  "rarity": "legendary",
+  "description": "Дочь водяного царя, повелевающая волнами.",
+  "lore": "Хыухылу живёт в глубинах уральских озёр. Её песня зовёт воду — и вода сметает врагов.",
+  "stats": {
+    "hp": 2700,
+    "atk": 250,
+    "def": 60,
+    "attack_interval_ms": 1500
+  },
+  "skills": [
+    {
+      "id": "hyu_ult",
+      "name": "Волна озера",
+      "description": "Бьёт всех врагов на 170% атаки и снижает их атаку на 20% на 5 с.",
+      "type": "ultimate",
+      "cast_time_ms": 900,
+      "animation": "ultimate",
+      "effects": [
+        {
+          "kind": "damage",
+          "target": {
+            "side": "enemy",
+            "select": "all"
+          },
+          "multiplier": 1.7
+        },
+        {
+          "kind": "buff",
+          "target": {
+            "side": "enemy",
+            "select": "all"
+          },
+          "stat": "atk",
+          "percent": -20,
+          "duration_ms": 5000
+        }
+      ]
+    },
+    {
+      "id": "hyu_s1",
+      "name": "Водяной шар",
+      "description": "Бьёт цель на 200% атаки.",
+      "type": "active",
+      "cooldown_ms": 6000,
+      "first_cast_ms": 3000,
+      "cast_time_ms": 500,
+      "animation": "skill",
+      "effects": [
+        {
+          "kind": "damage",
+          "target": {
+            "side": "enemy",
+            "select": "current"
+          },
+          "multiplier": 2.0
+        }
+      ]
+    },
+    {
+      "id": "hyu_s2",
+      "name": "Омут",
+      "description": "Оглушает самого сильного врага на 2 с.",
+      "type": "active",
+      "cooldown_ms": 12000,
+      "first_cast_ms": 6000,
+      "cast_time_ms": 500,
+      "animation": "skill",
+      "effects": [
+        {
+          "kind": "stun",
+          "target": {
+            "side": "enemy",
+            "select": "highest_atk"
+          },
+          "duration_ms": 2000
+        }
+      ]
+    },
+    {
+      "id": "hyu_p",
+      "name": "Глубина",
+      "description": "Атака +10%.",
+      "type": "passive",
+      "trigger": "battle_start",
+      "effects": [
+        {
+          "kind": "stat",
+          "target": {
+            "side": "ally",
+            "select": "self"
+          },
+          "stat": "atk",
+          "percent": 10
+        }
+      ]
+    }
+  ],
+  "art": {
+    "portrait": "heroes/hyuhylu/portrait.png",
+    "full": "heroes/hyuhylu/full.png",
+    "skeleton": "heroes/hyuhylu/skeleton.json",
+    "projectile": "heroes/hyuhylu/projectile.png"
+  }
+}

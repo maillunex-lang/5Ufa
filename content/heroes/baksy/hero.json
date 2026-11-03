@@ -1,0 +1,110 @@
+{
+  "id": "baksy",
+  "name": "Баксы",
+  "title": "Шаман",
+  "faction": "steppe_nomads",
+  "role": "mage",
+  "rarity": "legendary",
+  "description": "Шаман с бубном, говорящий с духами предков.",
+  "lore": "Баксы бьёт в бубен — и духи предков отвечают ему огнём и бурей. Говорят, он видел вход в подземное царство.",
+  "stats": {
+    "hp": 2700,
+    "atk": 250,
+    "def": 60,
+    "attack_interval_ms": 1500
+  },
+  "skills": [
+    {
+      "id": "bak_ult",
+      "name": "Камлание",
+      "description": "Огонь предков: 140% атаки всем врагам и горение 30% атаки в секунду 5 с.",
+      "type": "ultimate",
+      "cast_time_ms": 900,
+      "animation": "ultimate",
+      "effects": [
+        {
+          "kind": "damage",
+          "target": {
+            "side": "enemy",
+            "select": "all"
+          },
+          "multiplier": 1.4
+        },
+        {
+          "kind": "dot",
+          "target": {
+            "side": "enemy",
+            "select": "all"
+          },
+          "multiplier": 0.3,
+          "duration_ms": 5000
+        }
+      ]
+    },
+    {
+      "id": "bak_s1",
+      "name": "Удар бубна",
+      "description": "Бьёт двух ближайших врагов на 150% атаки.",
+      "type": "active",
+      "cooldown_ms": 7000,
+      "first_cast_ms": 3000,
+      "cast_time_ms": 500,
+      "animation": "skill",
+      "effects": [
+        {
+          "kind": "damage",
+          "target": {
+            "side": "enemy",
+            "select": "nearest",
+            "count": 2
+          },
+          "multiplier": 1.5
+        }
+      ]
+    },
+    {
+      "id": "bak_s2",
+      "name": "Зов предков",
+      "description": "Даёт 300 энергии союзнику с наибольшей атакой.",
+      "type": "active",
+      "cooldown_ms": 13000,
+      "first_cast_ms": 6000,
+      "cast_time_ms": 500,
+      "animation": "skill",
+      "effects": [
+        {
+          "kind": "energy",
+          "target": {
+            "side": "ally",
+            "select": "highest_atk"
+          },
+          "amount": 300
+        }
+      ]
+    },
+    {
+      "id": "bak_p",
+      "name": "Тайное знание",
+      "description": "Атака +12%.",
+      "type": "passive",
+      "trigger": "battle_start",
+      "effects": [
+        {
+          "kind": "stat",
+          "target": {
+            "side": "ally",
+            "select": "self"
+          },
+          "stat": "atk",
+          "percent": 12
+        }
+      ]
+    }
+  ],
+  "art": {
+    "portrait": "heroes/baksy/portrait.png",
+    "full": "heroes/baksy/full.png",
+    "skeleton": "heroes/baksy/skeleton.json",
+    "projectile": "heroes/baksy/projectile.png"
+  }
+}

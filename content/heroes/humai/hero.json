@@ -1,0 +1,110 @@
+{
+  "id": "humai",
+  "name": "Хумай",
+  "title": "Дева-птица",
+  "faction": "ural_batyrs",
+  "role": "support",
+  "rarity": "legendary",
+  "description": "Дочь царя птиц Самрау, исцеляющая раны.",
+  "lore": "Хумай может обернуться белой лебедью. Урал-батыр спас её, и с тех пор её крылья укрывают батыров в бою.",
+  "stats": {
+    "hp": 3150,
+    "atk": 140,
+    "def": 85,
+    "attack_interval_ms": 1400
+  },
+  "skills": [
+    {
+      "id": "humai_ult",
+      "name": "Крылья Самрау",
+      "description": "Лечит всех союзников на 250% атаки и даёт +20% защиты на 5 с.",
+      "type": "ultimate",
+      "cast_time_ms": 900,
+      "animation": "ultimate",
+      "effects": [
+        {
+          "kind": "heal",
+          "target": {
+            "side": "ally",
+            "select": "all"
+          },
+          "multiplier": 2.5
+        },
+        {
+          "kind": "buff",
+          "target": {
+            "side": "ally",
+            "select": "all"
+          },
+          "stat": "def",
+          "percent": 20,
+          "duration_ms": 5000
+        }
+      ]
+    },
+    {
+      "id": "humai_s1",
+      "name": "Перо исцеления",
+      "description": "Лечит самого раненого союзника на 300% атаки.",
+      "type": "active",
+      "cooldown_ms": 7000,
+      "first_cast_ms": 4000,
+      "cast_time_ms": 500,
+      "animation": "skill",
+      "effects": [
+        {
+          "kind": "heal",
+          "target": {
+            "side": "ally",
+            "select": "lowest_hp"
+          },
+          "multiplier": 3.0
+        }
+      ]
+    },
+    {
+      "id": "humai_s2",
+      "name": "Лебяжий щит",
+      "description": "Щит на 200% атаки самому раненому союзнику.",
+      "type": "active",
+      "cooldown_ms": 11000,
+      "first_cast_ms": 7000,
+      "cast_time_ms": 500,
+      "animation": "skill",
+      "effects": [
+        {
+          "kind": "shield",
+          "target": {
+            "side": "ally",
+            "select": "lowest_hp"
+          },
+          "multiplier": 2.0,
+          "duration_ms": 6000
+        }
+      ]
+    },
+    {
+      "id": "humai_p",
+      "name": "Небесная песнь",
+      "description": "В начале боя союзники получают 200 энергии.",
+      "type": "passive",
+      "trigger": "battle_start",
+      "effects": [
+        {
+          "kind": "energy",
+          "target": {
+            "side": "ally",
+            "select": "all"
+          },
+          "amount": 200
+        }
+      ]
+    }
+  ],
+  "art": {
+    "portrait": "heroes/humai/portrait.png",
+    "full": "heroes/humai/full.png",
+    "skeleton": "heroes/humai/skeleton.json",
+    "projectile": "heroes/humai/projectile.png"
+  }
+}

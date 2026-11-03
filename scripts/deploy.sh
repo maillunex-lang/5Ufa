@@ -110,8 +110,16 @@ log "запуск базы и Redis"
 docker compose up -d postgres redis
 log "миграции базы"
 docker compose run --rm -T api alembic upgrade head
-log "первичный импорт контента (только если база пустая)"
-docker compose run --rm -T api python -m app.cli content import --if-empty --publish
+# Базовый контент из репозитория (/content): если изменился — новый релиз и публикация.
+# До появления админки (этап 6) это основной способ обновлять контент.
+# Чтобы деплой не трогал контент, поставьте в .env AUTO_PUBLISH_BASE_CONTENT=false
+if [ "${AUTO_PUBLISH_BASE_CONTENT:-true}" = "true" ]; then
+    log "импорт базового контента (публикуется, только если изменился)"
+    docker compose run --rm -T api python -m app.cli content import --publish-if-new --comment "Базовый контент ${NEW_SHA:0:8}"
+else
+    log "первичный импорт контента (только если база пустая)"
+    docker compose run --rm -T api python -m app.cli content import --if-empty --publish
+fi
 
 # 4. Запуск всего стека
 log "запуск сервисов"

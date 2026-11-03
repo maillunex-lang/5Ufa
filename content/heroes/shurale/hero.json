@@ -1,0 +1,100 @@
+{
+  "id": "shurale",
+  "name": "Шурале",
+  "title": "Лесной щекотун",
+  "faction": "forest_spirits",
+  "role": "assassin",
+  "rarity": "legendary",
+  "description": "Длиннопалый дух леса, нападающий из чащи.",
+  "lore": "Шурале заманивает путников в глушь и щекочет до смерти. Он быстр, как ветер в соснах, и бьёт тех, кто прячется позади.",
+  "stats": {
+    "hp": 3240,
+    "atk": 235,
+    "def": 80,
+    "attack_interval_ms": 900,
+    "crit_chance": 0.15
+  },
+  "skills": [
+    {
+      "id": "shu_ult",
+      "name": "Смертельная щекотка",
+      "description": "Бьёт врага в заднем ряду на 400% атаки.",
+      "type": "ultimate",
+      "cast_time_ms": 900,
+      "animation": "ultimate",
+      "effects": [
+        {
+          "kind": "damage",
+          "target": {
+            "side": "enemy",
+            "select": "backline"
+          },
+          "multiplier": 4.0
+        }
+      ]
+    },
+    {
+      "id": "shu_s1",
+      "name": "Удар из чащи",
+      "description": "Бьёт врага с наименьшим здоровьем на 200% атаки.",
+      "type": "active",
+      "cooldown_ms": 6000,
+      "first_cast_ms": 2500,
+      "cast_time_ms": 500,
+      "animation": "skill",
+      "effects": [
+        {
+          "kind": "damage",
+          "target": {
+            "side": "enemy",
+            "select": "lowest_hp"
+          },
+          "multiplier": 2.0
+        }
+      ]
+    },
+    {
+      "id": "shu_s2",
+      "name": "Колючие пальцы",
+      "description": "Яд: 40% атаки в секунду 4 с.",
+      "type": "active",
+      "cooldown_ms": 9000,
+      "first_cast_ms": 5000,
+      "cast_time_ms": 500,
+      "animation": "skill",
+      "effects": [
+        {
+          "kind": "dot",
+          "target": {
+            "side": "enemy",
+            "select": "current"
+          },
+          "multiplier": 0.4,
+          "duration_ms": 4000
+        }
+      ]
+    },
+    {
+      "id": "shu_p",
+      "name": "Охота",
+      "description": "После убийства получает 300 энергии.",
+      "type": "passive",
+      "trigger": "kill",
+      "effects": [
+        {
+          "kind": "energy",
+          "target": {
+            "side": "ally",
+            "select": "self"
+          },
+          "amount": 300
+        }
+      ]
+    }
+  ],
+  "art": {
+    "portrait": "heroes/shurale/portrait.png",
+    "full": "heroes/shurale/full.png",
+    "skeleton": "heroes/shurale/skeleton.json"
+  }
+}

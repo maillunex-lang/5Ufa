@@ -1,0 +1,118 @@
+{
+  "id": "kusyak_biy",
+  "name": "Кусяк-бий",
+  "title": "Вождь степи",
+  "faction": "steppe_nomads",
+  "role": "tank",
+  "rarity": "legendary",
+  "description": "Мудрый и суровый вождь, ведущий род сквозь бури.",
+  "lore": "Кусяк-бий судил по совести и сражался в первых рядах. Его щит украшен знаками всех родов степи.",
+  "stats": {
+    "hp": 6120,
+    "atk": 120,
+    "def": 180,
+    "attack_interval_ms": 1400
+  },
+  "skills": [
+    {
+      "id": "kus_ult",
+      "name": "Знамя рода",
+      "description": "Щит себе на 300% атаки и +25% защиты союзникам на 6 с.",
+      "type": "ultimate",
+      "cast_time_ms": 900,
+      "animation": "ultimate",
+      "effects": [
+        {
+          "kind": "shield",
+          "target": {
+            "side": "ally",
+            "select": "self"
+          },
+          "multiplier": 3.0,
+          "duration_ms": 6000
+        },
+        {
+          "kind": "buff",
+          "target": {
+            "side": "ally",
+            "select": "all"
+          },
+          "stat": "def",
+          "percent": 25,
+          "duration_ms": 6000
+        }
+      ]
+    },
+    {
+      "id": "kus_s1",
+      "name": "Таран",
+      "description": "Бьёт цель на 150% атаки и оглушает на 1 с.",
+      "type": "active",
+      "cooldown_ms": 9000,
+      "first_cast_ms": 3500,
+      "cast_time_ms": 500,
+      "animation": "skill",
+      "effects": [
+        {
+          "kind": "damage",
+          "target": {
+            "side": "enemy",
+            "select": "current"
+          },
+          "multiplier": 1.5
+        },
+        {
+          "kind": "stun",
+          "target": {
+            "side": "enemy",
+            "select": "current"
+          },
+          "duration_ms": 1000
+        }
+      ]
+    },
+    {
+      "id": "kus_s2",
+      "name": "Закалка",
+      "description": "Восстанавливает себе 150% атаки здоровья.",
+      "type": "active",
+      "cooldown_ms": 8000,
+      "first_cast_ms": 6000,
+      "cast_time_ms": 500,
+      "animation": "skill",
+      "effects": [
+        {
+          "kind": "heal",
+          "target": {
+            "side": "ally",
+            "select": "self"
+          },
+          "multiplier": 1.5
+        }
+      ]
+    },
+    {
+      "id": "kus_p",
+      "name": "Слово вождя",
+      "description": "Здоровье союзников +5%.",
+      "type": "passive",
+      "trigger": "battle_start",
+      "effects": [
+        {
+          "kind": "stat",
+          "target": {
+            "side": "ally",
+            "select": "all"
+          },
+          "stat": "hp",
+          "percent": 5
+        }
+      ]
+    }
+  ],
+  "art": {
+    "portrait": "heroes/kusyak_biy/portrait.png",
+    "full": "heroes/kusyak_biy/full.png",
+    "skeleton": "heroes/kusyak_biy/skeleton.json"
+  }
+}
