@@ -1,0 +1,45 @@
+{
+  "$schema": "../../shared/schemas/hub.schema.json",
+  "subtitle": "Пробуждение легенд",
+  "emblem": "ui/hub/emblem.png",
+  "background": "ui/hub/background.webp",
+  "background_height": 1400,
+  "start_scroll": 0,
+  "buildings": [
+    {"id": "fortress", "title": "Крепость", "image": "ui/hub/building_fortress.png", "x": 370, "y": 420, "scale": 0.85,
+     "badge": "heroes", "action": {"scene": "heroes"}},
+    {"id": "summon", "title": "Призыв", "image": "ui/hub/building_summon.png", "x": 228, "y": 560, "scale": 0.72,
+     "badge": "summon", "action": {"scene": "summon"}},
+    {"id": "guild", "title": "Гильдия", "image": "ui/hub/building_guild.png", "x": 575, "y": 560, "scale": 0.75,
+     "action": {"soon": "Гильдии появятся на этапе 8."}},
+    {"id": "statue", "image": "ui/hub/building_statue.png", "x": 360, "y": 650, "scale": 0.6,
+     "action": {"soon": "Кукбуре — небесный волк-проводник. Статуя станет местом наград за вход позже."}},
+    {"id": "tavern", "title": "Таверна", "image": "ui/hub/building_tavern.png", "x": 185, "y": 835, "scale": 0.72,
+     "action": {"soon": "Таверна с доской заданий появится на этапе 7."}},
+    {"id": "arena", "title": "Арена", "image": "ui/hub/building_arena.png", "x": 560, "y": 870, "scale": 0.72,
+     "action": {"soon": "Арена появится на этапе 8."}},
+    {"id": "campaign", "title": "Кампания", "image": "ui/hub/building_campaign.png", "x": 220, "y": 1000, "scale": 0.66,
+     "badge": "campaign", "action": {"scene": "campaign"}},
+    {"id": "dungeon", "title": "Подземелья", "image": "ui/hub/building_dungeon.png", "x": 545, "y": 1015, "scale": 0.72,
+     "action": {"soon": "Подземелья (башня испытаний и лабиринт) появятся на этапе 7."}}
+  ],
+  "side_menu": [
+    {"id": "events", "title": "События", "icon": "ui/hub/icon_events.png", "action": {"soon": "События появятся позже."}},
+    {"id": "tasks", "title": "Задания", "icon": "ui/hub/icon_tasks.png", "action": {"soon": "Ежедневные задания появятся на этапе 7."}},
+    {"id": "rewards", "title": "Награды", "icon": "ui/hub/icon_rewards.png", "badge": "campaign", "action": {"scene": "campaign"}},
+    {"id": "battle_pass", "title": "Боевой\nпропуск", "icon": "ui/hub/icon_battle_pass.png", "action": {"soon": "Боевой пропуск появится на этапе 9."}},
+    {"id": "daily", "title": "Ежедневный\nвход", "icon": "ui/hub/icon_daily.png", "action": {"soon": "Награды за вход появятся позже."}}
+  ],
+  "top_buttons": [
+    {"id": "mail", "title": "", "icon": "ui/hub/icon_mail.png", "action": {"soon": "Почта появится позже."}},
+    {"id": "settings", "title": "", "icon": "ui/hub/icon_settings.png", "action": {"scene": "more"}}
+  ],
+  "bottom_nav": [
+    {"id": "nav_heroes", "title": "Герои", "icon": "ui/hub/icon_heroes.png", "badge": "heroes", "action": {"scene": "heroes"}},
+    {"id": "inventory", "title": "Инвентарь", "icon": "ui/hub/icon_inventory.png", "action": {"soon": "Инвентарь и снаряжение появятся на этапе 5б."}},
+    {"id": "city", "title": "Город", "icon": "ui/hub/icon_city.png", "big": true, "action": {"scene": "hub"}},
+    {"id": "quests", "title": "Квесты", "icon": "ui/hub/icon_quests.png", "action": {"soon": "Квесты появятся на этапе 7."}},
+    {"id": "world", "title": "Мир", "icon": "ui/hub/icon_world.png", "badge": "campaign", "action": {"scene": "campaign"}}
+  ],
+  "shop_soon": "Магазин появится на этапе 9."
+}

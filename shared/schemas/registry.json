@@ -44,6 +44,10 @@
     {
       "pattern": "summon/banners.json",
       "schema": "summon.schema.json"
+    },
+    {
+      "pattern": "ui/hub.json",
+      "schema": "hub.schema.json"
     }
   ]
 }

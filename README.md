@@ -35,6 +35,7 @@
 12. Бой: правила, формулы, журнал — [docs/battle.md](docs/battle.md).
 13. Формат скелетной анимации — [docs/skeleton-format.md](docs/skeleton-format.md).
 14. Прогрессия героев и призыв — [docs/progression.md](docs/progression.md).
+15. Главный экран «Город» — [docs/hub.md](docs/hub.md).
 
 ## Правило безопасности
 

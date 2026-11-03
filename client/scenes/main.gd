@@ -1,56 +1,51 @@
 extends Control
-## Главный экран (этап 2): название и логотип из контента, аккаунт, фоновая загрузка.
-## На следующих этапах здесь появится город/кампания.
+## Главный экран «Город»: карта-город со зданиями, верхняя панель (профиль, валюты, почта, настройки),
+## боковые действия слева и нижняя навигация. Расположение, подписи, картинки и действия — в контенте
+## ui/hub.json (меняются без обновления APK). Аккаунт, проверка файлов и версия — в «Настройках».
 
+const SCENES := {"campaign": "res://scenes/campaign.tscn", "heroes": "res://scenes/heroes.tscn",
+		"summon": "res://scenes/summon.tscn", "test_battle": "res://scenes/team_select.tscn"}
+const OUTLINE := Color(0.06, 0.03, 0.1)
+
+var hub: Dictionary = {}
 var _player_label: Label
 var _bg_label: Label
 var _account_box: VBoxContainer
 var _dialog: PanelContainer
 var _dialog_error: Label
+var _gold_label: Label
+var _crystal_label: Label
+var _power_label: Label
+var _name_label: Label
+var _stage_label: Label
+var _stage_bar: ProgressBar
+var _avatar: TextureRect
+var _badges: Dictionary = {}     # вид точки -> красные точки
 
 
 func _ready() -> void:
 	var settings: Variant = Content.load_json("config/game_settings.json")
 	Ui.apply_settings(settings)
-	var col := Ui.screen(self)
-
-	var logo := TextureRect.new()
-	logo.texture = Content.load_texture("ui/logo.png")
-	logo.custom_minimum_size = Vector2(0, 150)
-	logo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	logo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	logo.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	col.add_child(logo)
-	var title := str(settings.get("game_name", "")) if settings is Dictionary else ""
-	col.add_child(Ui.label(title, 52, "accent"))
-
-	_player_label = Ui.label("", 28)
-	col.add_child(_player_label)
-	col.add_child(Ui.spacer())
-	col.add_child(Ui.button("Кампания", func(): get_tree().change_scene_to_file("res://scenes/campaign.tscn")))
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 16)
-	var heroes_btn := Ui.button("Герои", func(): get_tree().change_scene_to_file("res://scenes/heroes.tscn"))
-	heroes_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_child(heroes_btn)
-	var summon_btn := Ui.button("Призыв", func(): get_tree().change_scene_to_file("res://scenes/summon.tscn"))
-	summon_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_child(summon_btn)
-	col.add_child(row)
-	col.add_child(Ui.button("Тестовый бой", _on_play))
-	_account_box = VBoxContainer.new()
-	_account_box.add_theme_constant_override("separation", 20)
-	col.add_child(_account_box)
-	col.add_child(Ui.button("Проверить файлы игры", _on_verify))
+	theme = Ui.make_theme()
+	set_anchors_preset(Control.PRESET_FULL_RECT)
+	var loaded: Variant = Content.load_json("ui/hub.json")
+	hub = loaded if loaded is Dictionary else {}
+	_build_city(settings)
+	_build_top_bar()
+	_build_side_menu()
+	_build_bottom()
+	# Служебные элементы (видны в «Настройках»)
+	_player_label = Ui.label("", 26)
 	_bg_label = Ui.label("", 22)
-	col.add_child(_bg_label)
-	col.add_child(Ui.label("Версия %s (сборка %d)" % [Config.client_version, Updater.current_code()], 20))
+	_account_box = VBoxContainer.new()
+	_account_box.add_theme_constant_override("separation", 16)
 
 	Api.player_changed.connect(func(_p): _refresh_account())
 	Content.background_progress.connect(_on_bg_progress)
 	Content.background_finished.connect(_on_bg_finished)
 	_refresh_account()
 	AfkNotifications.refresh()
+	_refresh_resources()
 	if get_tree().has_meta("notice"):
 		_show_message(str(get_tree().get_meta("notice")))
 		get_tree().remove_meta("notice")
@@ -60,6 +55,393 @@ func _ready() -> void:
 	Content.sync_background()
 	if Config.autotest:
 		_autotest()
+
+
+# --- Общие элементы оформления ---------------------------------------------------------
+
+func _style(bg: Color, border: Color, width: int, radius: int, margin := 0) -> StyleBoxFlat:
+	var st := StyleBoxFlat.new()
+	st.bg_color = bg
+	st.border_color = border
+	st.set_border_width_all(width)
+	st.set_corner_radius_all(radius)
+	st.set_content_margin_all(margin)
+	return st
+
+
+func _outlined(text: String, font_size: int, color_key := "text", outline := 6) -> Label:
+	var l := Ui.label(text, font_size, color_key)
+	l.autowrap_mode = TextServer.AUTOWRAP_OFF
+	l.add_theme_color_override("font_outline_color", OUTLINE)
+	l.add_theme_constant_override("outline_size", outline)
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return l
+
+
+func _icon(path: String, size: float) -> TextureRect:
+	var t := TextureRect.new()
+	t.texture = Content.load_texture(path)
+	t.custom_minimum_size = Vector2(size, size)
+	t.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	t.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	t.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return t
+
+
+## Табличка с подписью здания (тёмная, с золотой рамкой)
+func _plate(text: String, font_size: int) -> PanelContainer:
+	var p := PanelContainer.new()
+	var st := _style(Color(0.1, 0.07, 0.16, 0.92), Ui.colors["accent"], 3, 20)
+	st.content_margin_left = 22
+	st.content_margin_right = 22
+	st.content_margin_top = 4
+	st.content_margin_bottom = 6
+	p.add_theme_stylebox_override("panel", st)
+	p.add_child(_outlined(text, font_size, "text", 4))
+	return p
+
+
+func _add_badge(kind: String, parent: Control, pos: Vector2) -> void:
+	var dot := Label.new()
+	dot.text = "!"
+	dot.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	dot.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	dot.add_theme_font_size_override("font_size", 18)
+	dot.add_theme_color_override("font_color", Color.WHITE)
+	dot.add_theme_stylebox_override("normal", _style(Color("#E2504A"), Color.WHITE, 2, 14))
+	dot.size = Vector2(28, 28)
+	dot.position = pos
+	dot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	dot.visible = false
+	parent.add_child(dot)
+	if not _badges.has(kind):
+		_badges[kind] = []
+	_badges[kind].append(dot)
+
+
+func _set_badge(kind: String, on: bool) -> void:
+	for dot in _badges.get(kind, []):
+		dot.visible = on
+
+
+# --- Город -------------------------------------------------------------------------------
+
+func _build_city(settings: Variant) -> void:
+	var scroll := ScrollContainer.new()
+	scroll.set_anchors_preset(Control.PRESET_FULL_RECT)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
+	scroll.name = "City"
+	add_child(scroll)
+	var city := Control.new()
+	var h: float = float(hub.get("background_height", 1400))
+	city.custom_minimum_size = Vector2(720, h)
+	scroll.add_child(city)
+	var bg := _icon(str(hub.get("background", "")), 0)
+	bg.size = Vector2(720, h)
+	bg.stretch_mode = TextureRect.STRETCH_SCALE
+	city.add_child(bg)
+	# Эмблема с названием игры
+	if hub.has("emblem"):
+		var em := _icon(str(hub["emblem"]), 0)
+		em.position = Vector2(110, 150)
+		em.size = Vector2(500, 192)
+		city.add_child(em)
+	var title := _outlined(str(settings.get("game_name", "")) if settings is Dictionary else "", 64, "accent", 12)
+	title.position = Vector2(0, 196)
+	title.size = Vector2(720, 80)
+	city.add_child(title)
+	var sub := _outlined(str(hub.get("subtitle", "")), 26, "text", 6)
+	sub.position = Vector2(0, 272)
+	sub.size = Vector2(720, 36)
+	city.add_child(sub)
+	for b in hub.get("buildings", []):
+		_add_building(city, b)
+	scroll.scroll_vertical = int(hub.get("start_scroll", 0))
+
+
+func _add_building(city: Control, b: Dictionary) -> void:
+	var tex := Content.load_texture(str(b["image"]))
+	var btn := TextureButton.new()
+	btn.texture_normal = tex
+	var sz: Vector2 = tex.get_size() if tex else Vector2(160, 160)
+	btn.ignore_texture_size = true
+	btn.stretch_mode = TextureButton.STRETCH_KEEP_ASPECT_CENTERED
+	btn.size = sz * float(b.get("scale", 1.0))
+	var center := Vector2(float(b["x"]), float(b["y"]))
+	btn.position = center - btn.size / 2.0
+	btn.pressed.connect(_do_action.bind(b))
+	city.add_child(btn)
+	if b.has("badge"):
+		_add_badge(str(b["badge"]), btn, Vector2(btn.size.x * 0.75, btn.size.y * 0.15))
+	if str(b.get("title", "")) == "":
+		return
+	var plate := _plate(str(b["title"]), 28)
+	city.add_child(plate)
+	plate.gui_input.connect(func(ev):
+		if ev is InputEventMouseButton and ev.pressed:
+			_do_action(b))
+	# Табличку центрируем после расчёта её размера
+	plate.resized.connect(func():
+		plate.position = Vector2(center.x - plate.size.x / 2.0, center.y + btn.size.y / 2.0 - plate.size.y * 0.8))
+	plate.position = Vector2(center.x - 90, center.y + btn.size.y / 2.0 - 40)
+
+
+# --- Верхняя панель ----------------------------------------------------------------------
+
+func _build_top_bar() -> void:
+	var shade := TextureRect.new()
+	var grad := Gradient.new()
+	grad.set_color(0, Color(0.04, 0.03, 0.1, 0.9))
+	grad.set_color(1, Color(0.04, 0.03, 0.1, 0.0))
+	var gt := GradientTexture2D.new()
+	gt.gradient = grad
+	gt.fill_from = Vector2(0, 0)
+	gt.fill_to = Vector2(0, 1)
+	shade.texture = gt
+	shade.position = Vector2.ZERO
+	shade.size = Vector2(720, 210)
+	shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(shade)
+
+	# Аватар: круг с золотым кольцом (нажатие — настройки и аккаунт)
+	var av := Panel.new()
+	av.add_theme_stylebox_override("panel", _style(Ui.colors["primary"], Color.TRANSPARENT, 0, 64))
+	av.clip_children = CanvasItem.CLIP_CHILDREN_ONLY
+	av.position = Vector2(14, 30)
+	av.size = Vector2(128, 128)
+	add_child(av)
+	_avatar = _icon("", 0)
+	_avatar.size = Vector2(128, 128)
+	_avatar.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	av.add_child(_avatar)
+	var ring := Button.new()
+	var ring_st := _style(Color.TRANSPARENT, Ui.colors["accent"], 5, 64)
+	ring_st.draw_center = false
+	for state in ["normal", "hover", "pressed", "focus"]:
+		ring.add_theme_stylebox_override(state, ring_st)
+	ring.position = av.position
+	ring.size = av.size
+	ring.pressed.connect(_open_more)
+	add_child(ring)
+
+	_name_label = _outlined(str(Api.player.get("display_name", "Игрок")), 28)
+	_name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	_name_label.position = Vector2(156, 30)
+	_name_label.size = Vector2(168, 36)
+	_name_label.clip_text = true
+	_name_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	add_child(_name_label)
+	_stage_label = _outlined("Этап —", 20, "accent", 4)
+	_stage_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	_stage_label.position = Vector2(156, 66)
+	add_child(_stage_label)
+	_stage_bar = ProgressBar.new()
+	_stage_bar.show_percentage = false
+	_stage_bar.max_value = 25
+	_stage_bar.position = Vector2(156, 96)
+	_stage_bar.size = Vector2(150, 12)
+	_stage_bar.add_theme_stylebox_override("background", _style(Color(0, 0, 0, 0.6), Color.TRANSPARENT, 0, 6))
+	_stage_bar.add_theme_stylebox_override("fill", _style(Ui.colors["accent"], Color.TRANSPARENT, 0, 6))
+	add_child(_stage_bar)
+
+	var power := _pill_box(Vector2(148, 118), Vector2(170, 46), "ui/hub/icon_power.png", false)
+	_power_label = power
+	_gold_label = _pill_box(Vector2(330, 30), Vector2(180, 52), "ui/hub/icon_coin.png", true)
+	_crystal_label = _pill_box(Vector2(526, 30), Vector2(180, 52), "ui/hub/icon_crystal.png", true)
+
+	var x := 600.0
+	var items: Array = hub.get("top_buttons", [])
+	for i in range(items.size() - 1, -1, -1):
+		var btn := _round_button(items[i], 84)
+		btn.position = Vector2(x, 100)
+		add_child(btn)
+		x -= 104
+
+
+func _pill_box(pos: Vector2, sz: Vector2, icon_path: String, plus: bool) -> Label:
+	var pill := PanelContainer.new()
+	var st := _style(Color(0.05, 0.04, 0.1, 0.82), Ui.colors["accent"].darkened(0.35), 2, int(sz.y / 2))
+	st.content_margin_right = 6
+	pill.add_theme_stylebox_override("panel", st)
+	pill.position = pos
+	pill.custom_minimum_size = sz
+	add_child(pill)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 4)
+	pill.add_child(row)
+	row.add_child(_icon(icon_path, sz.y))
+	var l := _outlined("—", 26, "accent" if not plus else "text", 4)
+	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(l)
+	if plus:
+		var p := TextureButton.new()
+		p.texture_normal = Content.load_texture("ui/hub/icon_plus.png")
+		p.ignore_texture_size = true
+		p.stretch_mode = TextureButton.STRETCH_KEEP_ASPECT_CENTERED
+		p.custom_minimum_size = Vector2(sz.y - 12, sz.y - 12)
+		p.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		p.pressed.connect(func(): _show_message(str(hub.get("shop_soon", "Магазин появится на этапе 9."))))
+		row.add_child(p)
+	return l
+
+
+func _round_button(item: Dictionary, sz: float) -> Control:
+	var btn := Button.new()
+	var st := _style(Color(0.08, 0.06, 0.16, 0.88), Ui.colors["accent"], 3, int(sz / 2), 10)
+	for state in ["normal", "hover", "pressed", "focus"]:
+		btn.add_theme_stylebox_override(state, st)
+	btn.icon = Content.load_texture(str(item["icon"]))
+	btn.expand_icon = true
+	btn.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	btn.size = Vector2(sz, sz)
+	btn.pressed.connect(_do_action.bind(item))
+	if item.has("badge"):
+		_add_badge(str(item["badge"]), btn, Vector2(sz - 24, -4))
+	return btn
+
+
+static func short_number(n: int) -> String:
+	if n >= 1_000_000:
+		return "%.1fM" % (n / 1_000_000.0)
+	if n >= 100_000:
+		return "%dK" % (n / 1000)
+	if n >= 10_000:
+		return "%.1fK" % (n / 1000.0)
+	return str(n)
+
+
+func _refresh_resources() -> void:
+	var res: Dictionary = await Api.request_json(HTTPClient.METHOD_GET, "/api/v1/heroes")
+	if not is_inside_tree() or not res.ok:
+		return
+	var w: Dictionary = res.data["wallet"]
+	_gold_label.text = short_number(int(w.get("gold", 0)))
+	_crystal_label.text = short_number(int(w.get("crystals", 0)))
+	var heroes: Array = res.data["heroes"]
+	var power := 0
+	for i in range(min(5, heroes.size())):
+		power += int(heroes[i]["power"])
+	_power_label.text = short_number(power)
+	if not heroes.is_empty():
+		_avatar.texture = Content.load_texture("heroes/%s/portrait.png" % heroes[0]["hero"])
+	var can_level := false
+	for h in heroes:
+		var cost: Variant = h.get("level_cost")
+		if cost is Dictionary and int(w.get("gold", 0)) >= int(cost.get("gold", 0)) \
+				and int(w.get("hero_xp", 0)) >= int(cost.get("hero_xp", 0)) and int(w.get("essence", 0)) >= int(cost.get("essence", 0)):
+			can_level = true
+			break
+	_set_badge("heroes", can_level)
+	_set_badge("summon", int(w.get("scrolls", 0)) > 0)
+	var camp: Dictionary = await Api.request_json(HTTPClient.METHOD_GET, "/api/v1/campaign")
+	if is_inside_tree() and camp.ok:
+		var pend: Dictionary = camp.data.get("pending", {})
+		_set_badge("campaign", int(pend.get("gold", 0)) > 0 or bool(camp.data.get("quick_available", false)))
+		var cleared: int = int(camp.data.get("cleared", 0))
+		_stage_label.text = "Этап %d из 25" % mini(cleared + 1, 25) if cleared < 25 else "Кампания пройдена"
+		_stage_bar.value = cleared
+
+
+# --- Боковые действия и нижняя навигация ---------------------------------------------------
+
+func _build_side_menu() -> void:
+	var col := VBoxContainer.new()
+	col.position = Vector2(8, 214)
+	col.add_theme_constant_override("separation", 8)
+	add_child(col)
+	for item in hub.get("side_menu", []):
+		var tile := Button.new()
+		var st := _style(Color(0.08, 0.06, 0.16, 0.85), Ui.colors["accent"].darkened(0.3), 2, 18)
+		for state in ["normal", "hover", "pressed", "focus"]:
+			tile.add_theme_stylebox_override(state, st)
+		tile.custom_minimum_size = Vector2(108, 108)
+		tile.pressed.connect(_do_action.bind(item))
+		col.add_child(tile)
+		var ic := _icon(str(item["icon"]), 60)
+		ic.position = Vector2(24, 4)
+		ic.size = Vector2(60, 60)
+		tile.add_child(ic)
+		var l := _outlined(str(item["title"]), 16, "text", 4)
+		l.position = Vector2(0, 62)
+		l.size = Vector2(108, 44)
+		l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		tile.add_child(l)
+		if item.has("badge"):
+			_add_badge(str(item["badge"]), tile, Vector2(84, -6))
+
+
+func _build_bottom() -> void:
+	var nav := Panel.new()
+	var nst := _style(Color(0.09, 0.07, 0.16, 0.96), Ui.colors["accent"].darkened(0.2), 3, 26)
+	nav.add_theme_stylebox_override("panel", nst)
+	nav.position = Vector2(6, 1134)
+	nav.size = Vector2(708, 140)
+	nav.name = "Nav"
+	add_child(nav)
+	var items: Array = hub.get("bottom_nav", [])
+	var cell_w := 708.0 / maxf(1.0, items.size())
+	for i in range(items.size()):
+		var item: Dictionary = items[i]
+		var big := bool(item.get("big", false))
+		var cell := Button.new()
+		var st: StyleBoxFlat
+		if big:
+			st = _style(Ui.colors["primary"], Ui.colors["accent"], 4, 24)
+			st.shadow_color = Color(Ui.colors["accent"], 0.55)
+			st.shadow_size = 14
+		else:
+			st = _style(Color.TRANSPARENT, Color.TRANSPARENT, 0, 20)
+		for state in ["normal", "hover", "pressed", "focus"]:
+			cell.add_theme_stylebox_override(state, st)
+		cell.position = Vector2(6 + i * cell_w + 4, 1096 if big else 1138)
+		cell.size = Vector2(cell_w - 8, 174 if big else 132)
+		cell.pressed.connect(_do_action.bind(item))
+		add_child(cell)
+		var isz := 104.0 if big else 76.0
+		var ic := _icon(str(item["icon"]), isz)
+		ic.size = Vector2(isz, isz)
+		ic.position = Vector2((cell.size.x - isz) / 2.0, 10 if big else 8)
+		cell.add_child(ic)
+		var l := _outlined(str(item["title"]), 24 if big else 22, "accent" if big else "text", 5)
+		l.position = Vector2(0, isz + (14 if big else 10))
+		l.size = Vector2(cell.size.x, 34)
+		cell.add_child(l)
+		if item.has("badge"):
+			_add_badge(str(item["badge"]), cell, Vector2(cell.size.x - 38, 2))
+
+
+# --- Действия ------------------------------------------------------------------------
+
+func _do_action(item: Dictionary) -> void:
+	var action: Dictionary = item.get("action", {})
+	if action.has("scene"):
+		var key := str(action["scene"])
+		if key == "hub":
+			get_node("City").scroll_vertical = 0
+			return
+		if key == "more":
+			_open_more()
+			return
+		get_tree().remove_meta("campaign_stage")
+		if SCENES.has(key):
+			get_tree().change_scene_to_file(SCENES[key])
+		return
+	if action.has("soon"):
+		_show_message(str(action["soon"]))
+
+
+func _open_more() -> void:
+	var box := _make_dialog("Настройки")
+	for n in [_player_label, _account_box, _bg_label]:
+		if n.get_parent():
+			n.get_parent().remove_child(n)
+		box.add_child(n)
+	box.add_child(Ui.button("Тестовый бой", _on_play))
+	box.add_child(Ui.button("Проверить файлы игры", _on_verify))
+	box.add_child(Ui.label("Версия %s (сборка %d)" % [Config.client_version, Updater.current_code()], 20))
+	box.add_child(Ui.button("Закрыть", _close_dialog))
+	_center_dialog()
 
 
 func _refresh_account() -> void:
