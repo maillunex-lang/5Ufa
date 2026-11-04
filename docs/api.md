@@ -15,7 +15,7 @@
 | Метод | Путь | Тело → ответ |
 | --- | --- | --- |
 | GET | `/api/me` | → `{account,heroes[{id,key,level}],balances,formation[5 id],clearedStages,contentVersion,maxLevel}` |
-| GET | `/api/content` | → герои, враги, этапы, прогрессия, параметры боя, `tutorial.steps` (шаги обучения: id, text, highlight[], done), `arena.bounds` (прямоугольник арены xMin, xMax, yMin, yMax: бойцы за него не выходят) |
+| GET | `/api/content` | → герои, враги, этапы, прогрессия, параметры боя, `tutorial.steps` (шаги обучения: id, text, highlight[], done), `arena.bounds` (прямоугольник арены xMin, xMax, yMin, yMax: бойцы за него не выходят), `arena.camera` (position[3], lookAt[3], fov, depth: камера боя) |
 | POST | `/api/bind` | `{login,password}` → `{recoveryCode}` (показать игроку один раз) |
 | POST | `/api/formation` | `{slots:[5 id героев]}` (0–1 перед, 2–4 зад) |
 | POST | `/api/tutorial/done` | → `{ok}` |
