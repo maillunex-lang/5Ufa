@@ -121,9 +121,12 @@ func _build_scene() -> void:
 	base.set_anchors_preset(Control.PRESET_FULL_RECT)
 	bg_layer.add_child(base)
 	var tex_path := "res://assets/backgrounds/arena_mountains.png"
-	if ResourceLoader.exists(tex_path):
+	var bg_tex: Texture2D = Media.texture("arena_mountains")
+	if bg_tex == null and ResourceLoader.exists(tex_path):
+		bg_tex = load(tex_path)
+	if bg_tex != null:
 		var tr := TextureRect.new()
-		tr.texture = load(tex_path)
+		tr.texture = bg_tex
 		tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		tr.stretch_mode = TextureRect.STRETCH_SCALE
 		tr.size = Vector2(1150, 805)        # горы попадают в верхнюю часть экрана над ареной
