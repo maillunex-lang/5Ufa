@@ -12,27 +12,30 @@ on:
 jobs:
   apk:
     runs-on: ubuntu-latest
-    container: barichello/godot-ci:4.4.1
+    env:
+      GODOT_VERSION: "4.4.1"
     steps:
       - uses: actions/checkout@v4
-      - name: Подготовка Godot и Android
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: "17" }
+      - name: Godot и Android-шаблоны (версия закреплена)
         run: |
           set -e
-          mkdir -p "$HOME/.local/share/godot/export_templates" "$HOME/.config/godot"
-          # Android-шаблоны экспорта берём с официальной страницы релиза Godot (в образе их нет)
+          base="https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable"
+          curl -fsSL --retry 3 -o /tmp/godot.zip "$base/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          unzip -q /tmp/godot.zip -d /tmp/godot
+          sudo install -m 755 "/tmp/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64" /usr/local/bin/godot
           t="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
           mkdir -p "$t"
-          url="https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
-          if command -v wget >/dev/null 2>&1; then wget -q --tries=3 -O /tmp/templates.tpz "$url"
-          elif command -v curl >/dev/null 2>&1; then curl -fsSL --retry 3 -o /tmp/templates.tpz "$url"
-          else python3 -c "import urllib.request,sys; urllib.request.urlretrieve(sys.argv[1], '/tmp/templates.tpz')" "$url"; fi
+          curl -fsSL --retry 3 -o /tmp/templates.tpz "$base/Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
           unzip -j -o /tmp/templates.tpz 'templates/android_*' 'templates/version.txt' -d "$t"
-          rm -f /tmp/templates.tpz
+          rm -f /tmp/templates.tpz /tmp/godot.zip
           ls -la "$t"
-          cp -n /root/.config/godot/* "$HOME/.config/godot/" 2>/dev/null || true
-          echo "HOME=$HOME ANDROID_HOME=${ANDROID_HOME:-} ANDROID_SDK_ROOT=${ANDROID_SDK_ROOT:-} JAVA_HOME=${JAVA_HOME:-}"
-          ls "$HOME/.config/godot" "$HOME/.local/share/godot/export_templates" || true
-          ls /root/.config/godot 2>/dev/null || true
+          # пути Android SDK и JDK для экспорта
+          mkdir -p "$HOME/.config/godot"
+          printf '[gd_resource type="EditorSettings" format=3]\n\n[resource]\nexport/android/android_sdk_path = "%s"\nexport/android/java_sdk_path = "%s"\n' \
+            "$ANDROID_HOME" "$JAVA_HOME" > "$HOME/.config/godot/editor_settings-4.4.tres"
+          cat "$HOME/.config/godot/editor_settings-4.4.tres"
           godot --version
       - name: Версия APK
         run: |
