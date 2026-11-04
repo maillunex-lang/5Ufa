@@ -37,6 +37,7 @@ test('HTTP: гость → бой → админка → техработы', as
     const page = await fetch(base + '/admin/');
     assert.equal(page.status, 200);
     assert.equal((await fetch(base + '/admin/app.js')).status, 200); // скрипт админки отдаётся рядом со страницей
+    for (const f of ['viewer.js', 'vendor/three.module.min.js', 'vendor/addons/loaders/GLTFLoader.js', 'vendor/addons/controls/OrbitControls.js', 'vendor/addons/utils/BufferGeometryUtils.js']) assert.equal((await fetch(`${base}/admin/${f}`)).status, 200, f); // 3D-просмотр
     assert.equal((await fetch(base + '/admin/../server/package.json')).status, 404);
   } finally { app.close(); }
 });

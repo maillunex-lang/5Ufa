@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>5Ufa — админка</title>
+<script type="importmap">{"imports":{"three":"./vendor/three.module.min.js","three/addons/":"./vendor/addons/"}}</script>
 <style>
 :root{--bg:#14161c;--card:#1e222b;--card2:#252a35;--fg:#e8eaf0;--mut:#8b93a7;--acc:#e0a63a;--bad:#e5645b;--ok:#5fc27e;--line:#2a2f3a}
 *{box-sizing:border-box}[hidden]{display:none!important}body{margin:0;background:var(--bg);color:var(--fg);font:15px system-ui,sans-serif}
@@ -33,7 +34,7 @@ th{color:var(--mut);font-weight:500}
 #savebar .t{flex:1 1 100%;font-size:13px}#savebar input{flex:1 1 200px}#savebar .err{flex:1 1 100%;color:var(--bad);font-size:13px;max-height:120px;overflow:auto}
 .modal{position:fixed;inset:0;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;z-index:20;padding:16px}.modal>.card{max-width:420px;width:100%;margin:0}
 pre{white-space:pre-wrap;word-break:break-word;font-size:12px;background:#0e1016;border-radius:8px;padding:8px}
-canvas{max-width:100%;background:#0e1016;border-radius:8px}
+canvas{max-width:100%;background:#0e1016;border-radius:8px}.chip{display:inline-block;margin:0 6px 6px 0;padding:5px 10px;font-size:13px}.slot{display:grid;grid-template-columns:1fr 1.6fr auto;gap:6px;align-items:center;margin-bottom:6px;font-size:13px}
 #toast{position:fixed;top:60px;left:50%;transform:translateX(-50%);background:#2f3542;border:1px solid var(--acc);border-radius:8px;padding:8px 14px;z-index:30;display:none}
 @media(min-width:900px){nav{display:flex!important;position:fixed;left:0;top:49px;bottom:0;width:210px;overflow:auto}main{margin-left:230px}#menu{display:none}#savebar{padding-left:246px}}
 </style>

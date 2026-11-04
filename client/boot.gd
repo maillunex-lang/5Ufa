@@ -196,5 +196,40 @@ func _show_me(me: Dictionary) -> void:
 	if not await State.load_content():
 		_fail("Не удалось загрузить данные игры.")
 		return
+	Media.set_manifest(State.content.get("media", {}))
+	if not await _sync_media():
+		return
 	print("[boot] OK me: account=", me["account"]["id"], " heroes=", (me["heroes"] as Array).size(), " cleared=", me["clearedStages"])
 	get_tree().change_scene_to_file.call_deferred("res://hub.tscn")
+
+
+## Докачка моделей, которых нет в приложении (заменённых или новых в админке). Крупную загрузку подтверждает игрок.
+## Если не скачалось или игрок отказался, остаются вшитые модели, игра запускается.
+func _sync_media() -> bool:
+	var need := Media.missing()
+	if need.is_empty():
+		return true
+	var mb := Media.missing_bytes() / 1048576.0
+	if mb > 10.0:
+		_clear_form()
+		_status.text = "Нужно скачать новые ресурсы: %.0f МБ." % mb
+		var go := Ui.button("Скачать", 32, 100)
+		var skip := Ui.button("Позже (пока встроенные)", 28, 90)
+		_form.add_child(go)
+		_form.add_child(skip)
+		var choice: String = await _wait_choice(go, skip)
+		_clear_form()
+		if choice == "skip":
+			return true
+	_status.text = "Скачиваем ресурсы…"
+	await Media.download_missing(func(done: int, total: int): _status.text = "Скачиваем ресурсы… %d/%d" % [done, total])
+	return true
+
+
+func _wait_choice(a: Button, b: Button) -> String:
+	var result := [""]
+	a.pressed.connect(func(): result[0] = "go")
+	b.pressed.connect(func(): result[0] = "skip")
+	while result[0] == "":
+		await get_tree().process_frame
+	return result[0]

@@ -1,7 +1,8 @@
 import { createServer } from 'node:http';
-import { readFileSync, existsSync, mkdirSync, writeFileSync, readdirSync, statSync, unlinkSync, chmodSync } from 'node:fs';
-import { join, extname, normalize, sep } from 'node:path';
+import { readFileSync, existsSync, mkdirSync, writeFileSync, readdirSync, statSync, unlinkSync, chmodSync, createReadStream } from 'node:fs';
+import { join, extname, normalize, sep, dirname } from 'node:path';
 import { randomBytes } from 'node:crypto';
+import { createMedia, isSha, MAX_MEDIA_BYTES } from './media.js';
 import { createGame, GameError } from './game.js';
 import { openDb } from './db.js';
 import { hashPassword, checkPassword, makeLimiter, newToken, sha } from './auth.js';
@@ -13,6 +14,8 @@ export function createApp({ dataDir, contentPath, adminDir, env = process.env })
   mkdirSync(dataDir, { recursive: true });
   const db = openDb(join(dataDir, 'game.db'));
   const game = createGame(db, { contentPath });
+  const media = createMedia({ db, dir: join(dataDir, 'media'), audit: game.audit });
+  media.seed(env.SEED_MEDIA_DIR || join(dirname(contentPath), '..', 'client', 'assets', 'models'));
   const started = Date.now();
   const audit = (actor, action, detail) => db.prepare('INSERT INTO audit(ts,actor,action,detail) VALUES(?,?,?,?)').run(Date.now(), actor, action, detail ? JSON.stringify(detail) : null);
   const logError = (source, e) => db.prepare('INSERT INTO error_log(ts,source,message) VALUES(?,?,?)').run(Date.now(), source, String(e?.stack || e).slice(0, 2000));
@@ -61,6 +64,15 @@ export function createApp({ dataDir, contentPath, adminDir, env = process.env })
     req.on('data', (d) => { n += d.length; if (n > max) { fail(new GameError('too_large', 'Слишком большой запрос', 413)); req.destroy(); } else ch.push(d); });
     req.on('end', () => { try { ok(ch.length ? JSON.parse(Buffer.concat(ch).toString('utf8')) : {}); } catch { fail(new GameError('bad_json', 'Некорректный JSON')); } });
   });
+  const readRaw = (req, max) => new Promise((ok, fail) => {
+    const tooBig = () => { req.removeAllListeners('data'); req.resume(); fail(new GameError('too_large', `Файл больше ${Math.floor(max / 1048576)} МБ`, 413)); }; // дочитываем и отбрасываем, чтобы ответить понятной ошибкой
+    if (Number(req.headers['content-length']) > max) return tooBig();
+    let n = 0; const ch = []; let dead = false;
+    req.on('data', (d) => { if (dead) return; n += d.length; if (n > max) { dead = true; tooBig(); } else ch.push(d); });
+    req.on('end', () => { if (!dead) ok(Buffer.concat(ch)); });
+    req.on('error', fail);
+  });
+  const sendFile = (res, path) => { res.writeHead(200, { 'content-type': 'model/gltf-binary', 'cache-control': 'public, max-age=31536000, immutable', 'content-length': statSync(path).size }); createReadStream(path).pipe(res); };
   const bearer = (req) => (req.headers.authorization || '').replace(/^Bearer /, '');
   const ip = (req) => req.headers['x-forwarded-for']?.split(',')[0].trim() || req.socket.remoteAddress;
 
@@ -79,6 +91,8 @@ export function createApp({ dataDir, contentPath, adminDir, env = process.env })
       // Клиент спрашивает при запуске. Принудительное обновление (updates) заполняется модулем релизов (этап 6).
       return json(res, 200, { server: VERSION, maintenance: game.isMaintenance(), maintenanceMessage: db.prepare("SELECT v FROM settings WHERE k='maintenance_msg'").get()?.v ?? '', contentVersion: game.getContent().id, update: null });
     }
+    const mf = p.match(/^\/api\/media\/([0-9a-f]{64})$/);
+    if (mf && m === 'GET') { const f = media.byHash(mf[1]); if (!f) throw new GameError('not_found', 'Файл не найден', 404); return sendFile(res, f); }
     if (p === '/api/guest' && m === 'POST') {
       if (!guestLimit(ip(req))) throw new GameError('rate_limited', 'Слишком часто', 429);
       return json(res, 200, game.guest());
@@ -97,7 +111,7 @@ export function createApp({ dataDir, contentPath, adminDir, env = process.env })
     if (p.startsWith('/api/')) {
       const acc = game.authenticate(bearer(req));
       if (p === '/api/me' && m === 'GET') return json(res, 200, game.me(acc));
-      if (p === '/api/content' && m === 'GET') { const c = game.getContent(); return json(res, 200, { id: c.id, heroes: c.heroes, enemies: c.enemies, stages: c.stages.map(({ n, name, enemies, reward }) => ({ n, name, enemies, reward })), progression: c.progression, battle: c.battle, tutorial: c.tutorial || { steps: [] }, arena: c.arena }); }
+      if (p === '/api/content' && m === 'GET') { const c = game.getContent(); return json(res, 200, { id: c.id, heroes: c.heroes, enemies: c.enemies, stages: c.stages.map(({ n, name, enemies, reward }) => ({ n, name, enemies, reward })), progression: c.progression, battle: c.battle, tutorial: c.tutorial || { steps: [] }, arena: c.arena, media: media.manifest() }); }
       const b = m === 'POST' ? await readBody(req) : {};
       if (p === '/api/bind') return json(res, 200, game.bind(acc, b.login, b.password));
       if (p === '/api/formation') return json(res, 200, game.setFormation(acc, b.slots));
@@ -122,7 +136,16 @@ export function createApp({ dataDir, contentPath, adminDir, env = process.env })
     }
     if (p.startsWith('/admin/api/')) {
       requireAdmin(req);
+      if (p === '/admin/api/media/upload' && m === 'POST') {
+        const q = url.searchParams;
+        const buf = await readRaw(req, MAX_MEDIA_BYTES);
+        return json(res, 200, media.upload({ name: q.get('name'), kind: q.get('kind') || 'model', buf, filename: q.get('filename'), note: q.get('note') || '', author: adminUser, activate: q.has('activate') ? q.get('activate') === '1' : undefined }));
+      }
+      const fm = p.match(/^\/admin\/api\/media\/file\/([0-9a-f]{64})$/);
+      if (fm && m === 'GET') { const f = media.byHash(fm[1]); if (!f) throw new GameError('not_found', 'Файл не найден', 404); return sendFile(res, f); }
+      if (p === '/admin/api/media' && m === 'GET') return json(res, 200, media.list());
       const b = m === 'POST' ? await readBody(req, p.startsWith('/admin/api/content') ? 3_000_000 : 65536) : {};
+      if (p === '/admin/api/media/activate' && m === 'POST') return json(res, 200, media.activate(String(b.name), Number(b.version), adminUser));
       if (p === '/admin/api/status') {
         const n = (sql) => db.prepare(sql).get().n;
         return json(res, 200, {
@@ -177,5 +200,5 @@ export function createApp({ dataDir, contentPath, adminDir, env = process.env })
       json(res, 500, { error: 'internal', message: 'Внутренняя ошибка' });
     }
   });
-  return { server, game, db, backup, close: () => { clearInterval(timer); server.close(); db.close(); } };
+  return { server, game, db, media, backup, close: () => { clearInterval(timer); server.close(); db.close(); } };
 }
