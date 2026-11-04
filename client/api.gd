@@ -1,14 +1,18 @@
 extends Node
-## Сетевой слой клиента. Адрес сервера — единственная константа SERVER_URL.
+## Сетевой слой клиента. Адрес сервера — единственная DEFAULT_SERVER_URL.
 ## Контракт методов: docs/api.md. Клиент ничего не считает сам: бой и награды приходят с сервера.
 
-const SERVER_URL := "https://tts-ufa.ru/games/server"
+const DEFAULT_SERVER_URL := "https://tts-ufa.ru/games/server"
 const SESSION_FILE := "user://session.cfg"
 
 var token: String = ""
+var server_url: String = DEFAULT_SERVER_URL  # для тестов можно переопределить переменной окружения FIVEUFA_SERVER
 
 
 func _ready() -> void:
+	var override := OS.get_environment("FIVEUFA_SERVER")
+	if override != "":
+		server_url = override
 	var cf := ConfigFile.new()
 	if cf.load(SESSION_FILE) == OK:
 		token = str(cf.get_value("session", "token", ""))
@@ -36,7 +40,7 @@ func request(method: String, path: String, body: Variant = null) -> Dictionary:
 		headers.append("Authorization: Bearer " + token)
 	var verb := HTTPClient.METHOD_GET if method == "GET" else HTTPClient.METHOD_POST
 	var payload := "" if body == null else JSON.stringify(body)
-	var err := req.request(SERVER_URL + path, headers, verb, payload)
+	var err := req.request(server_url + path, headers, verb, payload)
 	if err != OK:
 		req.queue_free()
 		return {"ok": false, "status": 0, "data": null, "message": "Не удалось отправить запрос (код %d)" % err}

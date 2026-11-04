@@ -69,7 +69,9 @@ func _build_ui() -> void:
 
 
 func _fail(text: String) -> void:
+	print("[boot] FAIL: ", text.replace("\n", " | "))
 	_status.text = text
+	print("[boot] BATTLE: ", text.replace("\n", " | "))
 	_btn_retry.visible = true
 
 
@@ -123,6 +125,7 @@ func _show_me(me: Dictionary) -> void:
 	var acc: Dictionary = me["account"]
 	var bal: Dictionary = me["balances"]
 	_status.text = "Вход выполнен"
+	print("[boot] OK me: account=", acc["id"], " heroes=", (me["heroes"] as Array).size(), " cleared=", me["clearedStages"])
 	_info.text = "Аккаунт №%d (%s)\nГероев: %d\nЗолото: %d   Опыт героев: %d\nПройдено этапов: %d" % [
 		int(acc["id"]),
 		"привязан" if acc["bound"] else "гость",
@@ -157,3 +160,4 @@ func _on_battle() -> void:
 	if me["ok"]:
 		_show_me(me["data"])
 	_status.text = text
+	print("[boot] BATTLE: ", text.replace("\n", " | "))
