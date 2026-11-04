@@ -51,6 +51,8 @@ services:
       BACKUP_DIR: /backups
       BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-14}
       ADMIN_SESSION_DAYS: ${ADMIN_SESSION_DAYS:-7}
+      # Ключ Gemini (Google AI Studio) для нарезки героев. Приходит из секрета GitHub GEMINI_API_KEY при деплое
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
     volumes:
       - contentstore:/data/content-store
       # Бэкапы: админка показывает список и может попросить сделать бэкап сейчас

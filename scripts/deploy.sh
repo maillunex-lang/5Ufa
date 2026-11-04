@@ -32,6 +32,28 @@ if ! grep -qE '^CLIENT_UPLOAD_TOKEN=.+' .env; then
     echo "CLIENT_UPLOAD_TOKEN=$(openssl rand -hex 32)" >> .env
     echo "[deploy] создан CLIENT_UPLOAD_TOKEN в .env (добавьте его в секреты GitHub, см. docs/app-updates.md)"
 fi
+# Секреты из GitHub Actions приходят строками ИМЯ=значение на стандартный вход (не в командной строке,
+# чтобы не попасть в список процессов и логи). Разрешены только имена из списка.
+if [ ! -t 0 ]; then
+    while IFS= read -r -t 10 line; do
+        name="${line%%=*}"; value="${line#*=}"
+        case "$name" in
+            GEMINI_API_KEY) ;;
+            *) continue ;;
+        esac
+        # Ключи — только буквы, цифры, - и _ ; всё прочее (пробелы, переносы при вставке) отбрасываем
+        value="$(printf '%s' "$value" | tr -cd 'A-Za-z0-9_-')"
+        [ -n "$value" ] || continue
+        # Сравниваем без передачи ключа в аргументах команд (их видно в списке процессов)
+        current="$(sed -n "s/^$name=//p" .env | tail -n 1)"
+        if [ "$current" != "$value" ]; then
+            sed -i "/^$name=/d" .env
+            printf '%s=%s\n' "$name" "$value" >> .env
+            echo "[deploy] $name обновлён в .env из секретов GitHub"
+        fi
+    done || true
+fi
+chmod 600 .env 2>/dev/null || true
 set -a; . ./.env; set +a
 HTTP_PORT="${HTTP_PORT:-8085}"
 BACKUP_DIR="${BACKUP_DIR:-./backups}"
@@ -135,3 +157,7 @@ trap - ERR
 echo "$NEW_SHA" > "$LOG_DIR/last_success"
 docker image prune -f >/dev/null 2>&1 || true
 log "ДЕПЛОЙ УСПЕШЕН: ${NEW_SHA:0:8}"
+# Проверка доступа к ИИ (не влияет на результат деплоя, ключ в лог не выводится)
+if [ -n "${GEMINI_API_KEY:-}" ]; then
+    log "$(docker compose exec -T api python -m app.cli ai check 2>&1 | tr '\n' ' ' || true)"
+fi

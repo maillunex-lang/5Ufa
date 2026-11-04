@@ -284,6 +284,15 @@ async def cmd_admin_2fa(args) -> int:
     return 0
 
 
+async def cmd_ai_check(args) -> int:
+    from app.ai import gemini
+    r = gemini.check()
+    print("Gemini: " + r["message"])
+    if r.get("image_models"):
+        print("Модели для картинок: " + ", ".join(r["image_models"]))
+    return 0 if r["ok"] else 1
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="app.cli")
     sub = parser.add_subparsers(dest="group", required=True)
@@ -350,6 +359,9 @@ def main(argv: list[str] | None = None) -> int:
     p = adm.add_parser("2fa-disable", help="Выключить 2FA")
     p.add_argument("login")
     p.set_defaults(func=cmd_admin_2fa, enable=False)
+
+    ai = sub.add_parser("ai", help="ИИ-сервисы").add_subparsers(dest="cmd", required=True)
+    ai.add_parser("check", help="Проверить доступ к Gemini с сервера").set_defaults(func=cmd_ai_check)
 
     args = parser.parse_args(argv)
     try:
