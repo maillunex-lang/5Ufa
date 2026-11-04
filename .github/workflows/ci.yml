@@ -157,6 +157,8 @@ jobs:
           $G --headless --path . --import >/dev/null 2>&1 || true
           timeout 30 $G --headless --path . res://tests/model3d_smoke.tscn > /tmp/model3d.txt 2>&1
           grep -q 'AUTOTEST MODEL3D: {.*"ok":true' /tmp/model3d.txt || { cat /tmp/model3d.txt; exit 1; }
+          timeout 30 $G --headless --path . res://tests/battle3d_smoke.tscn > /tmp/battle3d.txt 2>&1
+          grep -q 'AUTOTEST BATTLE3D: {.*"ok":true' /tmp/battle3d.txt || { cat /tmp/battle3d.txt; exit 1; }
           run() {
             local rc=0
             timeout 180 $G --headless --path . -- --server=http://127.0.0.1:8085 --autotest "$@" > /tmp/out.txt 2>&1 || rc=$?

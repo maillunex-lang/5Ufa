@@ -7,7 +7,7 @@ const BAR_W := 70.0
 var uid := 0
 var side := 0
 var info: Dictionary = {}
-var rig: SkeletonRig
+var rig: Node2D
 var x_units := 0.0
 var vx := 0.0
 var hp := 0
@@ -38,10 +38,20 @@ func setup(u: Dictionary, e_max: int) -> void:
 	x_units = float(u["x"])
 	var hero_dir := "heroes/" + str(u["hero"])
 	var hero: Variant = Content.load_json(hero_dir + "/hero.json")
-	var skel_path := str(hero["art"]["skeleton"]) if hero is Dictionary else hero_dir + "/skeleton.json"
-	rig = SkeletonRig.new()
-	add_child(rig)
-	rig.setup(hero_dir, Content.load_json(skel_path), str(u.get("skin", "")))
+	var model := _model3d(hero, str(u.get("skin", "")))
+	if not model.is_empty():
+		var view := UnitModel3D.new()
+		add_child(view)
+		if view.setup(model, str(u["hero"])):
+			rig = view
+		else:
+			view.queue_free()
+	if rig == null:
+		var skel_path := str(hero["art"]["skeleton"]) if hero is Dictionary else hero_dir + "/skeleton.json"
+		var flat := SkeletonRig.new()
+		add_child(flat)
+		flat.setup(hero_dir, Content.load_json(skel_path), str(u.get("skin", "")))
+		rig = flat
 	if side == 1:
 		rig.scale.x = -1  # враги смотрят влево
 	_bars = Node2D.new()
@@ -58,6 +68,17 @@ func setup(u: Dictionary, e_max: int) -> void:
 	_status.add_theme_color_override("font_color", Color("#FFE27A"))
 	_bars.add_child(_status)
 	_refresh()
+
+
+func _model3d(hero: Variant, skin_id: String) -> Dictionary:
+	if not hero is Dictionary:
+		return {}
+	if skin_id != "" and skin_id != "default":
+		for skin in hero.get("skins", []):
+			if str(skin.get("id", "")) == skin_id and skin.get("model_3d") is Dictionary and not skin["model_3d"].is_empty():
+				return skin["model_3d"]
+	var model: Variant = hero.get("model_3d", {})
+	return model if model is Dictionary else {}
 
 
 func _rect(size: Vector2, color: Color, pos: Vector2) -> ColorRect:
