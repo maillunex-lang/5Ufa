@@ -217,6 +217,7 @@ func _show_home() -> void:
 	b.add_child(_row([_btn("Черновик (%d)" % _draft_count, func(): _open(_show_draft)),
 			_btn("Версии", func(): _open(_show_releases)), _btn("Журнал", func(): _open(_show_audit.bind(0)))]))
 	b.add_child(_row([_btn("ZIP-патч", func(): _open(_show_patch)), _btn("Предпросмотр", func(): _open(_show_previews))]))
+	b.add_child(_btn("Конструктор экранов", func(): _with_draft(func(): _open(_show_screens)), 24))
 	b.add_child(_row([_btn("Игроки", func(): _open(_show_players.bind(""))), _btn("Бэкапы", func(): _open(_show_backups)),
 			_btn("Версии APK", func(): _open(_show_apk))]))
 	b.add_child(Ui.label("Разделы", 26, "accent"))
@@ -684,6 +685,51 @@ func _pick_and_upload(path: String) -> void:
 			_fail(r))
 
 
+# --- Конструктор экранов ------------------------------------------------------------------
+
+const SCREEN_SCENES := {"hub": "res://scenes/main.tscn", "heroes": "res://scenes/heroes.tscn",
+		"inventory": "res://scenes/inventory.tscn", "summon": "res://scenes/summon.tscn",
+		"campaign": "res://scenes/campaign.tscn", "team_select": "res://scenes/team_select.tscn",
+		"boot": "res://scenes/boot.tscn", "battle": "res://scenes/team_select.tscn"}
+
+
+func _show_screens() -> void:
+	var b := _frame("Конструктор экранов")
+	var res: Dictionary = await api.call_api(HTTPClient.METHOD_GET, "/sections/screens")
+	if not res.ok:
+		_fail(res)
+		return
+	b.add_child(_text("Расстановка элементов каждого экрана игры: кнопки, иконки, надписи, панели, места под списки. Здания города — «Предпросмотр» → «Главный экран: двигать здания».", 18))
+	for o in res.data["objects"]:
+		b.add_child(_btn(str(o["title"]) + "  ·  " + str(o["id"]), func(): _open(_screen_editor.bind(str(o["id"]))), 22))
+
+
+func _screen_editor(screen_id: String) -> void:
+	var b := _frame("Экран: " + screen_id)
+	var path := "ui/screens/%s.json" % screen_id
+	var res: Dictionary = await api.call_api(HTTPClient.METHOD_GET, "/files?path=" + path.uri_encode(), null, true)
+	if not res.ok:
+		_fail(res)
+		return
+	var layout: Variant = JSON.parse_string(res.bytes.get_string_from_utf8())
+	if not layout is Dictionary:
+		_say("Ошибка: файл раскладки повреждён")
+		return
+	var images := []
+	for p in Content.state["files"].keys():
+		var ps := str(p)
+		if (ps.begins_with("ui/") or ps.ends_with("/portrait.png")) and ps.get_extension() in ["png", "webp", "jpg"]:
+			images.append(ps)
+	images.sort()
+	var ed := LayoutEditor.new()
+	ed.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	b.add_child(ed)
+	ed.setup(self, screen_id, path, layout, images)
+	b.add_child(_btn("Открыть в игре (после «Сохранить»)", func():
+		await _with_draft(func(): pass)
+		_open_game(str(SCREEN_SCENES.get(screen_id, "res://scenes/main.tscn"))), 20))
+
+
 # --- Игроки ------------------------------------------------------------------------------
 
 const CURRENCIES := [["gold", "золото"], ["hero_xp", "опыт"], ["essence", "эссенция"], ["crystals", "кристаллы"],
@@ -995,6 +1041,40 @@ func _preview_campaign() -> void:
 		b.add_child(Previews.chapter_card(ch, i))
 
 
+func _screen_selftest() -> void:
+	## Перенос кнопки в конструкторе сохраняется в ui/screens/hub.json черновика
+	await _with_draft(func(): pass)
+	await _screen_editor("hub")
+	var ed: LayoutEditor = null
+	for c in _body.get_children():
+		if c is LayoutEditor:
+			ed = c
+	var els: Array = ed.layout["elements"]
+	var idx := -1
+	for i in range(els.size()):
+		if els[i]["id"] == "events":
+			idx = i
+	var n0 := els.size()
+	ed.selected = idx
+	ed._change(func(): els[idx]["x"] = 40.0)
+	ed._add("label")
+	ed.undo()
+	await ed.save()
+	var f: Dictionary = await api.call_api(HTTPClient.METHOD_GET, "/files?path=ui/screens/hub.json", null, true)
+	var saved: Variant = JSON.parse_string(f.bytes.get_string_from_utf8())
+	var moved := false
+	var count := 0
+	if saved is Dictionary:
+		count = saved["elements"].size()
+		for e in saved["elements"]:
+			if e["id"] == "events" and int(e["x"]) == 40:
+				moved = true
+	var ok: bool = moved and count == n0  # добавленная надпись отменена «Отменить»
+	print("AUTOTEST SCREENS: ", JSON.stringify({"ok": ok, "moved": moved, "elements": count}))
+	await api.call_api(HTTPClient.METHOD_POST, "/draft/revert", {})
+	get_tree().quit(0 if ok else 1)
+
+
 func _anim_selftest() -> void:
 	## Ключ, поставленный в редакторе, сохраняется в skeleton.json черновика
 	await _anim_editor("ural_batyr")
@@ -1057,6 +1137,8 @@ func _autotest(creds: String) -> void:
 				"game": _open_game("res://scenes/inventory.tscn")
 				"anim": _open(_anim_editor.bind("ural_batyr"))
 				"animtest": await _anim_selftest()
+				"screens": await _with_draft(func(): _open(_screen_editor.bind("hub")))
+				"screentest": await _screen_selftest()
 				"players": _open(_show_players.bind(""))
 				"backups": _open(_show_backups)
 	if "--screenshot-after=" not in str(OS.get_cmdline_user_args()):

@@ -68,18 +68,11 @@ func _visible_items() -> Array:
 
 
 func _render() -> void:
-	if is_instance_valid(_root):
-		_root.get_parent().queue_free()
-	_root = Ui.screen(self)
-	var margin: MarginContainer = _root.get_parent()
-	margin.add_theme_constant_override("margin_top", 40)
-	margin.add_theme_constant_override("margin_bottom", 28)
+	_root = ScreenLayout.screen(self, "inventory", {"back": _back})
 	_root.add_theme_constant_override("separation", 10)
-	_root.add_child(Ui.label("Инвентарь", 40, "accent"))
 	if data.is_empty():
 		_root.add_child(Ui.label(_message, 24))
 		_root.add_child(Ui.button("Повторить", _load))
-		_root.add_child(Ui.button("На главный экран", _back))
 		return
 	var w: Dictionary = data["wallet"]
 	_root.add_child(Ui.label("Золото: %d · Руда: %d · Осколки наследия: %d\nПредметов: %d из %d" % [
@@ -129,11 +122,6 @@ func _render() -> void:
 	bulk.add_theme_font_size_override("font_size", 22)
 	bulk.clip_text = true
 	row.add_child(bulk)
-	var back := Ui.button("На главный экран", _back)
-	back.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	back.add_theme_font_size_override("font_size", 22)
-	back.clip_text = true
-	row.add_child(back)
 	_root.add_child(row)
 
 

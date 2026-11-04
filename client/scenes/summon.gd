@@ -24,18 +24,11 @@ func _load() -> void:
 
 
 func _render() -> void:
-	if is_instance_valid(_root):
-		_root.get_parent().queue_free()
-	_root = Ui.screen(self)
-	var margin: MarginContainer = _root.get_parent()
-	margin.add_theme_constant_override("margin_top", 40)
-	margin.add_theme_constant_override("margin_bottom", 28)
+	_root = ScreenLayout.screen(self, "summon", {"back": _back})
 	_root.add_theme_constant_override("separation", 10)
-	_root.add_child(Ui.label("Призыв героев", 40, "accent"))
 	if data.is_empty():
 		_root.add_child(Ui.label(_message, 24))
 		_root.add_child(Ui.button("Повторить", _load))
-		_root.add_child(Ui.button("На главный экран", _back))
 		return
 	_root.add_child(Ui.label(Ui.wallet_text(data["wallet"]), 20))
 	var banners: Array = data["banners"]
@@ -84,15 +77,6 @@ func _render() -> void:
 	scroll.add_child(grid)
 	for r in results:
 		grid.add_child(_result_card(r))
-	var nav := HBoxContainer.new()
-	nav.add_theme_constant_override("separation", 14)
-	var to_heroes := Ui.button("К героям", func(): get_tree().change_scene_to_file("res://scenes/heroes.tscn"))
-	to_heroes.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	nav.add_child(to_heroes)
-	var back := Ui.button("На главный экран", _back)
-	back.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	nav.add_child(back)
-	_root.add_child(nav)
 
 
 const TIER_COLORS := {"rare": "#5AA9E6", "elite": "#B06CE0", "legendary": "#F2B544"}

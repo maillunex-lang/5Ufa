@@ -22,18 +22,20 @@ var owned_info: Dictionary = {}   # id героя -> лучший экземпл
 func _ready() -> void:
 	var settings: Variant = Content.load_json("config/game_settings.json")
 	Ui.apply_settings(settings)
-	var col := Ui.screen(self)
+	var go_back := func(): get_tree().change_scene_to_file("res://scenes/campaign.tscn" if get_tree().has_meta("campaign_stage") else "res://scenes/main.tscn")
+	var col := ScreenLayout.screen(self, "team_select", {"back": go_back})
 	col.add_theme_constant_override("separation", 10)
-	var margin: MarginContainer = col.get_parent()
-	margin.add_theme_constant_override("margin_top", 40)
-	margin.add_theme_constant_override("margin_bottom", 28)
 	_load_data()
 	await _load_owned()
 	var heading := "Тестовый бой"
 	if get_tree().has_meta("campaign_stage"):
 		var stage_number: int = int(get_tree().get_meta("campaign_stage"))
 		heading = "Кампания — этап %d-%d" % [int((stage_number - 1) / 5) + 1, (stage_number - 1) % 5 + 1]
-	col.add_child(Ui.label(heading, 40, "accent"))
+	var title_node: Node = get_node_or_null("Layout")
+	if title_node:
+		for c in title_node.get_children():
+			if c is Label and c.text == "{heading}":
+				c.text = heading
 	col.add_child(Ui.label("Выберите до 5 героев. Нажмите на место в отряде, чтобы убрать.", 20))
 
 	col.add_child(_row_title("Передний ряд"))
@@ -84,9 +86,6 @@ func _ready() -> void:
 	col.add_child(_status)
 	var buttons := HBoxContainer.new()
 	buttons.add_theme_constant_override("separation", 16)
-	var back := Ui.button("Назад", func(): get_tree().change_scene_to_file("res://scenes/campaign.tscn" if get_tree().has_meta("campaign_stage") else "res://scenes/main.tscn"))
-	back.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	buttons.add_child(back)
 	_fight = Ui.button("В бой!", _start_battle)
 	_fight.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	buttons.add_child(_fight)

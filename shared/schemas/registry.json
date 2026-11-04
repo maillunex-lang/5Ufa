@@ -2,6 +2,10 @@
   "description": "Какая схема проверяет какой файл контента. Маски путей относительно корня контента. Первое совпадение побеждает. JSON-файлы без совпадения проверяются только на корректность JSON.",
   "content_files": [
     {
+      "pattern": "ui/screens/*.json",
+      "schema": "screen_layout.schema.json"
+    },
+    {
       "pattern": "config/equipment.json",
       "schema": "equipment.schema.json"
     },

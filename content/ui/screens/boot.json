@@ -1,0 +1,93 @@
+{
+ "screen": "boot",
+ "title": "Загрузка",
+ "background": {
+  "color": "background"
+ },
+ "elements": [
+  {
+   "id": "logo",
+   "type": "label",
+   "x": 0,
+   "y": 360,
+   "w": 720,
+   "h": 80,
+   "text": "{game_name}",
+   "size": 56,
+   "color": "accent",
+   "anchor": "center"
+  },
+  {
+   "id": "subtitle",
+   "type": "label",
+   "x": 0,
+   "y": 446,
+   "w": 720,
+   "h": 50,
+   "text": "Легенды Урала оживают…",
+   "size": 28,
+   "anchor": "center"
+  },
+  {
+   "id": "status",
+   "type": "slot",
+   "widget": "status",
+   "x": 48,
+   "y": 760,
+   "w": 624,
+   "h": 130,
+   "anchor": "center"
+  },
+  {
+   "id": "bar",
+   "type": "slot",
+   "widget": "bar",
+   "x": 48,
+   "y": 900,
+   "w": 624,
+   "h": 44,
+   "anchor": "center"
+  },
+  {
+   "id": "size",
+   "type": "slot",
+   "widget": "size",
+   "x": 48,
+   "y": 956,
+   "w": 624,
+   "h": 40,
+   "anchor": "center"
+  },
+  {
+   "id": "retry",
+   "type": "slot",
+   "widget": "retry",
+   "x": 48,
+   "y": 1010,
+   "w": 624,
+   "h": 96,
+   "anchor": "center"
+  },
+  {
+   "id": "later",
+   "type": "slot",
+   "widget": "later",
+   "x": 48,
+   "y": 1114,
+   "w": 624,
+   "h": 80,
+   "anchor": "center"
+  },
+  {
+   "id": "version",
+   "type": "label",
+   "x": 0,
+   "y": 1210,
+   "w": 720,
+   "h": 40,
+   "text": "Версия {version}",
+   "size": 22,
+   "anchor": "bottom"
+  }
+ ]
+}

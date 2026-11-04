@@ -1,0 +1,292 @@
+{
+ "screen": "hub",
+ "title": "Главный экран",
+ "background": {
+  "color": "background"
+ },
+ "elements": [
+  {
+   "id": "city_map",
+   "type": "slot",
+   "widget": "city",
+   "x": 0,
+   "y": 0,
+   "w": 720,
+   "h": 1280,
+   "note": "Город: фон и здания (здания двигаются в «Главный экран: двигать здания»)",
+   "anchor": "stretch"
+  },
+  {
+   "id": "shade",
+   "type": "panel",
+   "x": 0,
+   "y": 0,
+   "w": 720,
+   "h": 210,
+   "color": "#0A0819E6",
+   "gradient": "down",
+   "anchor": "top"
+  },
+  {
+   "id": "avatar",
+   "type": "slot",
+   "widget": "avatar",
+   "x": 14,
+   "y": 30,
+   "w": 128,
+   "h": 128,
+   "anchor": "top"
+  },
+  {
+   "id": "player_name",
+   "type": "slot",
+   "widget": "player_name",
+   "x": 156,
+   "y": 30,
+   "w": 168,
+   "h": 36,
+   "anchor": "top"
+  },
+  {
+   "id": "stage",
+   "type": "slot",
+   "widget": "stage",
+   "x": 156,
+   "y": 66,
+   "w": 170,
+   "h": 48,
+   "anchor": "top"
+  },
+  {
+   "id": "power",
+   "type": "slot",
+   "widget": "power",
+   "x": 148,
+   "y": 118,
+   "w": 170,
+   "h": 46,
+   "anchor": "top"
+  },
+  {
+   "id": "gold",
+   "type": "slot",
+   "widget": "gold",
+   "x": 330,
+   "y": 30,
+   "w": 180,
+   "h": 52,
+   "anchor": "top"
+  },
+  {
+   "id": "crystals",
+   "type": "slot",
+   "widget": "crystals",
+   "x": 526,
+   "y": 30,
+   "w": 180,
+   "h": 52,
+   "anchor": "top"
+  },
+  {
+   "id": "settings",
+   "type": "button",
+   "style": "icon",
+   "icon": "ui/hub/icon_settings.png",
+   "text": "",
+   "x": 600,
+   "y": 100,
+   "w": 84,
+   "h": 84,
+   "action": {
+    "scene": "more"
+   },
+   "anchor": "top"
+  },
+  {
+   "id": "mail",
+   "type": "button",
+   "style": "icon",
+   "icon": "ui/hub/icon_mail.png",
+   "text": "",
+   "x": 496,
+   "y": 100,
+   "w": 84,
+   "h": 84,
+   "action": {
+    "soon": "Почта появится позже."
+   },
+   "anchor": "top"
+  },
+  {
+   "id": "events",
+   "type": "button",
+   "style": "tile",
+   "icon": "ui/hub/icon_events.png",
+   "text": "События",
+   "x": 8,
+   "y": 214,
+   "w": 108,
+   "h": 108,
+   "action": {
+    "soon": "События появятся позже."
+   },
+   "anchor": "top"
+  },
+  {
+   "id": "tasks",
+   "type": "button",
+   "style": "tile",
+   "icon": "ui/hub/icon_tasks.png",
+   "text": "Задания",
+   "x": 8,
+   "y": 330,
+   "w": 108,
+   "h": 108,
+   "action": {
+    "soon": "Ежедневные задания появятся на этапе 7."
+   },
+   "anchor": "top"
+  },
+  {
+   "id": "rewards",
+   "type": "button",
+   "style": "tile",
+   "icon": "ui/hub/icon_rewards.png",
+   "text": "Награды",
+   "x": 8,
+   "y": 446,
+   "w": 108,
+   "h": 108,
+   "action": {
+    "scene": "campaign"
+   },
+   "badge": "campaign",
+   "anchor": "top"
+  },
+  {
+   "id": "battle_pass",
+   "type": "button",
+   "style": "tile",
+   "icon": "ui/hub/icon_battle_pass.png",
+   "text": "Боевой\nпропуск",
+   "x": 8,
+   "y": 562,
+   "w": 108,
+   "h": 108,
+   "action": {
+    "soon": "Боевой пропуск появится на этапе 9."
+   },
+   "anchor": "top"
+  },
+  {
+   "id": "daily",
+   "type": "button",
+   "style": "tile",
+   "icon": "ui/hub/icon_daily.png",
+   "text": "Ежедневный\nвход",
+   "x": 8,
+   "y": 678,
+   "w": 108,
+   "h": 108,
+   "action": {
+    "soon": "Награды за вход появятся позже."
+   },
+   "anchor": "top"
+  },
+  {
+   "id": "nav_bg",
+   "type": "panel",
+   "x": 6,
+   "y": 1134,
+   "w": 708,
+   "h": 140,
+   "color": "#171229F5",
+   "border": "#C4923A",
+   "border_width": 3,
+   "radius": 26,
+   "anchor": "bottom"
+  },
+  {
+   "id": "nav_heroes",
+   "type": "button",
+   "style": "nav",
+   "icon": "ui/hub/icon_heroes.png",
+   "text": "Герои",
+   "x": 10,
+   "y": 1138,
+   "w": 134,
+   "h": 132,
+   "size": 22,
+   "action": {
+    "scene": "heroes"
+   },
+   "badge": "heroes",
+   "anchor": "bottom"
+  },
+  {
+   "id": "inventory",
+   "type": "button",
+   "style": "nav",
+   "icon": "ui/hub/icon_inventory.png",
+   "text": "Инвентарь",
+   "x": 152,
+   "y": 1138,
+   "w": 134,
+   "h": 132,
+   "size": 22,
+   "action": {
+    "scene": "inventory"
+   },
+   "anchor": "bottom"
+  },
+  {
+   "id": "city",
+   "type": "button",
+   "style": "nav_big",
+   "icon": "ui/hub/icon_city.png",
+   "text": "Город",
+   "x": 293,
+   "y": 1096,
+   "w": 134,
+   "h": 174,
+   "size": 24,
+   "action": {
+    "scene": "hub"
+   },
+   "anchor": "bottom"
+  },
+  {
+   "id": "quests",
+   "type": "button",
+   "style": "nav",
+   "icon": "ui/hub/icon_quests.png",
+   "text": "Квесты",
+   "x": 435,
+   "y": 1138,
+   "w": 134,
+   "h": 132,
+   "size": 22,
+   "action": {
+    "soon": "Квесты появятся на этапе 7."
+   },
+   "anchor": "bottom"
+  },
+  {
+   "id": "world",
+   "type": "button",
+   "style": "nav",
+   "icon": "ui/hub/icon_world.png",
+   "text": "Мир",
+   "x": 576,
+   "y": 1138,
+   "w": 134,
+   "h": 132,
+   "size": 22,
+   "action": {
+    "scene": "campaign"
+   },
+   "badge": "campaign",
+   "anchor": "bottom"
+  }
+ ]
+}

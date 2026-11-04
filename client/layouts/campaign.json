@@ -1,0 +1,42 @@
+{
+ "screen": "campaign",
+ "title": "Кампания",
+ "background": {
+  "color": "background"
+ },
+ "elements": [
+  {
+   "id": "title",
+   "type": "label",
+   "x": 0,
+   "y": 36,
+   "w": 720,
+   "h": 56,
+   "text": "Кампания",
+   "size": 40,
+   "color": "accent"
+  },
+  {
+   "id": "content",
+   "type": "slot",
+   "widget": "content",
+   "x": 48,
+   "y": 100,
+   "w": 624,
+   "h": 1070,
+   "note": "Живое содержимое экрана (списки, карточки, кнопки действий)"
+  },
+  {
+   "id": "back",
+   "type": "button",
+   "x": 48,
+   "y": 1180,
+   "w": 624,
+   "h": 84,
+   "text": "На главный экран",
+   "action": {
+    "call": "back"
+   }
+  }
+ ]
+}

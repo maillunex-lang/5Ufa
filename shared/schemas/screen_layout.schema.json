@@ -1,0 +1,224 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.ufagame.local/screen_layout.schema.json",
+  "title": "Раскладка экрана (ui/screens/<экран>.json): фон и элементы на холсте 720×1280",
+  "type": "object",
+  "required": [
+    "elements"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "action": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "maxProperties": 1,
+      "properties": {
+        "scene": {
+          "enum": [
+            "hub",
+            "campaign",
+            "heroes",
+            "summon",
+            "inventory",
+            "test_battle",
+            "more"
+          ],
+          "description": "Открыть экран"
+        },
+        "soon": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Показать сообщение (раздел ещё не готов)"
+        },
+        "call": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "description": "Действие экрана, например back"
+        }
+      }
+    },
+    "color": {
+      "type": "string",
+      "description": "#RRGGBB, #RRGGBBAA или имя цвета темы: text, accent, primary, background"
+    }
+  },
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "screen": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string",
+      "description": "Название экрана в конструкторе"
+    },
+    "background": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "color": {
+          "$ref": "#/$defs/color"
+        },
+        "image": {
+          "type": "string"
+        },
+        "alpha": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      }
+    },
+    "elements": {
+      "type": "array",
+      "description": "Порядок = слои: первый — самый нижний",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "type",
+          "x",
+          "y",
+          "w",
+          "h"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,63}$"
+          },
+          "type": {
+            "enum": [
+              "label",
+              "image",
+              "button",
+              "panel",
+              "slot"
+            ]
+          },
+          "x": {
+            "type": "number"
+          },
+          "y": {
+            "type": "number"
+          },
+          "w": {
+            "type": "number",
+            "minimum": 1
+          },
+          "h": {
+            "type": "number",
+            "minimum": 1
+          },
+          "visible": {
+            "type": "boolean"
+          },
+          "text": {
+            "type": "string",
+            "description": "{game_name} — название игры, {version} — версия"
+          },
+          "size": {
+            "type": "integer",
+            "minimum": 6,
+            "maximum": 160,
+            "description": "Размер шрифта"
+          },
+          "color": {
+            "$ref": "#/$defs/color"
+          },
+          "align": {
+            "enum": [
+              "left",
+              "center",
+              "right"
+            ]
+          },
+          "outline": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 30
+          },
+          "image": {
+            "type": "string"
+          },
+          "icon": {
+            "type": "string"
+          },
+          "fit": {
+            "enum": [
+              "contain",
+              "cover",
+              "stretch"
+            ]
+          },
+          "alpha": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "style": {
+            "enum": [
+              "default",
+              "tile",
+              "icon",
+              "nav",
+              "nav_big"
+            ]
+          },
+          "action": {
+            "$ref": "#/$defs/action"
+          },
+          "badge": {
+            "enum": [
+              "heroes",
+              "summon",
+              "campaign"
+            ]
+          },
+          "border": {
+            "$ref": "#/$defs/color"
+          },
+          "border_width": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 20
+          },
+          "radius": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 200
+          },
+          "gradient": {
+            "enum": [
+              "",
+              "down"
+            ]
+          },
+          "widget": {
+            "type": "string",
+            "description": "Место для живого содержимого экрана"
+          },
+          "clip": {
+            "type": "boolean"
+          },
+          "note": {
+            "type": "string"
+          },
+          "anchor": {
+            "enum": [
+              "auto",
+              "top",
+              "center",
+              "bottom",
+              "stretch"
+            ],
+            "description": "Привязка на вытянутых экранах: auto — сама; top — к верху; center — по центру; bottom — к низу; stretch — растянуть по высоте"
+          }
+        }
+      }
+    }
+  }
+}

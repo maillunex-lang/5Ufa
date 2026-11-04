@@ -1,0 +1,58 @@
+{
+ "screen": "battle",
+ "title": "Бой",
+ "background": {
+  "color": "background",
+  "image": "campaign/chapter_1/background.png",
+  "alpha": 0.55
+ },
+ "elements": [
+  {
+   "id": "ground",
+   "type": "panel",
+   "x": 0,
+   "y": 350,
+   "w": 720,
+   "h": 620,
+   "color": "#1A291F8C"
+  },
+  {
+   "id": "title",
+   "type": "slot",
+   "widget": "title",
+   "x": 0,
+   "y": 40,
+   "w": 720,
+   "h": 40
+  },
+  {
+   "id": "timer",
+   "type": "slot",
+   "widget": "timer",
+   "x": 0,
+   "y": 84,
+   "w": 720,
+   "h": 40
+  },
+  {
+   "id": "portraits",
+   "type": "slot",
+   "widget": "portraits",
+   "x": 20,
+   "y": 960,
+   "w": 680,
+   "h": 140,
+   "note": "Портреты своих героев: нажатие — ультимейт"
+  },
+  {
+   "id": "controls",
+   "type": "slot",
+   "widget": "controls",
+   "x": 20,
+   "y": 1130,
+   "w": 680,
+   "h": 100,
+   "note": "Кнопки «Авто», скорость, «Пропустить»"
+  }
+ ]
+}

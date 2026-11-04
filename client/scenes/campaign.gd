@@ -26,14 +26,10 @@ func _load() -> void:
 	_render()
 
 func _render() -> void:
-	if is_instance_valid(_column):
-		_column.get_parent().queue_free()
-	_column = Ui.screen(self)
-	_column.add_child(Ui.label("Кампания", 40, "accent"))
+	_column = ScreenLayout.screen(self, "campaign", {"back": _back})
 	if data.is_empty():
 		_column.add_child(Ui.label(_message, 24))
 		_column.add_child(Ui.button("Повторить", _load))
-		_column.add_child(Ui.button("Назад", _back))
 		return
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -88,7 +84,6 @@ func _render() -> void:
 		body.add_child(Ui.button("Включить уведомления", AfkNotifications.request_permission))
 	if _message != "":
 		body.add_child(Ui.label(_message, 23))
-	_column.add_child(Ui.button("На главный экран", _back))
 
 func _claim(path: String) -> void:
 	if _busy:

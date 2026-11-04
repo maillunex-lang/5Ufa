@@ -3,9 +3,7 @@ extends Control
 ## боковые действия слева и нижняя навигация. Расположение, подписи, картинки и действия — в контенте
 ## ui/hub.json (меняются без обновления APK). Аккаунт, проверка файлов и версия — в «Настройках».
 
-const SCENES := {"campaign": "res://scenes/campaign.tscn", "heroes": "res://scenes/heroes.tscn",
-		"summon": "res://scenes/summon.tscn", "test_battle": "res://scenes/team_select.tscn",
-		"inventory": "res://scenes/inventory.tscn"}
+const SCENES := ScreenLayout.SCENES
 const OUTLINE := Color(0.06, 0.03, 0.1)
 
 var hub: Dictionary = {}
@@ -22,6 +20,7 @@ var _stage_label: Label
 var _stage_bar: ProgressBar
 var _avatar: TextureRect
 var _badges: Dictionary = {}     # вид точки -> красные точки
+var _city_scroll: ScrollContainer
 
 
 func _ready() -> void:
@@ -31,10 +30,7 @@ func _ready() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	var loaded: Variant = Content.load_json("ui/hub.json")
 	hub = loaded if loaded is Dictionary else {}
-	_build_city(settings)
-	_build_top_bar()
-	_build_side_menu()
-	_build_bottom()
+	_build_layout(settings)
 	# Служебные элементы (видны в «Настройках»)
 	_player_label = Ui.label("", 26)
 	_bg_label = Ui.label("", 22)
@@ -127,17 +123,53 @@ func _set_badge(kind: String, on: bool) -> void:
 
 # --- Город -------------------------------------------------------------------------------
 
-func _build_city(settings: Variant) -> void:
+## Раскладка экрана — ui/screens/hub.json (конструктор экранов в админке); город и здания — ui/hub.json
+func _build_layout(settings: Variant) -> void:
+	var widgets := {
+		"city": func(box: Control, _el: Dictionary): _build_city(settings, box),
+		"avatar": _w_avatar, "player_name": _w_name, "stage": _w_stage,
+		"power": func(box: Control, _el: Dictionary): _power_label = _pill_box(box, "ui/hub/icon_power.png", false),
+		"gold": func(box: Control, _el: Dictionary): _gold_label = _pill_box(box, "ui/hub/icon_coin.png", true),
+		"crystals": func(box: Control, _el: Dictionary): _crystal_label = _pill_box(box, "ui/hub/icon_crystal.png", true),
+	}
+	var built := ScreenLayout.build(ScreenLayout.load_layout("hub"), {"widgets": widgets, "settings": settings,
+			"badges": _add_badge, "on_action": func(a: Dictionary): _do_action({"action": a})})
+	built["root"].name = "Layout"
+	add_child(built["root"])
+	if _gold_label == null:  # в раскладке убрали плашку — подписи всё равно нужны коду
+		_gold_label = Label.new()
+	if _crystal_label == null:
+		_crystal_label = Label.new()
+	if _power_label == null:
+		_power_label = Label.new()
+	if _avatar == null:
+		_avatar = TextureRect.new()
+	if _stage_label == null:
+		_stage_label = Label.new()
+		_stage_bar = ProgressBar.new()
+
+
+func _build_city(settings: Variant, parent: Control) -> void:
 	var scroll := ScrollContainer.new()
 	scroll.set_anchors_preset(Control.PRESET_FULL_RECT)
+	scroll.size = parent.size
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
 	scroll.name = "City"
-	add_child(scroll)
+	parent.add_child(scroll)
+	_city_scroll = scroll
 	var city := Control.new()
 	var h: float = float(hub.get("background_height", 1400))
 	city.custom_minimum_size = Vector2(720, h)
-	scroll.add_child(city)
+	# Вытянутый экран выше фона — город целиком увеличивается (без полос), по ширине — по центру
+	var k := maxf(1.0, maxf(parent.size.y / h, parent.size.x / 720.0))
+	var holder := Control.new()
+	holder.custom_minimum_size = Vector2(parent.size.x, h * k)
+	holder.clip_contents = true
+	scroll.add_child(holder)
+	city.scale = Vector2(k, k)
+	city.position.x = (parent.size.x - 720.0 * k) / 2.0
+	holder.add_child(city)
 	var bg := _icon(str(hub.get("background", "")), 0)
 	bg.size = Vector2(720, h)
 	bg.stretch_mode = TextureRect.STRETCH_SCALE
@@ -190,84 +222,63 @@ func _add_building(city: Control, b: Dictionary) -> void:
 
 # --- Верхняя панель ----------------------------------------------------------------------
 
-func _build_top_bar() -> void:
-	var shade := TextureRect.new()
-	var grad := Gradient.new()
-	grad.set_color(0, Color(0.04, 0.03, 0.1, 0.9))
-	grad.set_color(1, Color(0.04, 0.03, 0.1, 0.0))
-	var gt := GradientTexture2D.new()
-	gt.gradient = grad
-	gt.fill_from = Vector2(0, 0)
-	gt.fill_to = Vector2(0, 1)
-	shade.texture = gt
-	shade.position = Vector2.ZERO
-	shade.size = Vector2(720, 210)
-	shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(shade)
+# --- Верхняя панель (места в раскладке) -----------------------------------------------------
 
+func _w_avatar(box: Control, _el: Dictionary) -> void:
 	# Аватар: круг с золотым кольцом (нажатие — настройки и аккаунт)
+	var r := int(minf(box.size.x, box.size.y) / 2.0)
 	var av := Panel.new()
-	av.add_theme_stylebox_override("panel", _style(Ui.colors["primary"], Color.TRANSPARENT, 0, 64))
+	av.add_theme_stylebox_override("panel", _style(Ui.colors["primary"], Color.TRANSPARENT, 0, r))
 	av.clip_children = CanvasItem.CLIP_CHILDREN_ONLY
-	av.position = Vector2(14, 30)
-	av.size = Vector2(128, 128)
-	add_child(av)
+	av.size = box.size
+	box.add_child(av)
 	_avatar = _icon("", 0)
-	_avatar.size = Vector2(128, 128)
+	_avatar.size = box.size
 	_avatar.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	av.add_child(_avatar)
 	var ring := Button.new()
-	var ring_st := _style(Color.TRANSPARENT, Ui.colors["accent"], 5, 64)
+	var ring_st := _style(Color.TRANSPARENT, Ui.colors["accent"], 5, r)
 	ring_st.draw_center = false
 	for state in ["normal", "hover", "pressed", "focus"]:
 		ring.add_theme_stylebox_override(state, ring_st)
-	ring.position = av.position
-	ring.size = av.size
+	ring.size = box.size
 	ring.pressed.connect(_open_more)
-	add_child(ring)
+	box.add_child(ring)
 
+
+func _w_name(box: Control, _el: Dictionary) -> void:
 	_name_label = _outlined(str(Api.player.get("display_name", "Игрок")), 28)
 	_name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	_name_label.position = Vector2(156, 30)
-	_name_label.size = Vector2(168, 36)
+	_name_label.size = box.size
 	_name_label.clip_text = true
 	_name_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	add_child(_name_label)
+	box.add_child(_name_label)
+
+
+func _w_stage(box: Control, _el: Dictionary) -> void:
 	_stage_label = _outlined("Этап —", 20, "accent", 4)
 	_stage_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	_stage_label.position = Vector2(156, 66)
-	add_child(_stage_label)
+	_stage_label.size = Vector2(box.size.x, box.size.y - 16)
+	box.add_child(_stage_label)
 	_stage_bar = ProgressBar.new()
 	_stage_bar.show_percentage = false
 	_stage_bar.max_value = 25
-	_stage_bar.position = Vector2(156, 96)
-	_stage_bar.size = Vector2(150, 12)
+	_stage_bar.position = Vector2(0, box.size.y - 18)
+	_stage_bar.size = Vector2(box.size.x - 20, 12)
 	_stage_bar.add_theme_stylebox_override("background", _style(Color(0, 0, 0, 0.6), Color.TRANSPARENT, 0, 6))
 	_stage_bar.add_theme_stylebox_override("fill", _style(Ui.colors["accent"], Color.TRANSPARENT, 0, 6))
-	add_child(_stage_bar)
-
-	var power := _pill_box(Vector2(148, 118), Vector2(170, 46), "ui/hub/icon_power.png", false)
-	_power_label = power
-	_gold_label = _pill_box(Vector2(330, 30), Vector2(180, 52), "ui/hub/icon_coin.png", true)
-	_crystal_label = _pill_box(Vector2(526, 30), Vector2(180, 52), "ui/hub/icon_crystal.png", true)
-
-	var x := 600.0
-	var items: Array = hub.get("top_buttons", [])
-	for i in range(items.size() - 1, -1, -1):
-		var btn := _round_button(items[i], 84)
-		btn.position = Vector2(x, 100)
-		add_child(btn)
-		x -= 104
+	box.add_child(_stage_bar)
 
 
-func _pill_box(pos: Vector2, sz: Vector2, icon_path: String, plus: bool) -> Label:
+func _pill_box(box: Control, icon_path: String, plus: bool) -> Label:
+	var sz := box.size
 	var pill := PanelContainer.new()
 	var st := _style(Color(0.05, 0.04, 0.1, 0.82), Ui.colors["accent"].darkened(0.35), 2, int(sz.y / 2))
 	st.content_margin_right = 6
 	pill.add_theme_stylebox_override("panel", st)
-	pill.position = pos
 	pill.custom_minimum_size = sz
-	add_child(pill)
+	pill.size = sz
+	box.add_child(pill)
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 4)
 	pill.add_child(row)
@@ -285,19 +296,6 @@ func _pill_box(pos: Vector2, sz: Vector2, icon_path: String, plus: bool) -> Labe
 		p.pressed.connect(func(): _show_message(str(hub.get("shop_soon", "Магазин появится на этапе 9."))))
 		row.add_child(p)
 	return l
-
-
-func _round_button(item: Dictionary, sz: float) -> Control:
-	# Рамка нарисована в самой иконке
-	var btn := TextureButton.new()
-	btn.texture_normal = Content.load_texture(str(item["icon"]))
-	btn.ignore_texture_size = true
-	btn.stretch_mode = TextureButton.STRETCH_KEEP_ASPECT_CENTERED
-	btn.size = Vector2(sz, sz)
-	btn.pressed.connect(_do_action.bind(item))
-	if item.has("badge"):
-		_add_badge(str(item["badge"]), btn, Vector2(sz - 24, -4))
-	return btn
 
 
 static func short_number(n: int) -> String:
@@ -342,74 +340,6 @@ func _refresh_resources() -> void:
 		_stage_bar.value = cleared
 
 
-# --- Боковые действия и нижняя навигация ---------------------------------------------------
-
-func _build_side_menu() -> void:
-	var col := VBoxContainer.new()
-	col.position = Vector2(8, 214)
-	col.add_theme_constant_override("separation", 8)
-	add_child(col)
-	for item in hub.get("side_menu", []):
-		var tile := Button.new()
-		var st := _style(Color(0.08, 0.06, 0.16, 0.85), Ui.colors["accent"].darkened(0.3), 2, 18)
-		for state in ["normal", "hover", "pressed", "focus"]:
-			tile.add_theme_stylebox_override(state, st)
-		tile.custom_minimum_size = Vector2(108, 108)
-		tile.pressed.connect(_do_action.bind(item))
-		col.add_child(tile)
-		var ic := _icon(str(item["icon"]), 66)
-		ic.position = Vector2(21, 2)
-		ic.size = Vector2(66, 66)
-		tile.add_child(ic)
-		var l := _outlined(str(item["title"]), 16, "text", 4)
-		l.position = Vector2(0, 62)
-		l.size = Vector2(108, 44)
-		l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		tile.add_child(l)
-		if item.has("badge"):
-			_add_badge(str(item["badge"]), tile, Vector2(84, -6))
-
-
-func _build_bottom() -> void:
-	var nav := Panel.new()
-	var nst := _style(Color(0.09, 0.07, 0.16, 0.96), Ui.colors["accent"].darkened(0.2), 3, 26)
-	nav.add_theme_stylebox_override("panel", nst)
-	nav.position = Vector2(6, 1134)
-	nav.size = Vector2(708, 140)
-	nav.name = "Nav"
-	add_child(nav)
-	var items: Array = hub.get("bottom_nav", [])
-	var cell_w := 708.0 / maxf(1.0, items.size())
-	for i in range(items.size()):
-		var item: Dictionary = items[i]
-		var big := bool(item.get("big", false))
-		var cell := Button.new()
-		var st: StyleBoxFlat
-		if big:
-			st = _style(Ui.colors["primary"], Ui.colors["accent"], 4, 24)
-			st.shadow_color = Color(Ui.colors["accent"], 0.55)
-			st.shadow_size = 14
-		else:
-			st = _style(Color.TRANSPARENT, Color.TRANSPARENT, 0, 20)
-		for state in ["normal", "hover", "pressed", "focus"]:
-			cell.add_theme_stylebox_override(state, st)
-		cell.position = Vector2(6 + i * cell_w + 4, 1096 if big else 1138)
-		cell.size = Vector2(cell_w - 8, 174 if big else 132)
-		cell.pressed.connect(_do_action.bind(item))
-		add_child(cell)
-		var isz := 104.0 if big else 76.0
-		var ic := _icon(str(item["icon"]), isz)
-		ic.size = Vector2(isz, isz)
-		ic.position = Vector2((cell.size.x - isz) / 2.0, 10 if big else 8)
-		cell.add_child(ic)
-		var l := _outlined(str(item["title"]), 24 if big else 22, "accent" if big else "text", 5)
-		l.position = Vector2(0, isz + (14 if big else 10))
-		l.size = Vector2(cell.size.x, 34)
-		cell.add_child(l)
-		if item.has("badge"):
-			_add_badge(str(item["badge"]), cell, Vector2(cell.size.x - 38, 2))
-
-
 # --- Действия ------------------------------------------------------------------------
 
 func _do_action(item: Dictionary) -> void:
@@ -417,7 +347,8 @@ func _do_action(item: Dictionary) -> void:
 	if action.has("scene"):
 		var key := str(action["scene"])
 		if key == "hub":
-			get_node("City").scroll_vertical = 0
+			if is_instance_valid(_city_scroll):
+				_city_scroll.scroll_vertical = 0
 			return
 		if key == "more":
 			_open_more()

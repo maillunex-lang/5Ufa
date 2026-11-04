@@ -12,28 +12,26 @@ var _updater := Updater.new()
 
 
 func _ready() -> void:
-	var col := Ui.screen(self)
-	col.add_child(Ui.spacer())
-	col.add_child(Ui.label("[НАЗВАНИЕ]", 56, "accent"))
-	col.add_child(Ui.label("Легенды Урала оживают…", 28))
-	col.add_child(Ui.spacer())
+	# Раскладка — ui/screens/boot.json (при первом запуске — встроенная, контент ещё не скачан)
 	_status = Ui.label("Подключение к серверу…", 30)
-	col.add_child(_status)
 	_bar = ProgressBar.new()
-	_bar.custom_minimum_size = Vector2(0, 44)
 	_bar.max_value = 1.0
 	_bar.step = 0.0001
 	_bar.show_percentage = false
-	col.add_child(_bar)
 	_size_label = Ui.label("", 26)
-	col.add_child(_size_label)
 	_retry = Ui.button("Повторить", _run)
 	_retry.visible = false
-	col.add_child(_retry)
 	_later = Ui.button("Позже", _continue_without_update)
 	_later.visible = false
-	col.add_child(_later)
-	col.add_child(Ui.label("Версия %s" % Config.client_version, 22))
+	var put := func(node: Control) -> Callable:
+		return func(box: Control, _el: Dictionary):
+			node.set_anchors_preset(Control.PRESET_FULL_RECT)
+			box.add_child(node)
+	ScreenLayout.screen(self, "boot", {}, {"status": put.call(_status), "bar": put.call(_bar),
+			"size": put.call(_size_label), "retry": put.call(_retry), "later": put.call(_later)})
+	for n in [_status, _bar, _size_label, _retry, _later]:
+		if n.get_parent() == null:  # в раскладке нет места — кладём внизу
+			add_child(n)
 	Content.progress.connect(_on_progress)
 	_updater.progress.connect(_on_progress)
 	if get_tree().has_meta("do_update"):

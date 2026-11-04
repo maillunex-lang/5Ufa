@@ -8,6 +8,8 @@ const FIELD_TOP := 430.0
 const FIELD_H := 380.0
 const ULT_COLORS := [Color("#FFE27A"), Color("#FF9F5A")]
 
+var _slots: Dictionary = {}   # места HUD из раскладки экрана боя
+var _off := Vector2.ZERO      # сдвиг поля боя на вытянутых/широких экранах
 var log_data: Dictionary = {}
 var enemy_name := ""
 var tick_rate := 20
@@ -111,37 +113,37 @@ func _live_error(message: String) -> void:
 # --- Построение экрана ------------------------------------------------------------
 
 func _build_background() -> void:
-	var bg := ColorRect.new()
-	bg.color = Ui.colors["background"]
-	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_child(bg)
-	var tex := Content.load_texture("campaign/chapter_1/background.png")
-	if tex:
-		var tr := TextureRect.new()
-		tr.texture = tex
-		tr.set_anchors_preset(Control.PRESET_FULL_RECT)
-		tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		tr.stretch_mode = TextureRect.STRETCH_SCALE
-		tr.modulate = Color(1, 1, 1, 0.55)
-		add_child(tr)
-	var ground := ColorRect.new()
-	ground.color = Color(0.1, 0.16, 0.12, 0.55)
-	ground.position = Vector2(0, FIELD_TOP - 40)
-	ground.size = Vector2(720, FIELD_H + 120)
-	add_child(ground)
+	# Фон, «земля» и места HUD — ui/screens/battle.json (конструктор экранов в админке)
+	var built := ScreenLayout.build(ScreenLayout.load_layout("battle"), {"widgets": {}})
+	built["root"].name = "Layout"
+	built["root"].mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(built["root"])
+	_slots = {}
+	var view := ScreenLayout.view_size()
+	var ins := ScreenLayout.safe_insets(view)
+	_off = Vector2((view.x - ScreenLayout.W) / 2.0, (view.y - ScreenLayout.H) / 2.0 + (ins.x - ins.y) / 2.0)
+	for el in ScreenLayout.load_layout("battle").get("elements", []):
+		if str(el.get("type", "")) == "slot":
+			_slots[str(el.get("widget", el.get("id", "")))] = ScreenLayout.place(el, view, ins)
+
+
+func _slot(name: String, fallback: Rect2) -> Rect2:
+	return _slots.get(name, fallback)
 
 
 func _build_hud() -> void:
 	var top := Ui.label("Тестовый бой  ·  против: %s" % enemy_name, 26, "accent")
-	top.position = Vector2(0, 40)
-	top.size = Vector2(720, 40)
+	var r_title := _slot("title", Rect2(0, 40, 720, 40))
+	top.position = r_title.position
+	top.size = r_title.size
 	add_child(top)
 	_timer_label = Ui.label("1:30", 30)
-	_timer_label.position = Vector2(0, 84)
-	_timer_label.size = Vector2(720, 40)
+	var r_timer := _slot("timer", Rect2(0, 84, 720, 40))
+	_timer_label.position = r_timer.position
+	_timer_label.size = r_timer.size
 	add_child(_timer_label)
 	_banner = Ui.label("", 34, "accent")
-	_banner.position = Vector2(0, 240)
+	_banner.position = Vector2(_off.x, 240 + _off.y)
 	_banner.size = Vector2(720, 60)
 	_banner.add_theme_color_override("font_outline_color", Color(0.1, 0.05, 0.12))
 	_banner.add_theme_constant_override("outline_size", 8)
@@ -152,8 +154,9 @@ func _build_hud() -> void:
 
 	# Портреты своих героев с энергией (кнопки ультимейтов)
 	var row := HBoxContainer.new()
-	row.position = Vector2(20, 960)
-	row.size = Vector2(680, 140)
+	var r_port := _slot("portraits", Rect2(20, 960, 680, 140))
+	row.position = r_port.position
+	row.size = r_port.size
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_theme_constant_override("separation", 12)
 	add_child(row)
@@ -177,8 +180,9 @@ func _build_hud() -> void:
 		_portraits[int(u["uid"])] = {"bar": bar, "icon": icon}
 
 	var controls := HBoxContainer.new()
-	controls.position = Vector2(20, 1130)
-	controls.size = Vector2(680, 100)
+	var r_ctl := _slot("controls", Rect2(20, 1130, 680, 100))
+	controls.position = r_ctl.position
+	controls.size = r_ctl.size
 	controls.add_theme_constant_override("separation", 16)
 	add_child(controls)
 	_auto_btn = Ui.button("Авто: ВЫКЛ" if live else "Авто: ВКЛ", _toggle_auto)
@@ -195,7 +199,7 @@ func _build_hud() -> void:
 
 
 func _to_screen(x: float, lane: float) -> Vector2:
-	return Vector2(CENTER_X + x * PX_PER_UNIT, FIELD_TOP + lane * FIELD_H)
+	return Vector2(CENTER_X + _off.x + x * PX_PER_UNIT, FIELD_TOP + _off.y + lane * FIELD_H)
 
 
 func _sort_depth() -> void:
@@ -223,7 +227,7 @@ func _process(delta: float) -> void:
 	for v in units.values():
 		if v.vx != 0.0 and not v.dead:
 			v.x_units += v.vx * dt
-			v.position.x = CENTER_X + v.x_units * PX_PER_UNIT
+			v.position.x = CENTER_X + _off.x + v.x_units * PX_PER_UNIT
 	_update_projectiles(tick)
 	var left := maxf(0.0, float(log_data["max_ticks"]) / tick_rate - game_time)
 	_timer_label.text = "%d:%02d" % [int(left) / 60, int(left) % 60]
@@ -280,7 +284,7 @@ func _apply(e: Dictionary, instant: bool) -> void:
 		"stop":
 			u.x_units = float(e["x"])
 			u.vx = 0.0
-			u.position.x = CENTER_X + u.x_units * PX_PER_UNIT
+			u.position.x = CENTER_X + _off.x + u.x_units * PX_PER_UNIT
 			if not instant and u.rig.current == "walk":
 				u.rig.play("idle")
 		"attack":
@@ -413,7 +417,7 @@ func _skip() -> void:
 	projectiles.clear()
 	for v in units.values():
 		v.vx = 0
-		v.position.x = CENTER_X + v.x_units * PX_PER_UNIT
+		v.position.x = CENTER_X + _off.x + v.x_units * PX_PER_UNIT
 	game_time = float(log_data["result"]["ticks"]) / tick_rate
 	_finish()
 
@@ -430,11 +434,11 @@ func _finish() -> void:
 	add_child(layer)
 	var dim := ColorRect.new()
 	dim.color = Color(0, 0, 0, 0.6)
-	dim.size = Vector2(720, 1280)
+	dim.size = ScreenLayout.view_size()
 	layer.add_child(dim)
 	var panel := PanelContainer.new()
 	panel.theme = theme
-	panel.position = Vector2(60, 300)
+	panel.position = Vector2(60 + _off.x, 300 + _off.y)
 	panel.custom_minimum_size = Vector2(600, 0)
 	layer.add_child(panel)
 	var box := VBoxContainer.new()
