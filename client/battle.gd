@@ -288,7 +288,7 @@ func _spawn(u: Dictionary) -> void:
 		if a["kind"] == "main":
 			has_main = true
 	var rec := {
-		"node": node, "pivot": pivot, "anim": player, "anim_names": anim_names, "bar_fg": fg, "name": def.get("name", u["key"]),
+		"node": node, "pivot": pivot, "anim": player, "anim_names": anim_names, "anim_speed": vis.get("anim_speed", {}), "bar_fg": fg, "name": def.get("name", u["key"]),
 		"max_hp": int(u["hp"]), "hp": int(u["hp"]), "target": null, "speed": 0.0, "alive": true, "busy": 0.0,
 		"kind": _kind(def, u["key"]), "running": false, "vis": vis, "side": u["side"], "has_main": has_main, "id": u["id"],
 		"color": Color(0.3, 0.5, 0.9) if u["side"] == "a" else Color(0.85, 0.3, 0.3),
@@ -358,8 +358,9 @@ func _play(u: Dictionary, logical: String) -> float:
 	if n == "":
 		return 0.0
 	var p: AnimationPlayer = u["anim"]
-	p.play(n, 0.1)
-	return p.get_animation(n).length
+	var spd := float(u["anim_speed"].get(logical, 1.0))   # длинные анимации из других источников ускоряем данными
+	p.play(n, 0.1, spd)
+	return p.get_animation(n).length / spd
 
 
 func _is_idle(u: Dictionary) -> bool:
