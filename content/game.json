@@ -226,10 +226,31 @@
     }
    ],
    "visual": {
-    "model": "Rogue",
-    "scale": 1.0,
-    "_test": true,
-    "magic_color": "#5dffa0"
+    "model": "Priest",
+    "scale": 2.2,
+    "yaw": 0,
+    "y_offset": 0,
+    "anims": {
+     "idle": "Idle_11",
+     "run": "Running",
+     "attack_melee": "Attack",
+     "attack_melee_strong": "Attack",
+     "cast": "Charged_Spell_Cast",
+     "cast_strong": "Charged_Spell_Cast",
+     "hit": "Hit_Reaction",
+     "death": "Dead"
+    },
+    "anim_speed": {
+     "cast": 1.8,
+     "cast_strong": 1.5,
+     "attack_melee": 2.0,
+     "attack_melee_strong": 1.8,
+     "hit": 1.8,
+     "death": 1.2
+    },
+    "magic_color": "#5dffa0",
+    "source": "Meshy (проба), см. docs/licenses.md",
+    "_test": true
    }
   }
  ],

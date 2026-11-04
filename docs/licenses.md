@@ -2,7 +2,7 @@
 
 | Что | Источник | Лицензия | Где лежит |
 | --- | --- | --- | --- |
-| Модели героев: Knight, Barbarian, Mage, Rogue, Rogue_Hooded (с анимациями внутри файла) | KayKit Character Pack: Adventurers 1.0, Kay Lousberg, https://kaylousberg.itch.io/kaykit-adventurers (зеркало автора: https://github.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0) | CC0 (текст в `client/assets/models/LICENSE-KayKit-Adventurers.txt`) | `client/assets/models/` |
+| Модели героев: Knight, Barbarian, Mage, Rogue_Hooded (с анимациями внутри файла; Rogue из набора в игре больше не используется и убран из репозитория) | KayKit Character Pack: Adventurers 1.0, Kay Lousberg, https://kaylousberg.itch.io/kaykit-adventurers (зеркало автора: https://github.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0) | CC0 (текст в `client/assets/models/LICENSE-KayKit-Adventurers.txt`) | `client/assets/models/` |
 | Модели врагов: Skeleton_Warrior, Skeleton_Rogue, Skeleton_Mage | KayKit Character Pack: Skeletons 1.0, https://kaylousberg.itch.io/kaykit-skeletons (https://github.com/KayKit-Game-Assets/KayKit-Character-Pack-Skeletons-1.0) | CC0 (`LICENSE-KayKit-Skeletons.txt`) | `client/assets/models/` |
 
 Указание автора (не обязательное): Kay Lousberg, www.kaylousberg.com.
@@ -11,7 +11,7 @@
 | Временный рисованный фон боя «Wizard tower» | OpenGameArt, набор Oil painting landscapes, https://opengameart.org/content/oil-painting-landscapes | CC0 (указано на странице набора) | `client/assets/backgrounds/arena_wizardtower.png` |
 
 ## Соответствие моделей ролям (временное, утверждается владельцем)
-Танк: Knight · Боец: Barbarian · Стрелок: Rogue_Hooded · Маг: Mage · **Целитель: Rogue (в наборе нет модели жреца, нужен подбор или своя)**.
+Танк: Knight · Боец: Barbarian · Стрелок: Rogue_Hooded · Маг: Mage · Целитель: Priest (Meshy, сгенерирован 04.11.2026, см. ниже).
 Враги: боец: Skeleton_Warrior · стрелок: Skeleton_Rogue · маг: Skeleton_Mage · **босс: Skeleton_Warrior, увеличен (отдельной модели босса в наборах нет)**.
 
 ## Проверено при скачивании (04.11.2026)
@@ -25,4 +25,5 @@
 Запись экрана игры-образца (камера, расположение панелей, баннер умения) использована владельцем только как пример компоновки. Её графика, интерфейс и персонажи в проект не копируются.
 
 ## Meshy (пробная модель целителя)
-Статус: проба не выполнена. После генерации записать: тариф Meshy, дату, условия коммерческого использования и прав на результат (по условиям сервиса на момент генерации), версию модели Meshy. Инструкция: `docs/meshy-pilot.md`.
+Статус: **проба выполнена**, файл `client/assets/models/Priest.glb` (4,4 МБ, ~9,8 тыс. треугольников, скелет Mixamo из 24 костей, 7 анимаций: Idle_11, Running, Walking, Attack, Charged_Spell_Cast, Hit_Reaction, Dead). Модель Meshy T2.5, запрос в стиле KayKit (см. `docs/meshy-pilot.md`).
+**Не записано (нужно от владельца):** какой тариф Meshy использовался и разрешает ли он коммерческое использование результата. Пока модель помечена тестовой (`visual._test`). Без подтверждения прав этот файл нельзя считать окончательным.
