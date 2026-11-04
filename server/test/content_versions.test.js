@@ -184,3 +184,18 @@ test('HTTP админка: вход обязателен, сохранение, 
     assert.equal(app.game.getContent().arena.camera.fov, 56);
   } finally { app.close(); }
 });
+
+test('аккаунт получает только стартовых героев, новый нестартовый герой в формацию не попадает', () => {
+  const { game } = setup();
+  const c = edit(game, (x) => {
+    const h = clone(x.heroes[0]); h.key = 'paladin'; h.name = 'Паладин'; h.starter = false;
+    h.abilities.forEach((a) => { a.id = 'pal_' + a.id; });
+    x.heroes.push(h);
+  });
+  game.publishContent(c, { baseVersion: 1 });
+  const acc = game.authenticate(game.guest().token);
+  const me = game.me(acc);
+  assert.equal(me.heroes.length, 5);
+  assert.equal(me.formation.length, 5);
+  assert.ok(!me.heroes.some((h) => h.key === 'paladin'));
+});

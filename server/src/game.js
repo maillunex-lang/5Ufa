@@ -133,7 +133,7 @@ export function createGame(db, { contentPath }) {
     return tx(db, () => {
       const c = getContent();
       const acc = Number(run('INSERT INTO accounts(created) VALUES(?)', now()).lastInsertRowid);
-      for (const h of c.heroes) run('INSERT INTO heroes(account_id,hero_key,level) VALUES(?,?,1)', acc, h.key); // все 5 героев сразу
+      for (const h of c.heroes.filter((x) => x.starter)) run('INSERT INTO heroes(account_id,hero_key,level) VALUES(?,?,1)', acc, h.key); // стартовые 5 героев сразу
       for (const [cur, amt] of Object.entries(c.progression.startBalance)) addRes(acc, cur, amt, 'start', null);
       const ids = q('SELECT id FROM heroes WHERE account_id=? ORDER BY id', acc).map((r) => r.id);
       run('INSERT INTO formations(account_id,slots) VALUES(?,?)', acc, JSON.stringify(ids));

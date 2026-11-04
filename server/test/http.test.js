@@ -36,6 +36,7 @@ test('HTTP: гость → бой → админка → техработы', as
     assert.equal((await call('/api/config')).body.maintenance, true);
     const page = await fetch(base + '/admin/');
     assert.equal(page.status, 200);
+    assert.equal((await fetch(base + '/admin/app.js')).status, 200); // скрипт админки отдаётся рядом со страницей
     assert.equal((await fetch(base + '/admin/../server/package.json')).status, 404);
   } finally { app.close(); }
 });
