@@ -1,0 +1,79 @@
+# Сборка тестового Android APK клиента (Godot). На PR — только проверка сборки;
+# на push в main — ещё и публикация как prerelease (draft/prerelease игра для обновлений игнорирует).
+name: Client APK
+on:
+  push:
+    branches: [main]
+    paths: ['client/**', '.github/workflows/client.yml']
+  pull_request:
+    paths: ['client/**', '.github/workflows/client.yml']
+  workflow_dispatch:
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    env:
+      GODOT_VERSION: "4.4.1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: "17" }
+      - name: Godot и Android-шаблоны (версия закреплена)
+        run: |
+          set -e
+          base="https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable"
+          curl -fsSL --retry 3 -o /tmp/godot.zip "$base/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          unzip -q /tmp/godot.zip -d /tmp/godot
+          sudo install -m 755 "/tmp/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64" /usr/local/bin/godot
+          t="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
+          mkdir -p "$t"
+          curl -fsSL --retry 3 -o /tmp/templates.tpz "$base/Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
+          unzip -j -o /tmp/templates.tpz 'templates/android_*' 'templates/version.txt' -d "$t"
+          rm -f /tmp/templates.tpz /tmp/godot.zip
+          ls -la "$t"
+          # пути Android SDK и JDK для экспорта
+          mkdir -p "$HOME/.config/godot"
+          printf '[gd_resource type="EditorSettings" format=3]\n\n[resource]\nexport/android/android_sdk_path = "%s"\nexport/android/java_sdk_path = "%s"\n' \
+            "$ANDROID_HOME" "$JAVA_HOME" > "$HOME/.config/godot/editor_settings-4.4.tres"
+          cat "$HOME/.config/godot/editor_settings-4.4.tres"
+          godot --version
+      - name: Версия APK
+        run: |
+          sed -i "s/^version\/code=.*/version\/code=${{ github.run_number }}/; s/^version\/name=.*/version\/name=\"0.1.${{ github.run_number }}\"/" client/export_presets.cfg
+          sed -i "s/^config\/version=.*/config\/version=\"0.1.${{ github.run_number }}\"/" client/project.godot
+      - name: Импорт ресурсов проекта
+        working-directory: client
+        run: godot --headless --import || true
+      - name: Сборка APK
+        working-directory: client
+        env:
+          GODOT_ANDROID_KEYSTORE_DEBUG_PATH: ${{ github.workspace }}/deploy/test-signing/test.keystore
+          GODOT_ANDROID_KEYSTORE_DEBUG_USER: androiddebugkey
+          GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD: android
+        run: |
+          mkdir -p ../build
+          godot --headless --verbose --export-debug "Android" ../build/5ufa-test.apk
+          ls -la ../build
+      - name: Размер APK (лимит 99 МБ)
+        run: |
+          size=$(stat -c %s build/5ufa-test.apk); echo "APK: $size байт"
+          [ "$size" -le $((99*1024*1024)) ] || { echo "Больше 99 МБ"; exit 1; }
+      - uses: actions/upload-artifact@v4
+        with: { name: 5ufa-test-apk, path: build/5ufa-test.apk, retention-days: 14 }
+
+  release:
+    needs: apk
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions: { contents: write }
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { name: 5ufa-test-apk, path: build }
+      - name: Prerelease с APK
+        env: { GH_TOKEN: '${{ secrets.GITHUB_TOKEN }}' }
+        run: |
+          tag="client-test-${{ github.run_number }}"
+          gh release create "$tag" build/5ufa-test.apk --repo "${{ github.repository }}" --target "${{ github.sha }}" \
+            --prerelease --title "Тестовый APK #${{ github.run_number }}" \
+            --notes "Тестовая сборка клиента (подпись тестовым ключом). Не является обязательным обновлением: prerelease игрой игнорируется."
+          echo "Скачать: https://github.com/${{ github.repository }}/releases/tag/$tag"
