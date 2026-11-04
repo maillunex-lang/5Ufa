@@ -63,7 +63,12 @@
       "def": 1.2
      }
     }
-   ]
+   ],
+   "visual": {
+    "model": "Knight",
+    "scale": 1.0,
+    "_test": true
+   }
   },
   {
    "key": "warrior",
@@ -93,7 +98,12 @@
      "mult": 2.0,
      "cooldown": 6
     }
-   ]
+   ],
+   "visual": {
+    "model": "Barbarian",
+    "scale": 1.0,
+    "_test": true
+   }
   },
   {
    "key": "archer",
@@ -123,7 +133,12 @@
      "mult": 2.2,
      "cooldown": 5
     }
-   ]
+   ],
+   "visual": {
+    "model": "Rogue_Hooded",
+    "scale": 1.0,
+    "_test": true
+   }
   },
   {
    "key": "mage",
@@ -166,7 +181,12 @@
       "hp": 1.1
      }
     }
-   ]
+   ],
+   "visual": {
+    "model": "Mage",
+    "scale": 1.0,
+    "_test": true
+   }
   },
   {
    "key": "healer",
@@ -196,7 +216,12 @@
      "mult": 2.4,
      "cooldown": 4
     }
-   ]
+   ],
+   "visual": {
+    "model": "Rogue",
+    "scale": 1.0,
+    "_test": true
+   }
   }
  ],
  "enemies": [
@@ -219,7 +244,12 @@
      "kind": "basic",
      "mult": 1.0
     }
-   ]
+   ],
+   "visual": {
+    "model": "Skeleton_Warrior",
+    "scale": 1.0,
+    "_test": true
+   }
   },
   {
    "key": "e_shooter",
@@ -240,7 +270,12 @@
      "kind": "basic",
      "mult": 1.0
     }
-   ]
+   ],
+   "visual": {
+    "model": "Skeleton_Rogue",
+    "scale": 1.0,
+    "_test": true
+   }
   },
   {
    "key": "e_mage",
@@ -267,7 +302,12 @@
      "effect": "aoe",
      "mult": 1.2
     }
-   ]
+   ],
+   "visual": {
+    "model": "Skeleton_Mage",
+    "scale": 1.0,
+    "_test": true
+   }
   },
   {
    "key": "e_boss",
@@ -294,7 +334,12 @@
      "effect": "aoe",
      "mult": 1.4
     }
-   ]
+   ],
+   "visual": {
+    "model": "Skeleton_Warrior",
+    "scale": 1.7,
+    "_test": true
+   }
   }
  ],
  "stages": [
