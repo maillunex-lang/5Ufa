@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>5Ufa — админка</title>
+<style>
+:root{--bg:#14161c;--card:#1e222b;--fg:#e8eaf0;--mut:#8b93a7;--acc:#e0a63a;--bad:#e5645b;--ok:#5fc27e}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:15px system-ui,sans-serif}
+header{display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--card);position:sticky;top:0}
+header h1{font-size:17px;margin:0;flex:1}
+nav{display:none;flex-direction:column;background:var(--card);padding:0 16px 8px}nav.open{display:flex}
+nav b{color:var(--mut);font-size:12px;text-transform:uppercase;margin-top:10px}nav a{padding:6px 0;color:var(--fg);text-decoration:none}nav a.soon{color:var(--mut)}
+main{padding:16px;max-width:900px;margin:auto}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.card{background:var(--card);border-radius:10px;padding:12px;margin-bottom:12px}
+.card small{color:var(--mut);display:block}.card strong{font-size:22px}
+button,input{font:inherit;padding:9px 12px;border-radius:8px;border:1px solid #333a49;background:#262b36;color:var(--fg)}
+button{cursor:pointer;background:var(--acc);color:#1b1500;border:0;font-weight:600}button.sec{background:#2f3542;color:var(--fg)}
+input{width:100%;margin-bottom:8px}table{width:100%;border-collapse:collapse;font-size:13px}td{padding:4px 6px;border-bottom:1px solid #2a2f3a;vertical-align:top;word-break:break-word}
+.bad{color:var(--bad)}.ok{color:var(--ok)}#login{max-width:340px;margin:12vh auto}
+@media(min-width:900px){nav{display:flex!important;position:fixed;left:0;top:49px;bottom:0;width:200px}main{margin-left:220px}#menu{display:none}}
+</style>
+</head>
+<body>
+<div id="login" class="card"><h2>Вход владельца</h2>
+<input id="l" placeholder="Логин" autocomplete="username"><input id="p" type="password" placeholder="Пароль" autocomplete="current-password">
+<button id="go">Войти</button> <span id="lerr" class="bad"></span></div>
+<div id="app" hidden>
+<header><button id="menu" class="sec">☰</button><h1>5Ufa · админка</h1><button class="sec" id="out">Выйти</button></header>
+<nav id="nav"><b>Контент</b><a class="soon">Герои · скоро</a><a class="soon">Способности · скоро</a><a class="soon">Кампания · скоро</a><a class="soon">Медиатека · скоро</a>
+<b>Интерфейс</b><a class="soon">Экраны · скоро</a><b>Игроки</b><a class="soon">Аккаунты · скоро</a><b>Система</b><a href="#">Состояние</a></nav>
+<main>
+<div class="grid" id="stats"></div>
+<div class="card"><b>Действия</b><p>
+<button id="maint" class="sec"></button> <button id="bk" class="sec">Бэкап сейчас</button> <button id="reload" class="sec">Перечитать content/game.json</button></p><div id="msg"></div></div>
+<div class="card"><b>Ошибки</b><table id="errs"></table></div>
+<div class="card"><b>Последние изменения</b><table id="chg"></table></div>
+</main></div>
+<script>
+const $=id=>document.getElementById(id);let T=sessionStorage.getItem('t');
+const esc=s=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+async function api(path,body){const r=await fetch('/admin/api/'+path,{method:body?'POST':'GET',headers:{'content-type':'application/json',authorization:'Bearer '+T},body:body?JSON.stringify(body):undefined});
+ if(r.status===401&&path!=='login'){T=null;sessionStorage.removeItem('t');show();throw 0}const j=await r.json();if(!r.ok)throw new Error(j.message||r.status);return j}
+function show(){$('login').hidden=!!T;$('app').hidden=!T;if(T)load()}
+$('go').onclick=async()=>{try{const j=await api('login',{login:$('l').value,password:$('p').value});T=j.token;sessionStorage.setItem('t',T);show()}catch(e){$('lerr').textContent=e.message}};
+$('p').onkeydown=e=>{if(e.key==='Enter')$('go').click()};
+$('out').onclick=()=>{T=null;sessionStorage.removeItem('t');show()};$('menu').onclick=()=>$('nav').classList.toggle('open');
+let maint=false;
+async function load(){const s=await api('status');maint=s.maintenance;
+ const d=(a,b)=>`<div class="card"><small>${a}</small><strong>${esc(b)}</strong></div>`;
+ $('stats').innerHTML=d('Сервер','v'+s.version)+d('Аптайм',Math.round(s.uptimeSec/60)+' мин')+d('Версия контента','#'+s.contentVersion)+d('Аккаунты',s.accounts)+d('Бои всего / за сутки',s.battles+' / '+s.battlesLastDay)+d('Бэкап',s.lastBackup||'—')+d('Режим',s.maintenance?'ТЕХРАБОТЫ':'работает');
+ $('maint').textContent=maint?'Выключить техработы':'Включить техработы';
+ const t=ts=>new Date(ts).toLocaleString();
+ $('errs').innerHTML=s.errors.length?s.errors.map(e=>`<tr><td>${t(e.ts)}</td><td>${esc(e.source)}</td><td>${esc(e.message.slice(0,200))}</td></tr>`).join(''):'<tr><td class="ok">Ошибок нет</td></tr>';
+ $('chg').innerHTML=s.changes.map(e=>`<tr><td>${t(e.ts)}</td><td>${esc(e.action)}</td><td>${esc(e.detail||'')}</td></tr>`).join('')}
+const act=f=>async()=>{try{$('msg').textContent=await f()||'';load()}catch(e){$('msg').innerHTML='<span class="bad">'+esc(e.message)+'</span>'}};
+$('maint').onclick=act(async()=>{if(!maint&&!confirm('Новые бои будут заблокированы. Включить?'))return;await api('maintenance',{on:!maint,message:maint?'':'Технические работы'});});
+$('bk').onclick=act(async()=>'Создан '+(await api('backup',{})).name);
+$('reload').onclick=act(async()=>'Версия контента #'+(await api('content/reload',{})).contentVersion);
+show();
+</script>
+</body></html>

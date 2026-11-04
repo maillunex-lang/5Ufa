@@ -1,0 +1,16 @@
+name: CI
+on:
+  push: { branches: [main, 'ccr-*'] }
+  pull_request:
+jobs:
+  server:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: npm test
+        working-directory: server
+      - run: npm run economy
+        working-directory: server
+      - run: docker build -f server/Dockerfile -t 5ufa-server .

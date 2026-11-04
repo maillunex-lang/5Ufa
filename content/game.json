@@ -1,0 +1,597 @@
+{
+ "_test_data": true,
+ "_note": "ВСЕ значения тестовые, баланс не утверждён",
+ "battle": {
+  "tick": 0.1,
+  "timeLimit": 90,
+  "energyMax": 100,
+  "energyOnAttack": 10,
+  "energyOnDamaged": 5,
+  "defConst": 100
+ },
+ "progression": {
+  "maxLevel": 10,
+  "growth": 0.12,
+  "upgradeCost": {
+   "gold": 40,
+   "hero_exp": 20
+  },
+  "startBalance": {
+   "gold": 1000,
+   "hero_exp": 300
+  }
+ },
+ "heroes": [
+  {
+   "key": "tank",
+   "name": "Танк",
+   "role": "tank",
+   "type": "cool",
+   "stats": {
+    "hp": 1400,
+    "atk": 55,
+    "def": 45,
+    "critChance": 0.05,
+    "critPower": 1.5,
+    "range": 1.6,
+    "interval": 1.3,
+    "speed": 3
+   },
+   "abilities": [
+    {
+     "id": "tank_basic",
+     "kind": "basic",
+     "mult": 1.0
+    },
+    {
+     "id": "tank_main",
+     "kind": "main",
+     "effect": "single",
+     "mult": 2.5
+    },
+    {
+     "id": "tank_p1",
+     "kind": "passive",
+     "mods": {
+      "hp": 1.15
+     }
+    },
+    {
+     "id": "tank_p2",
+     "kind": "passive",
+     "mods": {
+      "def": 1.2
+     }
+    }
+   ]
+  },
+  {
+   "key": "warrior",
+   "name": "Боец",
+   "role": "melee",
+   "type": "regular",
+   "stats": {
+    "hp": 1000,
+    "atk": 80,
+    "def": 30,
+    "critChance": 0.1,
+    "critPower": 1.6,
+    "range": 1.6,
+    "interval": 1.0,
+    "speed": 3.4
+   },
+   "abilities": [
+    {
+     "id": "war_basic",
+     "kind": "basic",
+     "mult": 1.0
+    },
+    {
+     "id": "war_cleave",
+     "kind": "skill",
+     "effect": "single",
+     "mult": 2.0,
+     "cooldown": 6
+    }
+   ]
+  },
+  {
+   "key": "archer",
+   "name": "Стрелок",
+   "role": "ranged",
+   "type": "regular",
+   "stats": {
+    "hp": 800,
+    "atk": 90,
+    "def": 20,
+    "critChance": 0.2,
+    "critPower": 1.8,
+    "range": 7,
+    "interval": 1.1,
+    "speed": 3
+   },
+   "abilities": [
+    {
+     "id": "arc_basic",
+     "kind": "basic",
+     "mult": 1.0
+    },
+    {
+     "id": "arc_power",
+     "kind": "skill",
+     "effect": "single",
+     "mult": 2.2,
+     "cooldown": 5
+    }
+   ]
+  },
+  {
+   "key": "mage",
+   "name": "Маг",
+   "role": "mage",
+   "type": "cool",
+   "stats": {
+    "hp": 750,
+    "atk": 85,
+    "def": 15,
+    "critChance": 0.1,
+    "critPower": 1.5,
+    "range": 6,
+    "interval": 1.4,
+    "speed": 2.8
+   },
+   "abilities": [
+    {
+     "id": "mage_basic",
+     "kind": "basic",
+     "mult": 1.0
+    },
+    {
+     "id": "mage_main",
+     "kind": "main",
+     "effect": "aoe",
+     "mult": 1.6
+    },
+    {
+     "id": "mage_p1",
+     "kind": "passive",
+     "mods": {
+      "atk": 1.2
+     }
+    },
+    {
+     "id": "mage_p2",
+     "kind": "passive",
+     "mods": {
+      "hp": 1.1
+     }
+    }
+   ]
+  },
+  {
+   "key": "healer",
+   "name": "Целитель",
+   "role": "healer",
+   "type": "regular",
+   "stats": {
+    "hp": 850,
+    "atk": 50,
+    "def": 25,
+    "critChance": 0.05,
+    "critPower": 1.5,
+    "range": 6,
+    "interval": 1.2,
+    "speed": 3
+   },
+   "abilities": [
+    {
+     "id": "heal_basic",
+     "kind": "basic",
+     "mult": 1.0
+    },
+    {
+     "id": "heal_heal",
+     "kind": "skill",
+     "effect": "heal",
+     "mult": 2.4,
+     "cooldown": 4
+    }
+   ]
+  }
+ ],
+ "enemies": [
+  {
+   "key": "e_fighter",
+   "name": "Враг: боец",
+   "stats": {
+    "hp": 700,
+    "atk": 50,
+    "def": 25,
+    "critChance": 0,
+    "critPower": 1.5,
+    "range": 1.6,
+    "interval": 1.2,
+    "speed": 3
+   },
+   "abilities": [
+    {
+     "id": "ef_basic",
+     "kind": "basic",
+     "mult": 1.0
+    }
+   ]
+  },
+  {
+   "key": "e_shooter",
+   "name": "Враг: стрелок",
+   "stats": {
+    "hp": 500,
+    "atk": 60,
+    "def": 15,
+    "critChance": 0,
+    "critPower": 1.5,
+    "range": 7,
+    "interval": 1.3,
+    "speed": 3
+   },
+   "abilities": [
+    {
+     "id": "es_basic",
+     "kind": "basic",
+     "mult": 1.0
+    }
+   ]
+  },
+  {
+   "key": "e_mage",
+   "name": "Враг: маг",
+   "stats": {
+    "hp": 450,
+    "atk": 65,
+    "def": 10,
+    "critChance": 0,
+    "critPower": 1.5,
+    "range": 6,
+    "interval": 1.5,
+    "speed": 2.8
+   },
+   "abilities": [
+    {
+     "id": "em_basic",
+     "kind": "basic",
+     "mult": 1.0
+    },
+    {
+     "id": "em_main",
+     "kind": "main",
+     "effect": "aoe",
+     "mult": 1.2
+    }
+   ]
+  },
+  {
+   "key": "e_boss",
+   "name": "Босс",
+   "stats": {
+    "hp": 3200,
+    "atk": 70,
+    "def": 40,
+    "critChance": 0,
+    "critPower": 1.5,
+    "range": 1.8,
+    "interval": 1.4,
+    "speed": 2.6
+   },
+   "abilities": [
+    {
+     "id": "eb_basic",
+     "kind": "basic",
+     "mult": 1.0
+    },
+    {
+     "id": "eb_main",
+     "kind": "main",
+     "effect": "aoe",
+     "mult": 1.4
+    }
+   ]
+  }
+ ],
+ "stages": [
+  {
+   "n": 1,
+   "name": "Этап 1",
+   "enemies": [
+    {
+     "key": "e_fighter",
+     "level": 1
+    },
+    {
+     "key": "e_fighter",
+     "level": 1
+    },
+    {
+     "key": "e_shooter",
+     "level": 1
+    },
+    null,
+    null
+   ],
+   "power": 0.55,
+   "reward": {
+    "gold": 350,
+    "hero_exp": 260
+   }
+  },
+  {
+   "n": 2,
+   "name": "Этап 2",
+   "enemies": [
+    {
+     "key": "e_fighter",
+     "level": 2
+    },
+    {
+     "key": "e_fighter",
+     "level": 2
+    },
+    {
+     "key": "e_shooter",
+     "level": 2
+    },
+    {
+     "key": "e_shooter",
+     "level": 2
+    },
+    null
+   ],
+   "power": 0.67,
+   "reward": {
+    "gold": 450,
+    "hero_exp": 320
+   }
+  },
+  {
+   "n": 3,
+   "name": "Этап 3",
+   "enemies": [
+    {
+     "key": "e_fighter",
+     "level": 3
+    },
+    {
+     "key": "e_fighter",
+     "level": 3
+    },
+    {
+     "key": "e_shooter",
+     "level": 3
+    },
+    {
+     "key": "e_mage",
+     "level": 3
+    },
+    null
+   ],
+   "power": 0.79,
+   "reward": {
+    "gold": 550,
+    "hero_exp": 380
+   }
+  },
+  {
+   "n": 4,
+   "name": "Этап 4",
+   "enemies": [
+    {
+     "key": "e_fighter",
+     "level": 4
+    },
+    {
+     "key": "e_fighter",
+     "level": 4
+    },
+    {
+     "key": "e_shooter",
+     "level": 4
+    },
+    {
+     "key": "e_shooter",
+     "level": 4
+    },
+    {
+     "key": "e_mage",
+     "level": 4
+    }
+   ],
+   "power": 0.91,
+   "reward": {
+    "gold": 650,
+    "hero_exp": 440
+   }
+  },
+  {
+   "n": 5,
+   "name": "Этап 5",
+   "enemies": [
+    {
+     "key": "e_fighter",
+     "level": 5
+    },
+    {
+     "key": "e_fighter",
+     "level": 5
+    },
+    {
+     "key": "e_mage",
+     "level": 5
+    },
+    {
+     "key": "e_shooter",
+     "level": 5
+    },
+    {
+     "key": "e_mage",
+     "level": 5
+    }
+   ],
+   "power": 1.03,
+   "reward": {
+    "gold": 750,
+    "hero_exp": 500
+   }
+  },
+  {
+   "n": 6,
+   "name": "Этап 6",
+   "enemies": [
+    {
+     "key": "e_fighter",
+     "level": 6
+    },
+    {
+     "key": "e_fighter",
+     "level": 6
+    },
+    {
+     "key": "e_shooter",
+     "level": 6
+    },
+    {
+     "key": "e_mage",
+     "level": 6
+    },
+    {
+     "key": "e_mage",
+     "level": 6
+    }
+   ],
+   "power": 1.15,
+   "reward": {
+    "gold": 850,
+    "hero_exp": 560
+   }
+  },
+  {
+   "n": 7,
+   "name": "Этап 7",
+   "enemies": [
+    {
+     "key": "e_fighter",
+     "level": 7
+    },
+    {
+     "key": "e_fighter",
+     "level": 7
+    },
+    {
+     "key": "e_shooter",
+     "level": 7
+    },
+    {
+     "key": "e_shooter",
+     "level": 7
+    },
+    {
+     "key": "e_mage",
+     "level": 7
+    }
+   ],
+   "power": 1.27,
+   "reward": {
+    "gold": 950,
+    "hero_exp": 620
+   }
+  },
+  {
+   "n": 8,
+   "name": "Этап 8",
+   "enemies": [
+    {
+     "key": "e_fighter",
+     "level": 8
+    },
+    {
+     "key": "e_fighter",
+     "level": 8
+    },
+    {
+     "key": "e_mage",
+     "level": 8
+    },
+    {
+     "key": "e_mage",
+     "level": 8
+    },
+    {
+     "key": "e_shooter",
+     "level": 8
+    }
+   ],
+   "power": 1.39,
+   "reward": {
+    "gold": 1050,
+    "hero_exp": 680
+   }
+  },
+  {
+   "n": 9,
+   "name": "Этап 9",
+   "enemies": [
+    {
+     "key": "e_fighter",
+     "level": 9
+    },
+    {
+     "key": "e_fighter",
+     "level": 9
+    },
+    {
+     "key": "e_shooter",
+     "level": 9
+    },
+    {
+     "key": "e_mage",
+     "level": 9
+    },
+    {
+     "key": "e_mage",
+     "level": 9
+    }
+   ],
+   "power": 1.51,
+   "reward": {
+    "gold": 1150,
+    "hero_exp": 740
+   }
+  },
+  {
+   "n": 10,
+   "name": "Этап 10 (босс)",
+   "enemies": [
+    {
+     "key": "e_boss",
+     "level": 10
+    },
+    {
+     "key": "e_fighter",
+     "level": 10
+    },
+    {
+     "key": "e_shooter",
+     "level": 10
+    },
+    {
+     "key": "e_mage",
+     "level": 10
+    },
+    null
+   ],
+   "power": 1.0,
+   "reward": {
+    "gold": 1250,
+    "hero_exp": 800
+   }
+  }
+ ]
+}
