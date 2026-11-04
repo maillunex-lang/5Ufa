@@ -74,6 +74,21 @@ func max_cleared() -> int:
 	return best
 
 
+func loc(v: Variant) -> String:
+	if typeof(v) == TYPE_STRING:
+		return str(v)
+	if typeof(v) == TYPE_DICTIONARY:
+		return str((v as Dictionary).get("ru", ""))
+	return ""
+
+
+func story_done(id: String) -> bool:
+	for q in me.get("storyDone", []):
+		if str(q) == id:
+			return true
+	return false
+
+
 ## Характеристики героя на уровне (по тем же формулам, что на сервере; для показа игроку).
 func hero_stats(key: String, level: int) -> Dictionary:
 	var d := hero_def(key)

@@ -1018,6 +1018,9 @@ func _show_result() -> void:
 	var text := "Победа!" if won else "Поражение"
 	if _result.get("timeout", false):
 		text += "\nВремя вышло (90 с)"
+	var place := _place_line(int(_result.get("stage", 0)))
+	if place != "":
+		text += "\n" + place
 	var rw: Variant = _result.get("reward")
 	if rw != null:
 		text += "\nНаграда за первую победу:\nзолото %d, опыт героев %d" % [int(rw.get("gold", 0)), int(rw.get("hero_exp", 0))]
@@ -1042,3 +1045,22 @@ func _show_result() -> void:
 		get_tree().change_scene_to_file("res://hub.tscn"))
 	v.add_child(back)
 	_hud.add_child(overlay)
+
+
+func _place_line(stage: int) -> String:
+	if stage <= 0:
+		return ""
+	var world: Dictionary = State.content.get("world", {})
+	for q in world.get("quests", []):
+		if str(q.get("kind", "")) == "battle" and int(q.get("stage", 0)) == stage:
+			var place_name := ""
+			var chain_id := str(q.get("chainId", ""))
+			for ch in world.get("chains", []):
+				if str(ch.get("id", "")) == chain_id:
+					var pid := str(ch.get("placeId", ""))
+					for p in world.get("places", []):
+						if str(p.get("id", "")) == pid:
+							place_name = State.loc(p.get("name", ""))
+			if place_name != "":
+				return "Место: %s. Бой посчитан по старому этапу %d, картинка на награду не влияет." % [place_name, stage]
+	return ""

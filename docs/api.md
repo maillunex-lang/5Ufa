@@ -15,11 +15,12 @@
 ## Игрок (нужен токен)
 | Метод | Путь | Тело → ответ |
 | --- | --- | --- |
-| GET | `/api/me` | → `{account,heroes[{id,key,level}],balances,formation[5 id],clearedStages,contentVersion,maxLevel}` |
-| GET | `/api/content` | → герои, враги, этапы, прогрессия, параметры боя, `abilities` (общая библиотека), `tutorial.steps` (шаги обучения: id, text, highlight[], done), `arena.bounds` (прямоугольник арены xMin, xMax, yMin, yMax: бойцы за него не выходят), `arena.camera` (position[3], lookAt[3], fov, depth: камера боя), `media` (манифест: имя → `{kind,version,sha,size,bundled}`). У героя и врага `abilities` в этом ответе уже раскрыты в полные описания. В сохранённом контенте это ссылки на `content.abilities` (строки id). Поле `anim` — какое движение играть (пусто = как раньше, по роли). |
+| GET | `/api/me` | → `{account,heroes[{id,key,level}],balances,formation[5 id],clearedStages,storyDone[id заданий],contentVersion,maxLevel}` |
+| GET | `/api/content` | → герои, враги, этапы, прогрессия, параметры боя, `abilities` (общая библиотека), `world` (карта, сезоны, задания; `null`, если в версии контента ещё нет), `ui` (цвета и рамки, рабочее предложение), `tutorial.steps` (шаги обучения: id, text, highlight[], done), `arena.bounds` (прямоугольник арены xMin, xMax, yMin, yMax: бойцы за него не выходят), `arena.camera` (position[3], lookAt[3], fov, depth: камера боя), `media` (манифест: имя → `{kind,version,sha,size,bundled}`). У героя и врага `abilities` в этом ответе уже раскрыты в полные описания. В сохранённом контенте это ссылки на `content.abilities` (строки id). Поле `anim` — какое движение играть (пусто = как раньше, по роли). |
 | POST | `/api/bind` | `{login,password}` → `{recoveryCode}` (показать игроку один раз) |
 | POST | `/api/formation` | `{slots:[5 id героев]}` (0–1 перед, 2–4 зад) |
 | POST | `/api/tutorial/done` | → `{ok}` |
+| POST | `/api/story/complete` | `{questId}` → `{storyDone[]}`. Только сюжетное задание. Награду не даёт. Повтор ничего не дублирует. Закрытое задание: 403 `locked`. |
 | POST | `/api/hero/upgrade` | `{heroId}` → `{level,spent,balances}` |
 | POST | `/api/hero/reset` | `{heroId}` → `{level,refunded,balances}` |
 | POST | `/api/battle/start` | `{stage}` → `{battleId,winner,timeout,duration,reward,events,balances,contentVersion}` |
@@ -49,6 +50,7 @@
 | GET | `media` | → `[{name,kind,active,versions[]}]`; версия: `{version,sha,size,filename,source,note,author,created,active,meta{clips[],bones[],triangles,...}}` |
 | POST | `media/upload?name=&kind=model\|animation&filename=&note=&activate=0\|1` | двоичное тело GLB (до 40 МБ) → запись версии. Новое имя активно сразу, новая версия существующего имени **не активна** до включения. Ошибки: 422 `bad_glb`, `glb_too_complex`, `no_clips`; 409 `kind_mismatch`; 413; 400 `bad_name`, `no_changes` |
 | POST | `media/activate` | `{name,version}` → запись; включение и откат версии файла |
+| POST | `media/card` | `{name,folder,tags,license,requirements,prompt}` → запись на все версии этого имени. Папка без `/` и `..`. Генерации по промпту нет. |
 | GET | `media/file/:sha` | → GLB (нужен вход) |
 
 Новые редакторы добавляют свои методы здесь.

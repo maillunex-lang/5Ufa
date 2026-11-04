@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS content_versions(id INTEGER PRIMARY KEY, hash TEXT NO
 CREATE TABLE IF NOT EXISTS settings(k TEXT PRIMARY KEY, v TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS audit(id INTEGER PRIMARY KEY, ts INTEGER NOT NULL, actor TEXT NOT NULL, action TEXT NOT NULL, detail TEXT);
 CREATE TABLE IF NOT EXISTS media(id INTEGER PRIMARY KEY, name TEXT NOT NULL, kind TEXT NOT NULL, version INTEGER NOT NULL, sha TEXT NOT NULL, size INTEGER NOT NULL, filename TEXT, source TEXT, note TEXT, author TEXT, created INTEGER NOT NULL, active INTEGER NOT NULL DEFAULT 1, meta TEXT, UNIQUE(name, version));
+CREATE TABLE IF NOT EXISTS story_progress(account_id INTEGER NOT NULL, quest_id TEXT NOT NULL, created INTEGER NOT NULL, PRIMARY KEY(account_id, quest_id));
 CREATE TABLE IF NOT EXISTS error_log(id INTEGER PRIMARY KEY, ts INTEGER NOT NULL, source TEXT NOT NULL, message TEXT NOT NULL);
 `;
 
@@ -34,6 +35,11 @@ export function openDb(path) {
   ensureColumn(db, 'content_versions', 'source', 'source TEXT');
   ensureColumn(db, 'content_versions', 'author', 'author TEXT');
   ensureColumn(db, 'content_versions', 'parent', 'parent INTEGER');
+  ensureColumn(db, 'media', 'folder', 'folder TEXT');
+  ensureColumn(db, 'media', 'tags', 'tags TEXT');
+  ensureColumn(db, 'media', 'license', 'license TEXT');
+  ensureColumn(db, 'media', 'requirements', 'requirements TEXT');
+  ensureColumn(db, 'media', 'prompt', 'prompt TEXT');
   return db;
 }
 

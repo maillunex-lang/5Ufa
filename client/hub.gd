@@ -17,7 +17,7 @@ var _tut: Control
 
 func _ready() -> void:
 	var bg := ColorRect.new()
-	bg.color = Color(0.08, 0.09, 0.12)
+	bg.color = Ui.token_color("bg", Color.html("#12100e"))
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(bg)
 	var col := VBoxContainer.new()
@@ -25,7 +25,7 @@ func _ready() -> void:
 	col.add_theme_constant_override("separation", 0)
 	add_child(col)
 
-	var top := Ui.panel(Color(0.12, 0.14, 0.19))
+	var top := Ui.panel()
 	top.custom_minimum_size = Vector2(0, 150)
 	col.add_child(top)
 	var th := HBoxContainer.new()

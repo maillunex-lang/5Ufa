@@ -195,7 +195,7 @@ window.addEventListener('beforeunload', (e) => { if (dirty()) { e.preventDefault
 
 const NAV = [
   ['', [['home', 'Главная']]],
-  ['Контент', [['heroes', 'Герои'], ['enemies', 'Враги и боссы'], ['abilities', 'Способности'], ['balance', 'Баланс и прогрессия'], ['stages', 'Этапы: награды и сила'], ['arena', 'Арена и камера'], ['tutorial', 'Обучение']]],
+  ['Контент', [['heroes', 'Герои'], ['enemies', 'Враги и боссы'], ['abilities', 'Способности'], ['world', 'Мир и сезоны'], ['balance', 'Баланс и прогрессия'], ['stages', 'Этапы: награды и сила'], ['arena', 'Арена и камера'], ['tutorial', 'Обучение']]],
   ['Интерфейс', [['soon:ui', 'Экраны (скоро)']]],
   ['Игроки', [['soon:players', 'Аккаунты (скоро)']]],
   ['Система', [['media', 'Медиатека (модели)'], ['versions', 'Версии контента']]],
@@ -222,14 +222,24 @@ function disposeLive() { LIVE.forEach((r) => r.dispose?.()); LIVE = []; }
 function render() {
   if (!D) return;
   disposeLive();
+  applyAdminTheme();
   const { page, arg } = route();
   drawNav(page);
   const view = $('view');
-  const fn = { home: viewHome, heroes: () => viewUnits('heroes', arg), enemies: () => viewUnits('enemies', arg), abilities: () => viewAbilities(arg), balance: viewBalance, stages: viewStages, arena: viewArena, tutorial: viewTutorial, media: viewMedia, versions: viewVersions }[page] || viewHome;
+  const fn = { home: viewHome, heroes: () => viewUnits('heroes', arg), enemies: () => viewUnits('enemies', arg), abilities: () => viewAbilities(arg), world: () => viewWorld(view), balance: viewBalance, stages: viewStages, arena: viewArena, tutorial: viewTutorial, media: viewMedia, versions: viewVersions }[page] || viewHome;
   view.replaceChildren();
   Promise.resolve(fn(view)).catch((e) => view.replaceChildren(h('div', { class: 'card bad' }, e.message)));
 }
 window.addEventListener('hashchange', render);
+
+function applyAdminTheme() {
+  const col = D?.ui?.colors;
+  if (!col) return;
+  const root = document.documentElement.style;
+  for (const [key, css] of [['bg', '--bg'], ['panel', '--card'], ['gold', '--acc'], ['magic', '--magic'], ['text', '--fg'], ['muted', '--mut'], ['danger', '--bad']]) {
+    if (/^#[0-9a-fA-F]{6}$/.test(col[key] || '')) root.setProperty(css, col[key]);
+  }
+}
 
 // ---------------------------------------------------------------- Главная
 
@@ -416,12 +426,18 @@ function tabMain(u, isHero) {
     grid(field('Ключ (стабильный идентификатор)', h('input', { value: u.key, disabled: true })), field('Название', text(u, 'name'))),
     isHero ? grid(
       field('Роль', select(u, 'role', Object.entries(ROLE_L))),
-      field('Тип', select(u, 'type', Object.entries(TYPE_L)), 'Крутой: базовая, главная и 2 пассивные. Обычный: базовая и одна способность.')) : null,
+      field('Тип', select(u, 'type', Object.entries(TYPE_L)), 'Крутой: базовая, главная и 2 пассивные. Обычный: базовая и одна способность.')
+    ) : null,
+    isHero ? grid(
+      field('Фракция (только подпись)', select(u, 'faction', [['', 'не задана'], ...(D.world?.factions || []).map((f) => [f.id, f.name?.ru || f.id])], { optional: true })),
+      field('Рамка редкости', select(u, 'rarity', [['', 'нет'], ['common', 'обычная'], ['uncommon', 'необычная'], ['rare', 'редкая'], ['epic', 'эпическая'], ['legendary', 'легендарная']], { optional: true }), 'На бой не влияет. Рабочее предложение.')
+    ) : null,
+    field('Промпт парадного портрета', area(u, 'prompt', 4, { optional: true, placeholder: 'Для внешнего ИИ. Генерация из админки не запускается.' })),
     isHero ? h('p', { style: 'color:var(--mut);font-size:13px' }, u.starter ? 'Стартовый герой: выдаётся каждому новому аккаунту (их должно быть ровно 5).' : 'Не стартовый: игрок получит его позже (призыв, награды; пока не реализовано).') : null)];
 }
 
 function tabLook(u) {
-  const mk = () => `Персонаж для мобильной RPG, ${u.name}${u.role ? ' (' + (ROLE_L[u.role] || u.role) + ')' : ''}. Стиль: мультяшный, чибби, низкополигональный, простые цвета, как KayKit Adventurers. A-поза, руки чуть в стороны, ноги раздельно, одежда выше щиколоток, без плаща и лент, одна фигура, без подставки. Скелет Mixamo (гуманоид). Анимации: стойка, бег, удар, умение, получение удара, смерть. Формат GLB, текстура внутри, до 15 тысяч треугольников.`;
+  const mk = () => `Взрослый персонаж для мобильной RPG, ${u.name}${u.role ? ' (' + (ROLE_L[u.role] || u.role) + ')' : ''}. Аниме, чёткий контур, выразительный силуэт, рисованные материалы. Лицо, костюм, палитра и оружие совпадают с парадным портретом. Местные мотивы — свободное фэнтези, не исторический символ. Без наготы. KayKit не образец. A-поза, скелет Mixamo, одна фигура, GLB, до 15 тысяч треугольников.`;
   const prompt = area(u, 'visual.prompt', 6, { optional: true, placeholder: 'Инструкция для внешнего ИИ (Meshy и др.): стиль, ракурс, размеры, список анимаций' });
   return [
     h('div', { class: 'card' }, h('b', {}, '3D-просмотр, графика и анимации'), modelBlock({ unit: u })),
@@ -617,7 +633,8 @@ function viewBalance(view) {
 function viewStages(view) {
   const nameOf = (k) => (D.enemies.find((e) => e.key === k) || { name: k }).name;
   view.append(h('h2', {}, 'Этапы: награды и сила'),
-    h('p', { style: 'color:var(--mut)' }, 'Награда выдаётся только за первую победу. Расстановка врагов по позициям будет в редакторе кампании.'),
+    h('p', { style: 'color:var(--mut)' }, 'Награда выдаётся только за первую победу. Боевой этап остаётся прежним. Сюжет ссылается на номер этапа и не копирует его.'),
+    h('p', { style: 'color:var(--mut)' }, 'Задания, которые открывают эти этапы: ' + ((D.world?.quests || []).filter((q) => q.kind === 'battle').map((q) => `${q.name?.ru || q.id} → ${q.stage}`).join('; ') || 'нет')),
     h('div', { class: 'card' }, h('table', {},
       h('tr', {}, ['№', 'Название', 'Сила врагов (×hp и атака)', 'Золото', 'Опыт героев', 'Враги'].map((t) => h('th', {}, t))),
       ...D.stages.map((s) => h('tr', {}, h('td', {}, s.n), h('td', {}, text(s, 'name')), h('td', {}, num(s, 'power', { step: 0.01, min: 0.05 })),
@@ -909,11 +926,34 @@ async function viewMedia(view) {
     h('p', { style: 'color:var(--mut)' }, 'Все файлы моделей и анимаций. Замена файла создаёт новую версию, которую сначала можно посмотреть и только потом включить. Вшитые в приложение модели помечены. Файлы анимаций лежат отдельно и подключаются к героям в карточке героя.'),
     h('div', { class: 'card' }, ...MEDIA.map((m) => h('div', { class: 'item', onclick: () => { UI.media = m.name; render(); } },
       h('div', {}, h('b', {}, m.name), h('span', { class: 'tag' }, m.kind === 'model' ? 'модель' : 'анимации'), m.name === sel ? h('span', { class: 'tag' }, 'открыта') : null,
-        h('div', { class: 'meta' }, `v${m.active.version} · ${fmtMB(m.active.size)} · ${m.active.meta.triangles} треуг. · анимаций ${m.active.meta.clips.length}${m.active.source === 'bundled' ? ' · вшита в приложение' : ''}`)),
+        h('div', { class: 'meta' }, [m.folder, m.tags, `v${m.active.version}`, fmtMB(m.active.size), `${m.active.meta.triangles} треуг.`, `анимаций ${m.active.meta.clips.length}`, m.active.source === 'bundled' ? 'вшита' : ''].filter(Boolean).join(' · '))),
       h('span', {}, '›')))));
   const e = sel && mediaEntry(sel);
-  if (e && e.kind === 'model') view.append(h('div', { class: 'card' }, h('b', {}, e.name), modelBlock({ fixedName: e.name })));
-  else if (e) view.append(h('div', { class: 'card' }, h('b', {}, e.name), h('table', {}, e.active.meta.clips.map((c) => h('tr', {}, h('td', {}, c.name), h('td', {}, c.duration + ' с'))))));
+  if (e && e.kind === 'model') view.append(h('div', { class: 'card' }, h('b', {}, e.name), modelBlock({ fixedName: e.name })), mediaCard(e));
+  else if (e) view.append(h('div', { class: 'card' }, h('b', {}, e.name), h('table', {}, e.active.meta.clips.map((c) => h('tr', {}, h('td', {}, c.name), h('td', {}, c.duration + ' с'))))), mediaCard(e));
+}
+
+function mediaCard(e) {
+  const folder = h('input', { value: e.folder || '' });
+  const tags = h('input', { value: e.tags || '', placeholder: 'через запятую' });
+  const license = h('input', { value: e.active.license || '' });
+  const requirements = h('input', { value: e.active.requirements || '', placeholder: 'например GLB, до 40 МБ, до 15 тыс. треугольников' });
+  const prompt = h('textarea', { rows: 3 }, e.active.prompt || '');
+  const err = h('div', { class: 'bad' });
+  return h('div', { class: 'card' }, h('b', {}, 'Папка, теги и происхождение'),
+    h('p', { style: 'color:var(--mut);font-size:13px' }, 'Это свойства имени файла, не черновик контента: сохраняются сразу и копируются в следующую версию. Генерация по промпту отсюда не запускается.'),
+    grid(field('Папка', folder, 'Один уровень, без /'), field('Теги', tags), field('Лицензия и источник', license), field('Требования к файлу', requirements)),
+    field('Промпт для внешнего ИИ', prompt),
+    err,
+    h('button', { onclick: async () => {
+      err.textContent = '';
+      try {
+        await api('media/card', { name: e.name, folder: folder.value, tags: tags.value, license: license.value, requirements: requirements.value, prompt: prompt.value });
+        await loadMedia();
+        toast('Карточка файла сохранена');
+        render();
+      } catch (ex) { err.textContent = ex.message; }
+    } }, 'Сохранить карточку файла'));
 }
 
 // ---------------------------------------------------------------- вход и запуск

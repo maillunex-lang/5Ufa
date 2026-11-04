@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
+import { validateWorld, validateUi, validateUnitExtras } from './world.js';
 
 export function validateContent(c) {
   const errs = [];
@@ -57,6 +58,7 @@ export function validateContent(c) {
     }
     need(resolved.filter((a) => a && a.kind === 'basic').length === 1, `${u.key}: нужна ровно одна базовая атака`);
     need(resolved.filter((a) => a && a.kind === 'main').length <= 1, `${u.key}: главная способность не больше одной`);
+    validateUnitExtras(u, need);
     if (!refs) for (const a of ab) {
       if (a && library.has(a.id)) continue; // уже раскрытая копия записи библиотеки
       checkAbility(a);
@@ -104,6 +106,8 @@ export function validateContent(c) {
   need(Number.isFinite(BT.timeLimit) && BT.timeLimit >= 10 && BT.timeLimit <= 600, 'battle.timeLimit: 10–600 с');
   for (const k of ['energyMax', 'energyOnAttack', 'energyOnDamaged']) need(Number.isFinite(BT[k]) && BT[k] >= 0, `battle.${k}: число не меньше 0`);
   need(Number.isFinite(BT.defConst) && BT.defConst > 0, 'battle.defConst: больше 0');
+  validateWorld(c, need);
+  validateUi(c, need);
   return errs;
 
   function checkAbility(a) {

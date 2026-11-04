@@ -9,6 +9,7 @@
 
 | Спецэффекты (огненная комета, магический снаряд, лечение): текстуры flame_04/05, fire_01/02, smoke_04/06, magic_04/05, star_04, circle_02 | Kenney Particle Pack 1.1, Kenney Vleugels, https://kenney.nl/assets/particle-pack (скачано из пакета для Godot: https://github.com/Calinou/kenney-particle-pack, в нём лицензия автора) | CC0 (`client/assets/vfx/LICENSE-Kenney-ParticlePack.txt`) | `client/assets/vfx/` |
 | Графика интерфейса боя: каменная круглая арена, диск, значки ролей, скрещённые мечи | Собственная работа проекта, генерируется скриптом `tools/gen_ui_assets.py` (Pillow) | Принадлежит проекту, внешних ограничений нет | `client/assets/ui/` |
+| Временный фон входа в пещеру для демо-кампании (не фотография и не вид реальной пещеры Шульган-Таш) | Собственная иллюстрация проекта, 2026-11-04 | Принадлежит проекту | `client/assets/backgrounds/cave_demo.jpg` |
 | Горный фон арены «Cold mountain» | OpenGameArt, набор Oil painting landscapes, https://opengameart.org/content/oil-painting-landscapes | CC0 | `client/assets/backgrounds/arena_mountains.png` |
 | Прежний временный фон «Wizard tower» (в бою больше не используется) | | OpenGameArt, набор Oil painting landscapes, https://opengameart.org/content/oil-painting-landscapes | CC0 (указано на странице набора) | `client/assets/backgrounds/arena_wizardtower.png` |
 
