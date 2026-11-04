@@ -257,7 +257,7 @@ async function viewHome(view) {
           if (!s.maintenance && !confirm('Новые бои будут заблокированы. Включить техработы?')) return;
           await api('maintenance', { on: !s.maintenance, message: s.maintenance ? '' : 'Технические работы' }); render();
         } }, s.maintenance ? 'Выключить техработы' : 'Включить техработы'),
-        h('button', { class: 'sec', style: 'margin:0 6px 6px 0', onclick: async () => { toast('Бэкап создан: ' + (await api('backup', {})).name); } }, 'Бэкап сейчас'))),
+        h('button', { class: 'sec', style: 'margin:0 6px 6px 0', onclick: async () => { const b = await api('backup', {}); toast('Бэкап ' + b.name + ', новых файлов медиатеки: ' + (b.mediaCopied || 0)); } }, 'Бэкап сейчас'))),
     h('div', { class: 'card' }, h('b', {}, 'Ошибки'),
       h('table', {}, s.errors.length ? s.errors.map((e) => h('tr', {}, h('td', {}, fmtTime(e.ts)), h('td', {}, e.source), h('td', {}, e.message.slice(0, 200)))) : h('tr', {}, h('td', { class: 'ok' }, 'Ошибок нет')))),
     h('div', { class: 'card' }, h('b', {}, 'Последние изменения'),

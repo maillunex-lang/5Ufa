@@ -8,10 +8,25 @@ const DIR := "user://media"
 
 var manifest: Dictionary = {}
 var _cache := {}   # путь -> [GLTFDocument, GLTFState]
+var _battle_manifest: Variant = null   # снимок на время одного боя; null = обычный манифест
 
 
 func set_manifest(m: Dictionary) -> void:
 	manifest = m
+
+
+## На время боя подменяет список файлов снимком с сервера. null возвращает обычный манифест.
+func set_battle_manifest(m: Variant) -> void:
+	if m == null:
+		_battle_manifest = null
+	elif typeof(m) == TYPE_DICTIONARY:
+		_battle_manifest = m
+
+
+func _active() -> Dictionary:
+	if typeof(_battle_manifest) == TYPE_DICTIONARY:
+		return _battle_manifest
+	return manifest
 
 
 func _ext(e: Dictionary) -> String:
@@ -31,8 +46,8 @@ func _path(sha: String, ext: String = ".glb") -> String:
 ## Что нужно скачать: не вшито и ещё нет на устройстве. [{name, sha, size, ext}]
 func missing() -> Array:
 	var out: Array = []
-	for n in manifest:
-		var e: Dictionary = manifest[n]
+	for n in _active():
+		var e: Dictionary = _active()[n]
 		if e.get("bundled", false):
 			continue
 		var ext := _ext(e)
@@ -86,7 +101,7 @@ func _load_glb(path: String) -> Node3D:
 func instance(name: String) -> Node3D:
 	if name == "":
 		return null
-	var e: Dictionary = manifest.get(name, {})
+	var e: Dictionary = _active().get(name, {})
 	var k := str(e.get("kind", "model"))
 	if not e.is_empty() and not e.get("bundled", false) and k != "image" and k != "background":
 		var p := _path(str(e["sha"]), _ext(e))
@@ -104,7 +119,7 @@ func instance(name: String) -> Node3D:
 func texture(name: String) -> Texture2D:
 	if name == "":
 		return null
-	var e: Dictionary = manifest.get(name, {})
+	var e: Dictionary = _active().get(name, {})
 	if e.is_empty() or e.get("bundled", false):
 		return null
 	var k := str(e.get("kind", ""))

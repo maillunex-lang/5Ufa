@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS level_ops(id INTEGER PRIMARY KEY, hero_id INTEGER NOT
 CREATE TABLE IF NOT EXISTS formations(account_id INTEGER PRIMARY KEY, slots TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS stage_progress(account_id INTEGER NOT NULL, stage INTEGER NOT NULL, cleared INTEGER NOT NULL, PRIMARY KEY(account_id, stage));
 CREATE TABLE IF NOT EXISTS reward_claims(account_id INTEGER NOT NULL, stage INTEGER NOT NULL, battle_id TEXT NOT NULL, PRIMARY KEY(account_id, stage));
-CREATE TABLE IF NOT EXISTS battles(id TEXT PRIMARY KEY, account_id INTEGER NOT NULL, stage INTEGER NOT NULL, content_version INTEGER NOT NULL, seed INTEGER NOT NULL, winner TEXT NOT NULL, timeout INTEGER NOT NULL, duration REAL NOT NULL, events TEXT NOT NULL, reward TEXT, created INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS battles(id TEXT PRIMARY KEY, account_id INTEGER NOT NULL, stage INTEGER NOT NULL, content_version INTEGER NOT NULL, seed INTEGER NOT NULL, winner TEXT NOT NULL, timeout INTEGER NOT NULL, duration REAL NOT NULL, events TEXT NOT NULL, reward TEXT, created INTEGER NOT NULL, media TEXT);
 CREATE TABLE IF NOT EXISTS content_versions(id INTEGER PRIMARY KEY, hash TEXT NOT NULL, json TEXT NOT NULL, note TEXT, created INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS settings(k TEXT PRIMARY KEY, v TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS audit(id INTEGER PRIMARY KEY, ts INTEGER NOT NULL, actor TEXT NOT NULL, action TEXT NOT NULL, detail TEXT);
@@ -40,6 +40,7 @@ export function openDb(path) {
   ensureColumn(db, 'media', 'license', 'license TEXT');
   ensureColumn(db, 'media', 'requirements', 'requirements TEXT');
   ensureColumn(db, 'media', 'prompt', 'prompt TEXT');
+  ensureColumn(db, 'battles', 'media', 'media TEXT');
   return db;
 }
 

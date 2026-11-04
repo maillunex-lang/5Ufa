@@ -1,5 +1,5 @@
 import { createServer } from 'node:http';
-import { readFileSync, existsSync, mkdirSync, writeFileSync, readdirSync, statSync, unlinkSync, chmodSync, createReadStream } from 'node:fs';
+import { readFileSync, existsSync, mkdirSync, writeFileSync, readdirSync, statSync, unlinkSync, chmodSync, createReadStream, copyFileSync } from 'node:fs';
 import { join, extname, normalize, sep, dirname } from 'node:path';
 import { randomBytes } from 'node:crypto';
 import { createMedia, isSha, MAX_MEDIA_BYTES } from './media.js';
@@ -51,15 +51,33 @@ export function createApp({ dataDir, contentPath, adminDir, env = process.env, r
   const guestLimit = makeLimiter(20, 60_000);
 
   // ---------- бэкапы ----------
+  // Файлы медиатеки неизменяемые (имя = хеш). Копия одна на все бэкапы базы: повторно не дублируется.
+  function copyMediaFiles() {
+    const srcDir = join(dataDir, 'media');
+    const destDir = join(dataDir, 'backups', 'media');
+    mkdirSync(destDir, { recursive: true });
+    if (!existsSync(srcDir)) return 0;
+    let n = 0;
+    for (const f of readdirSync(srcDir)) {
+      if (!/^[0-9a-f]{64}\.(glb|png|jpg)$/.test(f)) continue;
+      const src = join(srcDir, f);
+      const dest = join(destDir, f);
+      if (!statSync(src).isFile() || existsSync(dest)) continue;
+      copyFileSync(src, dest);
+      n++;
+    }
+    return n;
+  }
   function backup(reason) {
     const dir = join(dataDir, 'backups');
     mkdirSync(dir, { recursive: true });
     const name = `game-${new Date().toISOString().replace(/[:.]/g, '-')}-${reason}.db`;
     db.exec(`VACUUM INTO '${join(dir, name).replace(/'/g, "''")}'`);
+    const mediaCopied = copyMediaFiles();
     const keep = Number(env.BACKUP_KEEP || 14);
     const files = readdirSync(dir).filter((f) => f.endsWith('-daily.db')).sort();
     for (const f of files.slice(0, Math.max(0, files.length - keep))) unlinkSync(join(dir, f));
-    return name;
+    return { name, mediaCopied };
   }
   const dayKey = () => new Date().toISOString().slice(0, 10);
   function dailyBackupIfDue() {
@@ -137,7 +155,7 @@ export function createApp({ dataDir, contentPath, adminDir, env = process.env, r
       if (p === '/api/story/complete' && m === 'POST') return json(res, 200, game.completeStory(acc, String(b.questId || '')));
       if (p === '/api/hero/upgrade') return json(res, 200, game.upgradeHero(acc, b.heroId));
       if (p === '/api/hero/reset') return json(res, 200, game.resetHero(acc, b.heroId));
-      if (p === '/api/battle/start') return json(res, 200, game.startBattle(acc, Number(b.stage)));
+      if (p === '/api/battle/start') return json(res, 200, game.startBattle(acc, Number(b.stage), { media: media.manifest() }));
       const mb = p.match(/^\/api\/battle\/([\w-]+)$/);
       if (mb && m === 'GET') return json(res, 200, game.getBattle(acc, mb[1]));
       throw new GameError('not_found', 'Нет такого метода', 404);
@@ -185,7 +203,7 @@ export function createApp({ dataDir, contentPath, adminDir, env = process.env, r
         audit(adminUser, 'maintenance', { on });
         return json(res, 200, { maintenance: on });
       }
-      if (p === '/admin/api/backup' && m === 'POST') { const name = backup('manual'); audit(adminUser, 'backup', { name }); return json(res, 200, { name }); }
+      if (p === '/admin/api/backup' && m === 'POST') { const result = backup('manual'); audit(adminUser, 'backup', result); return json(res, 200, result); }
       if (p === '/admin/api/content/current' && m === 'GET') { const id = game.currentVersionId(); return json(res, 200, game.getVersion(id)); }
       if (p === '/admin/api/content/versions' && m === 'GET') return json(res, 200, game.listVersions(Number(url.searchParams.get('limit')) || 50));
       const mv = p.match(/^\/admin\/api\/content\/version\/(\d+)$/);

@@ -58,6 +58,7 @@ var _result_shown := false
 var _result: Dictionary = {}
 var _toast: Label
 var _cam_tween: Tween
+var _battle_media := false
 
 
 func _load_camera() -> void:
@@ -75,6 +76,10 @@ func _load_camera() -> void:
 func _ready() -> void:
 	_load_camera()
 	_result = State.battle_result
+	if typeof(_result.get("media", null)) == TYPE_DICTIONARY:
+		Media.set_battle_manifest(_result["media"])
+		_battle_media = true
+		await _fetch_battle_media()
 	_events = _result.get("events", [])
 	for a in State.content.get("abilities", []):
 		if typeof(a) == TYPE_DICTIONARY:
@@ -85,6 +90,58 @@ func _ready() -> void:
 				_abilities[str(a["id"])] = a
 	_build_scene()
 	_build_hud()
+
+
+func _exit_tree() -> void:
+	if _battle_media:
+		Media.set_battle_manifest(null)
+		_battle_media = false
+
+
+## Файлы именно этого боя. Мелочь качается сразу; больше 10 МБ — только если игрок согласен.
+## Отказ или обрыв: остаются вшитые модели, бой всё равно начинается.
+func _fetch_battle_media() -> void:
+	if Media.missing().is_empty():
+		return
+	if Media.missing_bytes() > 10 * 1048576:
+		if not await _confirm_media_download():
+			return
+	await Media.download_missing()
+
+
+func _confirm_media_download() -> bool:
+	var layer := CanvasLayer.new()
+	layer.layer = 20
+	add_child(layer)
+	var root := Control.new()
+	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	layer.add_child(root)
+	var bg := ColorRect.new()
+	bg.color = Color(0.05, 0.05, 0.07, 0.92)
+	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	root.add_child(bg)
+	var margin := MarginContainer.new()
+	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	margin.add_theme_constant_override("margin_left", 32)
+	margin.add_theme_constant_override("margin_right", 32)
+	root.add_child(margin)
+	var box := VBoxContainer.new()
+	box.alignment = BoxContainer.ALIGNMENT_CENTER
+	box.add_theme_constant_override("separation", 20)
+	margin.add_child(box)
+	var mb := Media.missing_bytes() / 1048576.0
+	box.add_child(Ui.label("Для этого боя нужно скачать ресурсы: %.0f МБ." % mb, 32))
+	var go := Ui.button("Скачать", 32, 100)
+	var skip := Ui.button("Без скачивания (временные модели)", 26, 90)
+	box.add_child(go)
+	box.add_child(skip)
+	var result := [""]
+	go.pressed.connect(func(): result[0] = "go")
+	skip.pressed.connect(func(): result[0] = "skip")
+	while result[0] == "":
+		await get_tree().process_frame
+	layer.queue_free()
+	return result[0] == "go"
 
 
 # ---------------------------------------------------------------- сцена

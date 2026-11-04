@@ -1,12 +1,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, writeFileSync, copyFileSync, readFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, copyFileSync, readFileSync, unlinkSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 import { openDb } from '../src/db.js';
 import { createMedia, parseGlb, parseImage, mediaUsages } from '../src/media.js';
+import { createGame } from '../src/game.js';
 import { createApp } from '../src/app.js';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
@@ -256,5 +257,56 @@ test('HTTP: картинка отдаётся как PNG, в списке ест
     const knight = list.find((m) => m.name === 'Knight');
     assert.ok(knight.used.some((u) => u.key === 'tank' && u.field === 'model'));
     assert.deepEqual(list.find((m) => m.name === 'Poster').used, []);
+  } finally { app.close(); }
+});
+
+test('бой хранит версии ресурсов на момент старта', () => {
+  const dir = mkdtempSync(join(tmpdir(), '5ufa-pin-'));
+  const file = join(dir, 'game.json');
+  copyFileSync(root + 'content/game.json', file);
+  const db = openDb(join(dir, 'game.db'));
+  const game = createGame(db, { contentPath: file });
+  const media = createMedia({ db, dir: join(dir, 'media') });
+  const v1 = media.upload({ name: 'Knight', kind: 'model', buf: glb({}, 'Idle'), filename: 'a.glb' });
+  const acc = game.guest().accountId;
+  const b1 = game.startBattle(acc, 1, { seed: 1, media: media.manifest() });
+  assert.equal(b1.media.Knight.sha, v1.sha);
+  assert.equal(b1.media.Knight.version, 1);
+  const v2 = media.upload({ name: 'Knight', kind: 'model', buf: glb({}, 'Run'), filename: 'b.glb' });
+  media.activate('Knight', v2.version);
+  assert.equal(media.manifest().Knight.sha, v2.sha);
+  const again = game.getBattle(acc, b1.battleId);
+  assert.equal(again.media.Knight.sha, v1.sha);
+  assert.equal(again.media.Knight.version, 1);
+  const b2 = game.startBattle(acc, 1, { seed: 2, media: media.manifest() });
+  assert.equal(b2.media.Knight.sha, v2.sha);
+  const plain = game.startBattle(acc, 1, { seed: 3 });
+  assert.equal(plain.media, null);
+  assert.equal(game.getBattle(acc, plain.battleId).media, null);
+});
+
+test('бэкап копирует файлы медиатеки и не затирает копию', () => {
+  const dir = mkdtempSync(join(tmpdir(), '5ufa-bak-'));
+  const file = join(dir, 'game.json');
+  copyFileSync(root + 'content/game.json', file);
+  const dataDir = join(dir, 'data');
+  const app = createApp({ dataDir, contentPath: file, adminDir: root + 'admin', env: { ADMIN_PASSWORD: 'secret-pass-1', SEED_MEDIA_DIR: join(dir, 'no-models'), SEED_IMAGE_DIR: join(dir, 'no-images'), RELEASES_DISABLED: '1' } });
+  try {
+    const model = app.media.upload({ name: 'Hero_A', kind: 'model', buf: glb(), filename: 'a.glb', author: 'test' });
+    const pic = app.media.upload({ name: 'Poster', kind: 'image', buf: png(4, 4), filename: 'p.png', author: 'test' });
+    writeFileSync(join(dataDir, 'media', 'notes.txt'), 'не файл медиатеки');
+    const first = app.backup('manual');
+    assert.match(first.name, /-manual\.db$/);
+    assert.equal(first.mediaCopied, 2);
+    const modelCopy = join(dataDir, 'backups', 'media', `${model.sha}.glb`);
+    const picCopy = join(dataDir, 'backups', 'media', `${pic.sha}.png`);
+    const modelBytes = readFileSync(join(dataDir, 'media', `${model.sha}.glb`));
+    assert.deepEqual(readFileSync(modelCopy), modelBytes);
+    assert.ok(existsSync(picCopy));
+    assert.equal(existsSync(join(dataDir, 'backups', 'media', 'notes.txt')), false);
+    unlinkSync(join(dataDir, 'media', `${model.sha}.glb`));
+    const second = app.backup('manual');
+    assert.equal(second.mediaCopied, 0);
+    assert.deepEqual(readFileSync(modelCopy), modelBytes);
   } finally { app.close(); }
 });
