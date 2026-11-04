@@ -117,15 +117,43 @@
     }
    ],
    "visual": {
-    "model": "Barbarian",
-    "scale": 1.0,
-    "_test": true,
-    "hide": [
-     "1H_Axe_Offhand",
-     "2H_Axe",
-     "Mug",
-     "Barbarian_Round_Shield"
-    ]
+    "model": "Swordsman",
+    "scale": 1.75,
+    "yaw": 0,
+    "y_offset": 0,
+    "root_lock": true,
+    "bar_height": 3.3,
+    "anims": {
+     "idle": "Idle_9",
+     "run": "Running",
+     "attack_melee": "Thrust_Slash",
+     "attack_melee_strong": "Jump_and_Slam_Back_Down",
+     "death": "Dead"
+    },
+    "anim_speed": {
+     "attack_melee": 3.0,
+     "attack_melee_strong": 1.8,
+     "death": 1.2
+    },
+    "attachments": [
+     {
+      "bone": "mixamorig:RightHand",
+      "prop": "sword",
+      "pos": [
+       0,
+       0.05,
+       0
+      ],
+      "rot": [
+       0,
+       0,
+       -90
+      ],
+      "scale": 1.0
+     }
+    ],
+    "source": "Meshy (владелец), модель мечника",
+    "_test": true
    }
   },
   {

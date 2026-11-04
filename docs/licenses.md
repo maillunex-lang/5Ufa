@@ -13,7 +13,7 @@
 | Прежний временный фон «Wizard tower» (в бою больше не используется) | | OpenGameArt, набор Oil painting landscapes, https://opengameart.org/content/oil-painting-landscapes | CC0 (указано на странице набора) | `client/assets/backgrounds/arena_wizardtower.png` |
 
 ## Соответствие моделей ролям (временное, утверждается владельцем)
-Танк: Knight · Боец: Barbarian · Стрелок: Rogue_Hooded · Маг: Mage · Целитель: Priest (Meshy, сгенерирован 04.11.2026, см. ниже).
+Танк: Knight · Боец: Swordsman (Meshy, предоставлен владельцем; меч нарисован кодом, `client/props.gd`) · Стрелок: Rogue_Hooded · Маг: Mage · Целитель: Priest (Meshy, сгенерирован 04.11.2026, см. ниже).
 Враги: боец: Skeleton_Warrior · стрелок: Skeleton_Rogue · маг: Skeleton_Mage · **босс: Skeleton_Warrior, увеличен (отдельной модели босса в наборах нет)**.
 
 ## Проверено при скачивании (04.11.2026)
@@ -32,3 +32,6 @@
 
 ## Портреты героев
 Не хранятся как файлы: рисуются при запуске боя из самих 3D-моделей (`client/portrait.gd`), поэтому следуют лицензиям моделей.
+
+## Мечник (Meshy, от владельца)
+`client/assets/models/Swordsman.glb`, 6 МБ, ~10,5 тыс. треугольников, скелет Mixamo (24 кости, без пальцев), анимации: Idle_9, Running, Walking, Thrust_Slash, Jump_and_Slam_Back_Down, Dead. Права на модель подтверждены владельцем (настройка тарифа Meshy). Бывшая модель бойца (Barbarian из KayKit) убрана из репозитория, при необходимости берётся из исходного пакета.
