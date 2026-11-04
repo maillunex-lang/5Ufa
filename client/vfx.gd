@@ -9,7 +9,7 @@ static var _mesh: QuadMesh
 
 static func _texture(tex_name: String) -> Texture2D:
 	if not _tex_cache.has(tex_name):
-		var path := "res://assets/vfx/%s.png" % tex_name
+		var path := ("res://assets/%s.png" % tex_name) if tex_name.contains("/") else ("res://assets/vfx/%s.png" % tex_name)
 		_tex_cache[tex_name] = load(path) if ResourceLoader.exists(path) else null
 	return _tex_cache[tex_name]
 

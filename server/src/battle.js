@@ -49,7 +49,11 @@ export function simulate({ attackers, defenders, seed, config }) {
   const foes = (u) => alive(u.side === 'a' ? 'd' : 'a');
   const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 
-  ev('start', { units: units.map((u) => ({ id: u.id, key: u.key, side: u.side, slot: u.slot, level: u.level, hp: u.maxHp, x: u.x, y: u.y })) });
+  // «Мощь» отряда для показа в интерфейсе: взвешенная сумма здоровья, атаки и защиты (веса в данных, тестовые)
+  const PW = C.powerWeights || { hp: 0.1, atk: 3, def: 2 };
+  const power = { a: 0, d: 0 };
+  for (const u of units) power[u.side] += Math.round(u.maxHp * PW.hp + u.atk * PW.atk + u.def * PW.def);
+  ev('start', { power, units: units.map((u) => ({ id: u.id, key: u.key, side: u.side, slot: u.slot, level: u.level, hp: u.maxHp, x: u.x, y: u.y })) });
 
   const gainEnergy = (u, n) => {
     if (!u.alive || !u.abilities.some((a) => a.kind === 'main')) return;

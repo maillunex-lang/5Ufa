@@ -7,7 +7,17 @@
   "energyMax": 100,
   "energyOnAttack": 10,
   "energyOnDamaged": 5,
-  "defConst": 100
+  "defConst": 100,
+  "powerWeights": {
+   "hp": 0.1,
+   "atk": 3,
+   "def": 2
+  },
+  "speed": {
+   "x2UnlockStage": 3,
+   "x4": "vip",
+   "_test": true
+  }
  },
  "progression": {
   "maxLevel": 10,
@@ -67,7 +77,14 @@
    "visual": {
     "model": "Knight",
     "scale": 1.0,
-    "_test": true
+    "_test": true,
+    "hide": [
+     "1H_Sword_Offhand",
+     "Badge_Shield",
+     "Rectangle_Shield",
+     "Spike_Shield",
+     "2H_Sword"
+    ]
    }
   },
   {
@@ -102,7 +119,13 @@
    "visual": {
     "model": "Barbarian",
     "scale": 1.0,
-    "_test": true
+    "_test": true,
+    "hide": [
+     "1H_Axe_Offhand",
+     "2H_Axe",
+     "Mug",
+     "Barbarian_Round_Shield"
+    ]
    }
   },
   {
@@ -137,7 +160,13 @@
    "visual": {
     "model": "Rogue_Hooded",
     "scale": 1.0,
-    "_test": true
+    "_test": true,
+    "hide": [
+     "Knife_Offhand",
+     "2H_Crossbow",
+     "Throwable",
+     "Knife"
+    ]
    }
   },
   {
@@ -193,7 +222,12 @@
     "model": "Mage",
     "scale": 1.0,
     "_test": true,
-    "magic_color": "#8a7bff"
+    "magic_color": "#8a7bff",
+    "hide": [
+     "Spellbook",
+     "Spellbook_open",
+     "1H_Wand"
+    ]
    }
   },
   {
@@ -250,7 +284,8 @@
     },
     "magic_color": "#5dffa0",
     "source": "Meshy (проба), см. docs/licenses.md",
-    "_test": true
+    "_test": true,
+    "bar_height": 2.8
    }
   }
  ],
@@ -706,8 +741,8 @@
   "id": "arena_1",
   "name": "Арена 1",
   "bounds": {
-   "xMin": -5.5,
-   "xMax": 5.5,
+   "xMin": -5.0,
+   "xMax": 5.0,
    "yMin": -3.4,
    "yMax": 3.4
   },
