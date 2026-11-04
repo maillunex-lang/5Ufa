@@ -79,6 +79,94 @@ export function unlockPasses(unlock, { cleared, done }) {
   return false;
 }
 
+const SHELL_BUILDINGS = ['portal', 'arena', 'dungeons', 'guild', 'shop'];
+const SHELL_RAIL = ['quests', 'offers', 'deals', 'afk'];
+const SHELL_MENU = ['mail', 'settings'];
+const SHELL_NAV = ['city', 'campaign', 'heroes', 'inventory'];
+const SHELL_MONEY = ['gold', 'diamond'];
+const SHELL_SCREENS = ['summon', 'arena'];
+const SHELL_ACTIONS = new Set(['settings', 'account', 'tab:0', 'tab:1', 'tab:2', 'tab:3']);
+
+function unlockOk(need, unlock, path, c) {
+  if (unlock === 'always') return;
+  const st = /^stage:(\d+)$/.exec(unlock || '');
+  if (st) {
+    need((c.stages || []).some((s) => s.n === Number(st[1])), `${path}: нет этапа ${st[1]}`);
+    return;
+  }
+  const q = /^quest:([a-z][a-z0-9_]{1,31})$/.exec(unlock || '');
+  if (q) {
+    need((c.world?.quests || []).some((item) => item.id === q[1]), `${path}: нет задания ${q[1]}`);
+    return;
+  }
+  need(false, `${path}: условие «${unlock}» не из каталога (always, stage:N, quest:id)`);
+}
+
+function shellItem(need, item, path, c) {
+  need(item && typeof item === 'object', `${path}: нужен объект`);
+  if (!item || typeof item !== 'object') return;
+  loc(need, item.label, `${path}.label`, 40);
+  unlockOk(need, item.unlock, `${path}.unlock`, c);
+  need(item.status === 'unbuilt' || item.status === 'ready' || item.status === 'screen', `${path}.status: unbuilt, ready или screen`);
+  need(typeof item.prompt === 'string' && item.prompt.length >= 1 && item.prompt.length <= 2000, `${path}.prompt: 1–2000 символов`);
+  if (item.art !== undefined) need(FILE.test(item.art || ''), `${path}.art: имя файла`);
+  if (item.status === 'unbuilt') {
+    need(item.action === undefined && item.screen === undefined, `${path}: неготовый раздел не открывает экран`);
+  } else if (item.status === 'ready') {
+    need(SHELL_ACTIONS.has(item.action), `${path}.action: нет такого готового экрана`);
+    need(item.screen === undefined, `${path}: готовый раздел не ссылается на концепт-экран`);
+  } else if (item.status === 'screen') {
+    need(SHELL_SCREENS.includes(item.screen), `${path}.screen: известны только summon и arena`);
+    need(item.action === undefined, `${path}: концепт-экран задаётся полем screen`);
+  }
+}
+
+function validateShell(u, need, c) {
+  const s = u.shell;
+  if (s === undefined) return;
+  need(s && typeof s === 'object' && !Array.isArray(s), 'ui.shell: объект');
+  if (!s || typeof s !== 'object' || Array.isArray(s)) return;
+  need(FILE.test(s.cityArt || ''), 'ui.shell.cityArt: имя файла фона города');
+  need(typeof s.cityPrompt === 'string' && s.cityPrompt.length >= 1 && s.cityPrompt.length <= 2000, 'ui.shell.cityPrompt: 1–2000 символов');
+  need(FILE.test(s.profileArt || ''), 'ui.shell.profileArt: имя файла портрета');
+  need(typeof s.profilePrompt === 'string' && s.profilePrompt.length >= 1 && s.profilePrompt.length <= 2000, 'ui.shell.profilePrompt: 1–2000 символов');
+  need(typeof s.vipPrompt === 'string' && s.vipPrompt.length >= 1 && s.vipPrompt.length <= 2000, 'ui.shell.vipPrompt: 1–2000 символов');
+  const checkList = (list, ids, path) => {
+    need(Array.isArray(list) && list.length === ids.length, `${path}: ровно ${ids.length}`);
+    (list || []).forEach((item, i) => {
+      need(item?.id === ids[i], `${path}[${i}].id: нужен ${ids[i]} и этот порядок`);
+      shellItem(need, item, `${path}.${ids[i]}`, c);
+    });
+  };
+  checkList(s.buildings, SHELL_BUILDINGS, 'ui.shell.buildings');
+  for (const b of s.buildings || []) {
+    if (!b || typeof b !== 'object') continue;
+    need(Number.isFinite(b.x) && b.x >= 0 && b.x <= 100, `здание ${b.id}: x от 0 до 100`);
+    need(Number.isFinite(b.y) && b.y >= 0 && b.y <= 100, `здание ${b.id}: y от 0 до 100`);
+  }
+  checkList(s.rail, SHELL_RAIL, 'ui.shell.rail');
+  checkList(s.menu, SHELL_MENU, 'ui.shell.menu');
+  checkList(s.nav, SHELL_NAV, 'ui.shell.nav');
+  need(Array.isArray(s.currencies) && s.currencies.length === SHELL_MONEY.length, 'ui.shell.currencies: золото и алмазы');
+  (s.currencies || []).forEach((item, i) => {
+    need(item?.id === SHELL_MONEY[i], `ui.shell.currencies[${i}].id: нужен ${SHELL_MONEY[i]}`);
+    loc(need, item?.label, `ui.shell.currencies.${SHELL_MONEY[i]}.label`, 40);
+    need(typeof item?.prompt === 'string' && item.prompt.length >= 1 && item.prompt.length <= 2000, `валюта ${SHELL_MONEY[i]}: промпт 1–2000`);
+    if (item?.art !== undefined) need(FILE.test(item.art || ''), `валюта ${SHELL_MONEY[i]}: имя файла`);
+  });
+  const screens = s.screens;
+  need(screens && typeof screens === 'object', 'ui.shell.screens: экраны призыва и арены');
+  for (const id of SHELL_SCREENS) {
+    const sc = screens?.[id];
+    need(sc && typeof sc === 'object', `ui.shell.screens.${id}: объект`);
+    if (!sc) continue;
+    loc(need, sc.title, `ui.shell.screens.${id}.title`, 40);
+    loc(need, sc.note, `ui.shell.screens.${id}.note`, 400);
+    need(FILE.test(sc.art || ''), `ui.shell.screens.${id}.art: имя файла`);
+    need(typeof sc.prompt === 'string' && sc.prompt.length >= 1 && sc.prompt.length <= 2000, `ui.shell.screens.${id}.prompt: 1–2000 символов`);
+  }
+}
+
 export function validateUi(c, need) {
   if (c.ui === undefined) return;
   const u = c.ui;
@@ -94,6 +182,7 @@ export function validateUi(c, need) {
   for (const k of ['title', 'body', 'small']) {
     need(Number.isInteger(u.type?.[k]) && u.type[k] >= 12 && u.type[k] <= 48, `ui.type.${k}: целое 12–48`);
   }
+  validateShell(u, need, c);
 }
 
 export function validateUnitExtras(u, need) {

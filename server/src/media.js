@@ -264,11 +264,17 @@ export function createMedia({ db, dir, audit }) {
       arena_mountains: 'Вшитый фон боя. Пока активна эта версия, игра берёт файл из приложения.',
       arena_wizardtower: 'Старый фон. В бою сейчас не используется.',
       cave_demo: 'Вшитый временный фон места. Это не фотография пещеры.',
+      city_main: 'Временный фон города. Подписи рисует игра, не картинка.',
+      summon_hero: 'Иллюстрация экрана призыва. Это не выданный герой.',
+      arena_terrace: 'Временный верх экрана арены. Соперников на картинке нет.',
     };
     const licenses = {
       arena_mountains: 'CC0, OpenGameArt, Oil painting landscapes',
       arena_wizardtower: 'CC0, OpenGameArt, Oil painting landscapes',
       cave_demo: 'Собственная иллюстрация проекта, не фотография',
+      city_main: 'Собственная иллюстрация проекта, временный фон города',
+      summon_hero: 'Собственная иллюстрация проекта, не результат призыва',
+      arena_terrace: 'Собственная иллюстрация проекта, фон экрана арены',
     };
     let n = 0;
     for (const f of readdirSync(seedDir).filter((x) => /\.(png|jpe?g)$/i.test(x)).sort()) {

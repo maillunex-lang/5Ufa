@@ -4,7 +4,7 @@ COPY server/ /app/server/
 COPY admin/ /app/admin/
 COPY content/ /app/content/
 COPY client/assets/models/ /app/seed-models/
-COPY client/assets/backgrounds/arena_mountains.png client/assets/backgrounds/arena_wizardtower.png client/assets/backgrounds/cave_demo.jpg /app/seed-backgrounds/
+COPY client/assets/backgrounds/arena_mountains.png client/assets/backgrounds/arena_wizardtower.png client/assets/backgrounds/cave_demo.jpg client/assets/backgrounds/city_main.jpg client/assets/backgrounds/summon_hero.jpg client/assets/backgrounds/arena_terrace.jpg /app/seed-backgrounds/
 ENV NODE_ENV=production DATA_DIR=/data CONTENT_PATH=/app/content/game.json ADMIN_DIR=/app/admin SEED_MEDIA_DIR=/app/seed-models SEED_IMAGE_DIR=/app/seed-backgrounds PORT=8080
 VOLUME /data
 EXPOSE 8080
