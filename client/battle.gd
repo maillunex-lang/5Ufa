@@ -92,12 +92,6 @@ func _ready() -> void:
 	_build_hud()
 
 
-func _exit_tree() -> void:
-	if _battle_media:
-		Media.set_battle_manifest(null)
-		_battle_media = false
-
-
 ## Файлы именно этого боя. Мелочь качается сразу; больше 10 МБ — только если игрок согласен.
 ## Отказ или обрыв: остаются вшитые модели, бой всё равно начинается.
 func _fetch_battle_media() -> void:
@@ -411,6 +405,9 @@ func _on_speed() -> void:
 
 func _exit_tree() -> void:
 	Engine.time_scale = 1.0
+	if _battle_media:
+		Media.set_battle_manifest(null)
+		_battle_media = false
 
 
 func _toggle_pause() -> void:

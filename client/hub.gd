@@ -124,7 +124,7 @@ func _bottom_bar() -> HBoxContainer:
 	var icons := ["icon_nav_city.png", "icon_nav_campaign.png", "icon_nav_heroes.png", "icon_nav_inventory.png"]
 	var fallback := ["Город", "Кампания", "Герои", "Инвентарь"]
 	for i in fallback.size():
-		var title := fallback[i]
+		var title: String = fallback[i]
 		if i < nav.size():
 			var got := State.loc(nav[i].get("label", ""))
 			if got != "":

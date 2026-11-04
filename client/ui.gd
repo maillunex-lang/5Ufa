@@ -96,7 +96,7 @@ static func art_texture(file_name: String) -> Texture2D:
 		return from_media
 	for folder in ["res://assets/backgrounds/", "res://assets/ui/"]:
 		for ext in [".jpg", ".jpeg", ".png"]:
-			var path := folder + stem + ext
+			var path: String = str(folder) + stem + str(ext)
 			if ResourceLoader.exists(path):
 				return load(path)
 		if file_name.find(".") >= 0 and ResourceLoader.exists(folder + file_name):
@@ -133,7 +133,7 @@ static func shell_press(parent: Control, item: Dictionary, host: Node) -> void:
 		alert(parent, lock_text(unlock))
 		return
 	var status := str(item.get("status", "unbuilt"))
-	var title := State.loc(item.get("label", ""))
+	var title: String = State.loc(item.get("label", ""))
 	if status == "unbuilt":
 		alert(parent, title + " в разработке. Раздел ничего не открывает и ничего не выдаёт.")
 		return
