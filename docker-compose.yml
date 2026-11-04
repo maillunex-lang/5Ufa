@@ -48,8 +48,13 @@ services:
       PUBLIC_PATH_PREFIX: ${PUBLIC_PATH_PREFIX:-}
       GIT_SHA: ${GIT_SHA:-dev}
       CLIENT_UPLOAD_TOKEN: ${CLIENT_UPLOAD_TOKEN:-}
+      BACKUP_DIR: /backups
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-14}
+      ADMIN_SESSION_DAYS: ${ADMIN_SESSION_DAYS:-7}
     volumes:
       - contentstore:/data/content-store
+      # Бэкапы: админка показывает список и может попросить сделать бэкап сейчас
+      - ${BACKUP_DIR:-./backups}:/backups
     depends_on:
       postgres:
         condition: service_healthy
@@ -69,6 +74,7 @@ services:
       - "${HTTP_BIND:-127.0.0.1}:${HTTP_PORT:-8085}:80"
     environment:
       SERVER_NAME: ${DOMAIN:-_}
+      PUBLIC_PATH_PREFIX: ${PUBLIC_PATH_PREFIX:-}
     volumes:
       - ./deploy/nginx/templates:/etc/nginx/templates:ro
       - contentstore:/srv/content-store:ro

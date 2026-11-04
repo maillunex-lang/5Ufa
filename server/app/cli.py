@@ -46,6 +46,12 @@ async def cmd_import(args) -> int:
             if exists:
                 print("Контент уже импортирован ранее — пропускаю (--if-empty).")
                 return 0
+        if args.publish_if_new:
+            from app.content.releases import import_base_merged
+            _release, message = await import_base_merged(session, content_dir, args.comment)
+            await session.commit()
+            print(message)
+            return 0
         release, created = await import_directory(session, content_dir, source="base", comment=args.comment)
         print(("Создан релиз" if created else "Контент не изменился, релиз") +
               f" №{release.id}: файлов {release.files_count}, размер {_mb(release.total_size)}")
@@ -288,7 +294,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--publish", action="store_true", help="Сразу опубликовать в live и test")
     p.add_argument("--if-empty", action="store_true", help="Только если релизов ещё нет (первый запуск)")
     p.add_argument("--publish-if-new", action="store_true",
-                   help="Опубликовать, только если контент изменился (при деплое; ручной откат не перетирается)")
+                   help="Деплой: перенести изменения репозитория поверх текущей версии, не затирая правки из админки")
     p.add_argument("--comment", default="Базовый контент", help="Комментарий к релизу")
     p.set_defaults(func=cmd_import)
 

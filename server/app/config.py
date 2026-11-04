@@ -29,6 +29,8 @@ class Settings(BaseSettings):
     admin_session_days: int = 7
     admin_login_attempts: int = 5
     admin_login_window: int = 900
+    # Папка бэкапов (общая с сервисом backup): список и запрос «сделать сейчас»
+    backup_dir: Path = Path("/backups")
     # Максимальный размер ZIP-патча и одной загружаемой картинки
     admin_patch_max_mb: int = 200
     admin_file_max_mb: int = 50

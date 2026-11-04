@@ -47,6 +47,24 @@ server {
         gzip off;
     }
 
+    # --- Веб-версия админки (для браузера ПК). Без пароля администратора бесполезна ---
+    location = /admin {
+        return 301 $fwd_proto://$host${PUBLIC_PATH_PREFIX}/admin/;
+    }
+    location /admin/ {
+        alias /srv/content-store/admin-web/current/;
+        index index.html;
+        add_header Cache-Control "no-cache";
+        types {
+            text/html html;
+            application/javascript js;
+            application/wasm wasm;
+            application/octet-stream pck;
+            image/png png;
+        }
+        gzip_types application/javascript application/wasm application/octet-stream;
+    }
+
     # --- WebSocket (чат, этап 8) ---
     location /ws/ {
         proxy_pass http://api_upstream;
