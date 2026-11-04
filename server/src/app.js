@@ -6,11 +6,12 @@ import { createMedia, isSha, MAX_MEDIA_BYTES } from './media.js';
 import { createGame, GameError } from './game.js';
 import { openDb } from './db.js';
 import { hashPassword, checkPassword, makeLimiter, newToken, sha } from './auth.js';
+import { createReleaseCheck } from './releases.js';
 
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.svg': 'image/svg+xml' };
 const VERSION = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version;
 
-export function createApp({ dataDir, contentPath, adminDir, env = process.env }) {
+export function createApp({ dataDir, contentPath, adminDir, env = process.env, releaseFetch }) {
   mkdirSync(dataDir, { recursive: true });
   const db = openDb(join(dataDir, 'game.db'));
   const game = createGame(db, { contentPath });
@@ -20,6 +21,17 @@ export function createApp({ dataDir, contentPath, adminDir, env = process.env })
   const started = Date.now();
   const audit = (actor, action, detail) => db.prepare('INSERT INTO audit(ts,actor,action,detail) VALUES(?,?,?,?)').run(Date.now(), actor, action, detail ? JSON.stringify(detail) : null);
   const logError = (source, e) => db.prepare('INSERT INTO error_log(ts,source,message) VALUES(?,?,?)').run(Date.now(), source, String(e?.stack || e).slice(0, 2000));
+  let releases = { update: async () => null };
+  if (env.RELEASES_DISABLED !== '1') {
+    try {
+      releases = createReleaseCheck({
+        repo: env.RELEASES_REPO || 'maillunex-lang/5Ufa',
+        token: env.GITHUB_TOKEN || '',
+        fetchImpl: releaseFetch || globalThis.fetch,
+        log: (m) => logError('releases', m),
+      });
+    } catch (e) { logError('releases', e); }
+  }
 
   // ---------- владелец админки ----------
   const adminUser = env.ADMIN_USER || 'owner';
@@ -93,8 +105,9 @@ export function createApp({ dataDir, contentPath, adminDir, env = process.env })
     // --- публичное ---
     if (p === '/health') return json(res, 200, { ok: true, version: VERSION, uptimeSec: Math.round((Date.now() - started) / 1000) });
     if (p === '/api/config' && m === 'GET') {
-      // Клиент спрашивает при запуске. Принудительное обновление (updates) заполняется модулем релизов (этап 6).
-      return json(res, 200, { server: VERSION, maintenance: game.isMaintenance(), maintenanceMessage: db.prepare("SELECT v FROM settings WHERE k='maintenance_msg'").get()?.v ?? '', contentVersion: game.getContent().id, update: null });
+      let update = null;
+      try { update = await releases.update(); } catch (e) { logError('releases', e); }
+      return json(res, 200, { server: VERSION, maintenance: game.isMaintenance(), maintenanceMessage: db.prepare("SELECT v FROM settings WHERE k='maintenance_msg'").get()?.v ?? '', contentVersion: game.getContent().id, update });
     }
     const mf = p.match(/^\/api\/media\/([0-9a-f]{64})$/);
     if (mf && m === 'GET') { const f = media.byHash(mf[1]); if (!f) throw new GameError('not_found', 'Файл не найден', 404); return sendFile(res, f); }

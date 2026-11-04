@@ -1,5 +1,8 @@
 extends Control
-## Загрузчик и вход: /api/config (техработы), гостевой вход, /api/me, контент -> главный экран (hub.tscn).
+## Загрузчик и вход: /api/config (техработы и обязательное обновление), гостевой вход, /api/me, контент -> главный экран (hub.tscn).
+## VERSION_CODE — номер сборки Android. В исходниках 1; тестовый APK в Actions подставляет номер сборки.
+
+const VERSION_CODE := 1
 
 var _status: Label
 var _info: Label
@@ -85,6 +88,8 @@ func _start() -> void:
 	if cfg["data"].get("maintenance", false):
 		_fail("Технические работы.\n" + str(cfg["data"].get("maintenanceMessage", "")))
 		return
+	if _offer_update(cfg["data"]):
+		return
 
 	if Api.token != "":
 		var me: Dictionary = await Api.request("GET", "/api/me")
@@ -97,6 +102,54 @@ func _start() -> void:
 		Api.clear_token()
 
 	_show_choice()
+
+
+func _https_url(url: String) -> bool:
+	if not url.begins_with("https://") or url.length() > 2000:
+		return false
+	for i in url.length():
+		if url.unicode_at(i) <= 32:
+			return false
+	return true
+
+
+## Обязательное обновление: экран до входа, без кнопки «позже». Ссылка только https.
+func _offer_update(data: Dictionary) -> bool:
+	var upd = data.get("update", null)
+	if typeof(upd) != TYPE_DICTIONARY:
+		return false
+	if int(upd.get("versionCode", 0)) <= VERSION_CODE:
+		return false
+	var url := str(upd.get("url", ""))
+	if not _https_url(url):
+		return false
+	_show_update(upd, url)
+	return true
+
+
+func _show_update(upd: Dictionary, url: String) -> void:
+	_clear_form()
+	_btn_retry.visible = false
+	_status.text = "Нужно обновление"
+	var name := str(upd.get("versionName", "")).replace("\n", " ")
+	if name.length() > 40:
+		name = name.substr(0, 40)
+	if name == "":
+		name = "новой версии"
+	_info.text = "Вышла версия %s. Эта сборка устарела: пока не поставите новую, войти нельзя." % name
+	var size := int(upd.get("size", 0))
+	if size >= 1048576:
+		_info.text += "\nРазмер около %d МБ." % int(round(float(size) / 1048576.0))
+	elif size > 0:
+		_info.text += "\nРазмер около %d КБ." % int(round(float(size) / 1024.0))
+	var go := Ui.button("Скачать обновление", 32, 110)
+	go.pressed.connect(func():
+		if _https_url(url):
+			OS.shell_open(url))
+	_form.add_child(go)
+	var again := Ui.button("Проверить снова", 26, 84)
+	again.pressed.connect(_start)
+	_form.add_child(again)
 
 
 ## Первый запуск на устройстве: играть сразу гостем или войти в существующий аккаунт.

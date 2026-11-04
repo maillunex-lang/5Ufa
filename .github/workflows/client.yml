@@ -39,8 +39,12 @@ jobs:
           godot --version
       - name: Версия APK
         run: |
+          # version/code тестового APK = номер сборки, чтобы новая тестовая ставилась поверх старой.
+          # Тот же номер пишется в boot.gd: игра сравнивает его с update.versionCode.
+          # Обычный релиз (не prerelease) этот workflow не создаёт.
           sed -i "s/^version\/code=.*/version\/code=${{ github.run_number }}/; s/^version\/name=.*/version\/name=\"0.1.${{ github.run_number }}\"/" client/export_presets.cfg
           sed -i "s/^config\/version=.*/config\/version=\"0.1.${{ github.run_number }}\"/" client/project.godot
+          sed -i "s/^const VERSION_CODE := .*/const VERSION_CODE := ${{ github.run_number }}/" client/boot.gd
       - name: Импорт ресурсов проекта
         working-directory: client
         run: godot --headless --import || true
