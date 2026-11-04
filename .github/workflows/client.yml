@@ -22,7 +22,10 @@ jobs:
           # Android-шаблоны экспорта берём с официальной страницы релиза Godot (в образе их нет)
           t="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
           mkdir -p "$t"
-          curl -fsSL --retry 3 -o /tmp/templates.tpz "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
+          url="https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
+          if command -v wget >/dev/null 2>&1; then wget -q --tries=3 -O /tmp/templates.tpz "$url"
+          elif command -v curl >/dev/null 2>&1; then curl -fsSL --retry 3 -o /tmp/templates.tpz "$url"
+          else python3 -c "import urllib.request,sys; urllib.request.urlretrieve(sys.argv[1], '/tmp/templates.tpz')" "$url"; fi
           unzip -j -o /tmp/templates.tpz 'templates/android_*' 'templates/version.txt' -d "$t"
           rm -f /tmp/templates.tpz
           ls -la "$t"
