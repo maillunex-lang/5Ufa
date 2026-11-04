@@ -15,7 +15,7 @@
 | Метод | Путь | Тело → ответ |
 | --- | --- | --- |
 | GET | `/api/me` | → `{account,heroes[{id,key,level}],balances,formation[5 id],clearedStages,contentVersion,maxLevel}` |
-| GET | `/api/content` | → герои, враги, этапы (без наград-секретов), прогрессия, параметры боя |
+| GET | `/api/content` | → герои, враги, этапы, прогрессия, параметры боя, `tutorial.steps` (шаги обучения: id, text, highlight[], done), `arena.bounds` (прямоугольник арены xMin, xMax, yMin, yMax: бойцы за него не выходят) |
 | POST | `/api/bind` | `{login,password}` → `{recoveryCode}` (показать игроку один раз) |
 | POST | `/api/formation` | `{slots:[5 id героев]}` (0–1 перед, 2–4 зад) |
 | POST | `/api/tutorial/done` | → `{ok}` |
@@ -25,7 +25,7 @@
 | GET | `/api/battle/:id` | → тот же результат (для переподключения; награду повторно не даёт) |
 
 ## События боя (`events[]`, время `t` в секундах игрового времени)
-`start{units[{id,key,side:'a'|'d',slot,level,hp,x,y}]}` · `move{id,to:[x,y],speed}` · `attack{src,dst,ability}` · `skill{src,dst,ability}` · `damage{src,dst,amount,crit,ability,hp}` · `heal{src,dst,amount,hp,ability}` · `death{id}` · `energy{id,value}` (значение 0–100, только у героев с главной способностью) · `end{winner,timeout}`.
+`start{units[{id,key,side:'a'|'d',slot,level,hp,x,y}]}` · `move{id,to:[x,y],speed}` (повторяется при смене цели пути) · `stop{id,x,y}` (боец остановился, точная позиция) · `attack{src,dst,ability}` · `skill{src,dst,ability}` · `damage{src,dst,amount,crit,ability,hp}` · `heal{src,dst,amount,hp,ability}` · `death{id}` · `energy{id,value}` (значение 0–100, только у героев с главной способностью) · `end{winner,timeout}`.
 Координаты в условных единицах арены: игрок слева (x<0), враги справа. Клиент воспроизводит события с нужной скоростью; сам ничего не считает.
 
 ## Админ-API (`Authorization: Bearer <admin token>`, префикс `/admin/api/`)

@@ -34,6 +34,7 @@ export function buildUnit(def, level, growth, side, slot, id) {
     x: (side === 'a' ? -1 : 1) * (slot < 2 ? 2 : 4),
     y: (slot < 2 ? [-1, 1][slot] * 1.2 : [-2.4, 0, 2.4][slot - 2]),
     moving: false,
+    moveTarget: null,
   };
 }
 
@@ -64,7 +65,7 @@ export function simulate({ attackers, defenders, seed, config }) {
     dst.hp = Math.max(0, dst.hp - dmg);
     ev('damage', { src: src.id, dst: dst.id, amount: dmg, crit, ability: abilityId, hp: dst.hp });
     gainEnergy(dst, C.energyOnDamaged);
-    if (dst.hp === 0) { dst.alive = false; dst.moving = false; ev('death', { id: dst.id }); }
+    if (dst.hp === 0) { dst.alive = false; dst.moving = false; dst.moveTarget = null; ev('death', { id: dst.id }); }
   }
 
   function lowestAlly(u) {
@@ -128,16 +129,32 @@ export function simulate({ attackers, defenders, seed, config }) {
       if (dist(u, tgt) > u.range) {
         // подбегание к своей свободной точке рядом с целью (без расталкивания)
         const dir = u.side === 'a' ? -1 : 1;
-        const gx = tgt.x + dir * Math.max(0.6, u.range * 0.9);
-        const gy = tgt.y + (u.slot - 2) * 0.5;
+        let gx = tgt.x + dir * Math.max(0.6, u.range * 0.9);
+        let gy = tgt.y + (u.slot - 2) * 0.5;
+        const B = C.bounds; // прямоугольник арены: за него бойцы не выходят (цель внутри, значит точка после обрезки только ближе к ней)
+        if (B) { gx = Math.min(B.xMax, Math.max(B.xMin, gx)); gy = Math.min(B.yMax, Math.max(B.yMin, gy)); }
         const dx = gx - u.x, dy = gy - u.y, d = Math.hypot(dx, dy);
+        if (d < 1e-6) continue; // уже в точке (упёрлись в границу), ждём без лишних событий
         const step = Math.min(d, u.speed * C.tick);
-        if (!u.moving) { u.moving = true; ev('move', { id: u.id, to: [r1(gx), r1(gy)], speed: u.speed }); }
+        // Клиент двигает бойца только по событиям: заново сообщаем цель пути при старте и при смене цели
+        if (!u.moving || u.moveTarget !== tgt.id) {
+          u.moving = true;
+          u.moveTarget = tgt.id;
+          ev('move', { id: u.id, to: [r1(gx), r1(gy)], speed: u.speed });
+        }
         if (d > 1e-6) { u.x += (dx / d) * step; u.y += (dy / d) * step; }
-        if (d - step < 1e-6 || dist(u, tgt) <= u.range) u.moving = false;
+        if (d - step < 1e-6 || dist(u, tgt) <= u.range) { // остановился: сообщаем точное место
+          u.moving = false;
+          u.moveTarget = null;
+          ev('stop', { id: u.id, x: r1(u.x), y: r1(u.y) });
+        }
         continue;
       }
-      u.moving = false;
+      if (u.moving) { // цель оказалась в зоне досягаемости без дохода до точки
+        u.moving = false;
+        u.moveTarget = null;
+        ev('stop', { id: u.id, x: r1(u.x), y: r1(u.y) });
+      }
       if (u.atkTimer <= 0 && act(u)) u.atkTimer = u.interval;
     }
   }
@@ -146,5 +163,5 @@ export function simulate({ attackers, defenders, seed, config }) {
   const timeout = aLeft > 0 && dLeft > 0;
   const winner = dLeft === 0 && aLeft > 0 ? 'attacker' : 'defender'; // таймаут — проигрыш атакующего
   ev('end', { winner, timeout });
-  return { winner, timeout, duration: r1(t), events, survivors: units.filter((u) => u.alive).map((u) => ({ id: u.id, hp: u.hp })) };
+  return { winner, timeout, duration: r1(t), events, survivors: units.filter((u) => u.alive).map((u) => ({ id: u.id, hp: u.hp, x: u.x, y: u.y })) };
 }

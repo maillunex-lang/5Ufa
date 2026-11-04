@@ -12,6 +12,7 @@ var _content: Control
 var _tab_buttons: Array = []
 var _info: Label
 var _menu: PanelContainer
+var _tut: Control
 
 
 func _ready() -> void:
@@ -64,6 +65,11 @@ func _ready() -> void:
 	var mv := VBoxContainer.new()
 	mv.add_theme_constant_override("separation", 8)
 	_menu.add_child(mv)
+	var acc_btn := Ui.button("Аккаунт", 26, 76)
+	acc_btn.pressed.connect(func():
+		_menu.visible = false
+		add_child(preload("res://account.gd").new()))
+	mv.add_child(acc_btn)
 	for it in ["Почта", "Задания", "Получить AFK-награды", "Настройки"]:
 		var mi := Ui.button(it + " (скоро)", 26, 76)
 		mi.disabled = true
@@ -79,6 +85,9 @@ func _ready() -> void:
 	_update_top()
 	_select(State.start_tab)
 	State.start_tab = 0
+	_tut = preload("res://tutorial.gd").new()
+	add_child(_tut)
+	_tut.setup(self)
 
 
 func _update_top() -> void:
@@ -95,3 +104,5 @@ func _select(i: int) -> void:
 	var tab: Control = TAB_SCRIPTS[i].new()
 	tab.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_content.add_child(tab)
+	if _tut != null:
+		_tut.refresh()

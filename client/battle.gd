@@ -11,7 +11,7 @@ extends Node3D
 
 const SPEED := 1.0
 const TIME_LIMIT := 90.0
-const DEPTH := 1.8   # растяжение арены по глубине для экрана (на сервере координаты не меняются)
+const DEPTH := 1.25   # растяжение арены по глубине для экрана (на сервере координаты не меняются)
 const CAM_POS := Vector3(0, 8.0, 11.2)    # угол около 35° над землёй, вид сбоку
 const CAM_LOOK := Vector3(0, 0.9, 0.6)
 const CAM_FOV := 54.0
@@ -368,10 +368,19 @@ func _is_idle(u: Dictionary) -> bool:
 	return p == null or p.current_animation == _resolve(u, "idle")
 
 
+## Псевдо-2.5D: боец всегда стоит боком к камере, лицом вправо или влево (по направлению к цели по горизонтали).
 func _face(u: Dictionary, to: Vector3) -> void:
-	var d: Vector3 = to - (u["node"] as Node3D).position
-	if d.length() > 0.05:
-		(u["pivot"] as Node3D).rotation.y = atan2(d.x, d.z)
+	var dx := to.x - (u["node"] as Node3D).position.x
+	if absf(dx) > 0.3:   # у почти вертикального движения сохраняем прежний поворот
+		(u["pivot"] as Node3D).rotation.y = PI / 2.0 if dx > 0.0 else -PI / 2.0
+
+
+## Прямоугольник арены из данных (в экранных координатах с учётом растяжения по глубине).
+func _clamp(p: Vector3) -> Vector3:
+	var b: Dictionary = State.content.get("arena", {}).get("bounds", {})
+	if b.is_empty():
+		return p
+	return Vector3(clampf(p.x, float(b["xMin"]), float(b["xMax"])), p.y, clampf(p.z, float(b["yMin"]) * DEPTH, float(b["yMax"]) * DEPTH))
 
 
 func _update_hp(u: Dictionary) -> void:
@@ -569,9 +578,12 @@ func _dispatch(e: Dictionary) -> void:
 		"move":
 			if _units.has(e["id"]):
 				var u: Dictionary = _units[e["id"]]
-				u["target"] = Vector3(float(e["to"][0]), 0, float(e["to"][1]) * DEPTH)
+				u["target"] = _clamp(Vector3(float(e["to"][0]), 0, float(e["to"][1]) * DEPTH))
 				u["speed"] = float(e["speed"])
 				_face(u, u["target"])
+		"stop":
+			if _units.has(e["id"]):
+				(_units[e["id"]] as Dictionary)["target"] = _clamp(Vector3(float(e["x"]), 0, float(e["y"]) * DEPTH))
 		"attack", "skill":
 			_on_cast(e)
 		"damage":
@@ -674,7 +686,7 @@ func _process(delta: float) -> void:
 			var n: Node3D = u["node"]
 			var tgt: Vector3 = u["target"]
 			if n.position.distance_to(tgt) > 0.05:
-				n.position = n.position.move_toward(tgt, float(u["speed"]) * delta * SPEED)
+				n.position = _clamp(n.position.move_toward(tgt, float(u["speed"]) * delta * SPEED))
 				moving = true
 		if u["busy"] <= 0.0:
 			if moving and not u["running"]:
