@@ -37,6 +37,8 @@ test('демо-мир проходит проверку и не заменяет
   assert.equal(c.world.proposals.status, 'proposal');
   assert.equal(c.world.proposals.chosen, undefined);
   assert.ok(c.world.placeStates.length >= 2);
+  assert.deepEqual(validateContent(c), []);
+  assert.equal(c.ui.shell.buildings.map((b) => b.id).join(','), 'portal,arena,dungeons,guild,shop');
 });
 
 test('старый контент без мира по-прежнему принимается, битая ссылка — нет', () => {
@@ -52,6 +54,12 @@ test('старый контент без мира по-прежнему прин
   loop.world.quests[0].unlock = 'quest:q_light';
   loop.world.quests[2].unlock = 'quest:q_whisper';
   assert.ok(validateContent(loop).some((e) => e.includes('зациклены')));
+  const shell = raw();
+  delete shell.ui.shell;
+  assert.deepEqual(validateContent(shell), []);
+  const fake = raw();
+  fake.ui.shell.buildings[2].action = 'tab:1';
+  assert.ok(validateContent(fake).some((e) => e.includes('не открывает экран')));
 });
 
 test('сюжет не выдаёт награду и не мешает старому прогрессу этапа', () => {

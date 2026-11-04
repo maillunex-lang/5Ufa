@@ -75,6 +75,7 @@ function viewWorld(view) {
       field('Основной текст', num(u, 'type.body', { int: true, min: 12, max: 48 })),
       field('Пометки', num(u, 'type.small', { int: true, min: 12, max: 48 }))));
   }
+  editShell(view);
   const block = (title, list, extra, fields) => {
     view.append(h('div', { class: 'card' }, h('b', {}, title),
       h('button', { class: 'sec', onclick: () => addId(list, extra) }, 'Добавить'),
@@ -167,5 +168,58 @@ function unlockField(obj) {
   if (obj.unlock && !opts.some(([v]) => String(v) === String(obj.unlock))) opts.push([obj.unlock, obj.unlock]);
   return select(obj, 'unlock', opts);
 }
+
+function editShell(view) {
+  const s = D.ui && D.ui.shell;
+  if (!s) return;
+  const statusField = (item) => select(item, 'status', [['unbuilt', 'в разработке'], ['ready', 'готовый экран'], ['screen', 'концепт, без выдачи']], {
+    on: () => {
+      if (item.status === 'unbuilt') { delete item.action; delete item.screen; }
+      if (item.status === 'ready') { delete item.screen; item.action = SHELL_ACTIONS.includes(item.action) ? item.action : 'tab:1'; }
+      if (item.status === 'screen') { delete item.action; item.screen = item.screen === 'arena' ? 'arena' : 'summon'; }
+      render();
+    },
+  });
+  const extra = (item) => [
+    item.status === 'ready' ? field('Куда открыть', select(item, 'action', [['tab:0', 'Город'], ['tab:1', 'Кампания'], ['tab:2', 'Герои'], ['tab:3', 'Инвентарь'], ['settings', 'Настройки'], ['account', 'Аккаунт']])) : null,
+    item.status === 'screen' ? field('Экран', select(item, 'screen', [['summon', 'Призыв'], ['arena', 'Арена']])) : null,
+    field('Промпт картинки', area(item, 'prompt', 3)),
+    field('Файл', text(item, 'art', { optional: true, placeholder: 'city_main.jpg' })),
+  ];
+  view.append(h('h2', {}, 'Оболочка главного экрана'),
+    h('p', { style: 'color:var(--mut)' }, 'Подписи, условия открытия и промпты для картинок. Сохранение сразу включает новую версию контента. Неготовые разделы игра не рисует рабочими.'));
+  view.append(h('div', { class: 'card' }, h('b', {}, 'Фон города и портрет'),
+    field('Файл города', text(s, 'cityArt')),
+    field('Промпт города', area(s, 'cityPrompt', 3)),
+    field('Файл портрета', text(s, 'profileArt')),
+    field('Промпт портрета', area(s, 'profilePrompt', 3)),
+    field('Промпт значка VIP', area(s, 'vipPrompt', 2))));
+  const card = (title, list) => h('div', { class: 'card' }, h('b', {}, title),
+    ...(list || []).map((item) => h('div', { class: 'card', style: 'margin-top:10px' },
+      h('div', {}, h('b', {}, item.label?.ru || item.id), h('span', { class: 'tag' }, item.id)),
+      field('Подпись', ruText(item, 'label')),
+      field('Открытие', unlockField(item)),
+      field('Состояние', statusField(item)),
+      ...extra(item),
+      item.x !== undefined ? field('Позиция по горизонтали, %', num(item, 'x', { min: 0, max: 100, step: '1' })) : null,
+      item.y !== undefined ? field('Позиция по вертикали, %', num(item, 'y', { min: 0, max: 100, step: '1' })) : null)));
+  view.append(card('Здания города', s.buildings), card('Кнопки слева', s.rail), card('Меню справа', s.menu), card('Нижние вкладки', s.nav));
+  view.append(h('div', { class: 'card' }, h('b', {}, 'Валюты на верхней панели'),
+    ...(s.currencies || []).map((item) => h('div', { class: 'card', style: 'margin-top:10px' },
+      field('Подпись', ruText(item, 'label')),
+      field('Файл значка', text(item, 'art', { optional: true })),
+      field('Промпт значка', area(item, 'prompt', 2))))));
+  const screens = s.screens || {};
+  view.append(h('div', { class: 'card' }, h('b', {}, 'Экраны призыва и арены'),
+    h('p', { style: 'color:var(--mut)' }, 'Это оформление. Призыв ничего не выдаёт, арена никого не вызывает.'),
+    ...['summon', 'arena'].filter((id) => screens[id]).map((id) => h('div', { class: 'card', style: 'margin-top:10px' },
+      h('b', {}, id),
+      field('Заголовок', ruText(screens[id], 'title')),
+      field('Пояснение игроку', ruText(screens[id], 'note', 3)),
+      field('Файл иллюстрации', text(screens[id], 'art')),
+      field('Промпт иллюстрации', area(screens[id], 'prompt', 3))))));
+}
+
+const SHELL_ACTIONS = ['tab:0', 'tab:1', 'tab:2', 'tab:3', 'settings', 'account'];
 
 if (location.hash.startsWith('#/world')) render();

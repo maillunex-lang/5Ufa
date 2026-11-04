@@ -71,6 +71,86 @@ static func alert(parent: Control, text: String) -> void:
 	parent.add_child(overlay)
 
 
+static func grouped(n: int) -> String:
+	var neg := n < 0
+	var s := str(absi(n))
+	var out := ""
+	while s.length() > 3:
+		out = " " + s.substr(s.length() - 3, 3) + out
+		s = s.substr(0, s.length() - 3)
+	return ("-" if neg else "") + s + out
+
+
+static func shell() -> Dictionary:
+	var ui: Dictionary = State.content.get("ui", {})
+	var s: Variant = ui.get("shell", {})
+	return s if typeof(s) == TYPE_DICTIONARY else {}
+
+
+static func art_texture(file_name: String) -> Texture2D:
+	if file_name == "":
+		return null
+	var stem := file_name.get_basename() if file_name.find(".") >= 0 else file_name
+	var from_media := Media.texture(stem)
+	if from_media != null:
+		return from_media
+	for folder in ["res://assets/backgrounds/", "res://assets/ui/"]:
+		for ext in [".jpg", ".jpeg", ".png"]:
+			var path := folder + stem + ext
+			if ResourceLoader.exists(path):
+				return load(path)
+		if file_name.find(".") >= 0 and ResourceLoader.exists(folder + file_name):
+			return load(folder + file_name)
+	return null
+
+
+static func unlocked(unlock: String) -> bool:
+	if unlock == "" or unlock == "always":
+		return true
+	if unlock.begins_with("stage:"):
+		var want := int(unlock.get_slice(":", 1))
+		for cleared in State.me.get("clearedStages", []):
+			if int(cleared) == want:
+				return true
+		return false
+	if unlock.begins_with("quest:"):
+		return State.story_done(unlock.get_slice(":", 1))
+	return false
+
+
+static func lock_text(unlock: String) -> String:
+	if unlock.begins_with("stage:"):
+		return "Откроется после этапа %d" % int(unlock.get_slice(":", 1))
+	if unlock.begins_with("quest:"):
+		return "Откроется после сюжетного задания"
+	return "Пока закрыто"
+
+
+## Неготовый раздел не притворяется рабочей системой. Готовый только переключает уже существующий экран.
+static func shell_press(parent: Control, item: Dictionary, host: Node) -> void:
+	var unlock := str(item.get("unlock", "always"))
+	if not unlocked(unlock):
+		alert(parent, lock_text(unlock))
+		return
+	var status := str(item.get("status", "unbuilt"))
+	var title := State.loc(item.get("label", ""))
+	if status == "unbuilt":
+		alert(parent, title + " в разработке. Раздел ничего не открывает и ничего не выдаёт.")
+		return
+	if status == "screen" and host.has_method("open_screen"):
+		host.open_screen(str(item.get("screen", "")))
+		return
+	var action := str(item.get("action", ""))
+	if action == "settings" and host.has_method("open_overlay"):
+		host.open_overlay(preload("res://settings.gd").new())
+	elif action == "account" and host.has_method("open_overlay"):
+		host.open_overlay(preload("res://account.gd").new())
+	elif action.begins_with("tab:") and host.has_method("select_tab"):
+		host.select_tab(int(action.get_slice(":", 1)))
+	else:
+		alert(parent, title + " в разработке.")
+
+
 static func line_edit(placeholder: String, secret: bool = false) -> LineEdit:
 	var e := LineEdit.new()
 	e.placeholder_text = placeholder
