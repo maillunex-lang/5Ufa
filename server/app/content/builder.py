@@ -169,13 +169,16 @@ def build_manifest(content_dir: Path, store: ContentStore | None, schemas: Schem
 
 
 def _validate_hero_models(content_dir: Path, hero_path: str, hero: dict) -> list[str]:
-    """Проверить ссылки 3D до выпуска релиза, включая правки из ZIP и режима JSON."""
-    from app.models3d.inspect_glb import MAX_GLB_BYTES, ModelError, inspect_glb
+    """Проверить ссылки 3D до выпуска релиза, включая правки из формы, JSON и ZIP."""
+    from pathlib import PurePosixPath
+
+    from app.models3d.inspect_glb import MAX_GLB_BYTES, ModelError, inspect_glb, require_owned_model_path
 
     errors = []
     hero_dir = Path(hero_path).parent.as_posix()
     kinds = [("", hero.get("model_3d"))]
     kinds.extend((skin["id"], skin.get("model_3d")) for skin in hero.get("skins", []))
+    root = content_dir.resolve()
     for skin, model in kinds:
         if not model:
             continue
@@ -183,13 +186,14 @@ def _validate_hero_models(content_dir: Path, hero_path: str, hero: dict) -> list
         cache = {}
 
         def report(path):
-            if not path.startswith(prefix) or not path.endswith(".glb"):
-                raise ModelError("файл должен принадлежать выбранному виду героя")
+            require_owned_model_path(path, prefix)
             if path not in cache:
-                f = content_dir / path
-                if not f.is_file() or f.stat().st_size > MAX_GLB_BYTES:
+                candidate = root.joinpath(*PurePosixPath(path).parts)
+                parent = candidate.parent.resolve()
+                if (not parent.is_relative_to(root) or not candidate.is_file()
+                        or candidate.stat().st_size > MAX_GLB_BYTES):
                     raise ModelError("файл модели отсутствует или превышает 50 МиБ")
-                cache[path] = inspect_glb(f.read_bytes())
+                cache[path] = inspect_glb(candidate.read_bytes())
             return cache[path]
 
         try:
@@ -202,6 +206,6 @@ def _validate_hero_models(content_dir: Path, hero_path: str, hero: dict) -> list
             for name, anchor in model.get("anchors", {}).items():
                 if anchor["bone"] != "@root" and anchor["bone"] not in main["bones"]:
                     raise ModelError(f"кость точки «{name}» не найдена")
-        except (ModelError, OSError) as exc:
+        except (ModelError, OSError, KeyError) as exc:
             errors.append(f"{hero_path}: 3D{' скина ' + skin if skin else ''}: {exc}")
     return errors

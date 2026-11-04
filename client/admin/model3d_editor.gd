@@ -71,6 +71,7 @@ func _number(value: float, low: float, high: float, step: float) -> SpinBox:
 
 func _build() -> void:
 	add_child(_label("Загрузите GLB или ZIP с GLB. У нескольких файлов выберите основной; для каждого движения можно выбрать отдельный файл.", 19))
+	add_child(_label("Принимается GLB 2.0 до 50 МиБ со встроенными текстурами и данными. ZIP — до 16 файлов GLB, вместе не больше 50 МиБ, без пароля. Внешние ссылки, Draco, meshopt и разреженные данные glTF отклоняются. Это не значит, что откроется любой файл: если Godot не прочитает модель, предпросмотр напишет ошибку.", 16))
 	add_child(_button("Загрузить GLB / ZIP", _choose_file))
 	info = _label("Модель ещё не загружена", 17)
 	info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -244,8 +245,15 @@ func _refresh_options(guess: bool) -> void:
 	var lines := []
 	for report in reports:
 		var name := str(report.get("name", str(report["path"]).get_file()))
-		var text := "%s: треугольников %d, текстур %d, костей %d, анимаций %d" % [name,
-				int(report.get("triangles", 0)), report.get("textures", []).size(), report.get("bones", []).size(), report.get("animations", []).size()]
+		var textures: Array = report.get("textures", [])
+		var sizes := []
+		for item in textures:
+			if item is Dictionary:
+				sizes.append("%d×%d" % [int(item.get("width", 0)), int(item.get("height", 0))])
+		var text := "%s: треугольников %d (сеток %d, на сцене %d), текстуры %s, костей %d, анимаций %d" % [name,
+				int(report.get("triangles", 0)), int(report.get("meshes", 0)), int(report.get("mesh_instances", 0)),
+				", ".join(sizes) if not sizes.is_empty() else str(textures.size()),
+				report.get("bones", []).size(), report.get("animations", []).size()]
 		for warning in report.get("warnings", []):
 			text += "\n  • " + str(warning)
 		lines.append(text)
@@ -329,7 +337,7 @@ func _load_selected() -> void:
 	var tex := []
 	for item in report.get("textures", []):
 		tex.append("%d×%d" % [int(item["width"]), int(item["height"])])
-	info.text = "Треугольников: %d · текстуры: %s · костей: %d\n%s" % [int(report.get("triangles", 0)), ", ".join(tex) if not tex.is_empty() else "нет", report.get("bones", []).size(), "\n".join(report.get("warnings", []))]
+	info.text = "Треугольников: %d · экземпляров сетки: %d · сеток: %d · текстуры: %s · костей: %d\n%s" % [int(report.get("triangles", 0)), int(report.get("mesh_instances", 0)), int(report.get("meshes", 0)), ", ".join(tex) if not tex.is_empty() else "нет", report.get("bones", []).size(), "\n".join(report.get("warnings", []))]
 	_refresh_bones(report.get("bones", []))
 	await get_tree().process_frame
 	if is_instance_valid(model_root):
@@ -410,9 +418,15 @@ func _refresh_bones(names: Array) -> void:
 			selector.add_item(str(name))
 			selector.set_item_metadata(selector.item_count - 1, str(name))
 		var old: String = str(model_data.get("anchors", {}).get(key, {}).get("bone", ""))
+		var found := false
 		for i in range(1, selector.item_count):
-			if str(selector.get_item_metadata(i)) == old:
+			if str(selector.get_item_metadata(i)) == old and old != "":
 				selector.select(i)
+				found = true
+		if not found:
+			selector.select(0)
+			if old != "":
+				info.text += "\nТочка «%s»: кость «%s» не найдена. Выберите другую или корень модели." % [key, old]
 
 
 func _play(event: String) -> void:
@@ -442,11 +456,13 @@ func _play(event: String) -> void:
 	if source == null:
 		host._say("Не удалось открыть сцену анимации")
 		return
-	add_child(source)
+	var holder := Node.new()
+	add_child(holder)
+	holder.add_child(source)
 	var from_player := _find_player(source)
 	var clip := _resolve_clip(from_player, state, str(choice["clip"])) if from_player else ""
 	if clip == "":
-		source.queue_free()
+		holder.queue_free()
 		host._say("Анимация не найдена в отдельном GLB")
 		return
 	if not is_instance_valid(player):
@@ -470,7 +486,7 @@ func _play(event: String) -> void:
 			if target_node.find_bone(str(track.get_subname(0))) < 0:
 				target_node = null
 		if target_node == null:
-			source.queue_free()
+			holder.queue_free()
 			host._say("Скелет или пути отдельной анимации не совпадают с моделью. Выберите совместимый GLB.")
 			return
 		var remapped := str(root.get_path_to(target_node))
@@ -483,7 +499,7 @@ func _play(event: String) -> void:
 		player.remove_animation_library("ufa_preview")
 	player.add_animation_library("ufa_preview", library)
 	player.play("ufa_preview/preview")
-	source.queue_free()
+	holder.queue_free()
 
 
 func _save() -> void:

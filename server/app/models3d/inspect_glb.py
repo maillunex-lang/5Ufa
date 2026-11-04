@@ -3,16 +3,34 @@ from __future__ import annotations
 
 import io
 import json
+import posixpath
+import re
 import struct
 from PIL import Image, UnidentifiedImageError
 
 MAX_GLB_BYTES = 50 * 1024 * 1024
 MAX_IMAGE_PIXELS = 16_777_216
 MAX_ITEMS = 100_000
+# Обычный GLB Meshy их не использует. С такими расширениями треугольники и текстуры
+# лежат не в том виде, который умеет проверить сервер и открыть Godot без плагинов.
+UNSUPPORTED_EXTENSIONS = {
+    "KHR_draco_mesh_compression",
+    "EXT_meshopt_compression",
+    "KHR_texture_basisu",
+}
+_FILE_NAME = re.compile(r"[a-z0-9][a-z0-9_.-]{0,180}\.glb")
 
 
 class ModelError(ValueError):
     pass
+
+
+def require_owned_model_path(path: str, prefix: str) -> str:
+    """GLB только прямым файлом в models3d выбранного вида. `..` и чужие каталоги нельзя."""
+    if (not isinstance(path, str) or "\\" in path or path != posixpath.normpath(path)
+            or not path.startswith(prefix) or not _FILE_NAME.fullmatch(path[len(prefix):])):
+        raise ModelError("файл должен принадлежать выбранному виду героя")
+    return path
 
 
 def _list(document: dict, key: str) -> list:
@@ -57,6 +75,18 @@ def inspect_glb(data: bytes) -> dict:
         raise ModelError("Повреждён JSON модели") from exc
     if not isinstance(doc, dict) or not isinstance(doc.get("asset"), dict) or doc["asset"].get("version") != "2.0":
         raise ModelError("Файл не соответствует glTF 2.0")
+    used: set[str] = set()
+    for key in ("extensionsUsed", "extensionsRequired"):
+        value = doc.get(key, [])
+        if not isinstance(value, list) or any(not isinstance(item, str) for item in value):
+            raise ModelError("Некорректный список расширений glTF")
+        used.update(value)
+    blocked = sorted(used & UNSUPPORTED_EXTENSIONS)
+    if blocked:
+        raise ModelError(
+            "Модель использует неподдерживаемое сжатие glTF (" + ", ".join(blocked)
+            + "). Нужен обычный GLB со встроенными данными, без Draco и meshopt."
+        )
     blob = next((v for k, v in chunks if k == b"BIN\x00"), b"")
     buffers = _list(doc, "buffers")
     views = _list(doc, "bufferViews")
@@ -125,6 +155,8 @@ def inspect_glb(data: bytes) -> dict:
         mesh_triangles.append(triangles_for_mesh)
     triangles = 0
     mesh_instances = 0
+    repeats = False
+    seen_mesh: dict[int, int] = {}
     for node in nodes:
         if not isinstance(node, dict):
             raise ModelError("Некорректный узел модели")
@@ -132,6 +164,9 @@ def inspect_glb(data: bytes) -> dict:
             _get(meshes, node["mesh"], "сетка узла")
             triangles += mesh_triangles[node["mesh"]]
             mesh_instances += 1
+            seen_mesh[node["mesh"]] = seen_mesh.get(node["mesh"], 0) + 1
+            if seen_mesh[node["mesh"]] > 1:
+                repeats = True
     image_sizes = []
     for item in images:
         if not isinstance(item, dict) or "uri" in item or "bufferView" not in item:
@@ -189,6 +224,8 @@ def inspect_glb(data: bytes) -> dict:
         warnings.append("В файле нет сетки: возможно, это отдельный файл анимации")
     elif not mesh_instances:
         warnings.append("Сетки не привязаны к узлам и могут не отображаться")
+    if repeats:
+        warnings.append(f"Одна сетка стоит на сцене несколько раз: экземпляров {mesh_instances}, треугольников с повторами {triangles}")
     if triangles > 10_000:
         warnings.append(f"Треугольников {triangles}: рекомендовано не более 10 000")
     if any(i["width"] > 1024 or i["height"] > 1024 for i in image_sizes):
@@ -197,7 +234,10 @@ def inspect_glb(data: bytes) -> dict:
         warnings.append("Скелет не найден: для неподвижной модели потребуются движения кодом")
     if not clips:
         warnings.append("Анимаций нет в этом файле")
+    if len(clips) != len(set(clips)):
+        warnings.append("Есть анимации с одинаковыми именами: сопоставление может быть неоднозначным")
     if doc.get("extensionsRequired"):
         warnings.append("Модель использует обязательные расширения glTF; совместимость нужно проверить в предпросмотре")
-    return {"triangles": triangles, "textures": image_sizes, "bones": bone_names,
-            "animations": clips, "meshes": len(meshes), "mesh_instances": mesh_instances, "warnings": warnings}
+    return {"triangles": triangles, "unique_triangles": sum(mesh_triangles), "textures": image_sizes,
+            "bones": bone_names, "animations": clips, "meshes": len(meshes),
+            "mesh_instances": mesh_instances, "warnings": warnings}

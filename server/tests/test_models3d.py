@@ -140,3 +140,131 @@ async def test_zip_skin_upload(published):
     assert skin["model_3d"] == config
     test_release = await client.post("/api/v1/admin/draft/test", headers=headers, json={"comment": "скин 3D"})
     assert test_release.status_code == 200, test_release.text
+
+
+def test_repeated_mesh_is_counted_per_instance_and_sparse_draco_rejected():
+    positions = bytes(36)
+    blob = positions
+    doc = {"buffers": [{"byteLength": len(blob)}],
+           "bufferViews": [{"buffer": 0, "byteOffset": 0, "byteLength": len(positions)}],
+           "accessors": [{"count": 3, "bufferView": 0, "componentType": 5126, "type": "VEC3"}],
+           "meshes": [{"primitives": [{"attributes": {"POSITION": 0}}]}],
+           "nodes": [{"name": "a", "mesh": 0}, {"name": "b", "mesh": 0}]}
+    report = inspect_glb(glb(doc, blob))
+    assert report["meshes"] == 1 and report["mesh_instances"] == 2
+    assert report["unique_triangles"] == 1 and report["triangles"] == 2
+    assert any("несколько раз" in warning for warning in report["warnings"])
+    with pytest.raises(ModelError, match="Разреженные"):
+        inspect_glb(glb({"accessors": [{"count": 1, "componentType": 5126, "type": "SCALAR", "sparse": {"count": 1}}]}))
+    with pytest.raises(ModelError, match="Draco"):
+        inspect_glb(glb({"extensionsUsed": ["KHR_draco_mesh_compression"]}))
+
+
+def test_zip_caps_real_size_and_rejects_escape_and_encryption():
+    payload = b"A" * 3000
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+        archive.writestr("model.glb", payload)
+    with pytest.raises(ModelError):
+        unpack(buf.getvalue(), max_bytes=1000)
+    # Заголовок врёт о размере. Нельзя ни прочитать больше лимита, ни поверить крошечному file_size.
+    raw = bytearray(buf.getvalue())
+    struct.pack_into("<I", raw, 22, 10)
+    central = raw.find(b"PK\x01\x02")
+    struct.pack_into("<I", raw, central + 24, 10)
+    try:
+        files = unpack(bytes(raw), max_bytes=1000)
+    except ModelError:
+        files = []
+    assert all(len(item) <= 1000 for _, item in files)
+    encrypted = bytearray(buf.getvalue())
+    struct.pack_into("<H", encrypted, 6, encrypted[6] | 1)
+    central = encrypted.find(b"PK\x01\x02")
+    struct.pack_into("<H", encrypted, central + 8, encrypted[central + 8] | 1)
+    with pytest.raises(ModelError, match="Зашифрованный"):
+        unpack(bytes(encrypted))
+    with pytest.raises(ModelError):
+        unpack(b"PK\x03\x04not-a-zip")
+
+
+def test_model_path_cannot_escape_content_tree(tmp_path):
+    from app.content.builder import _validate_hero_models
+    content = tmp_path / "content"
+    own = content / "heroes" / "ural_batyr" / "models3d"
+    other = content / "heroes" / "humai" / "models3d"
+    own.mkdir(parents=True)
+    other.mkdir(parents=True)
+    (own / "body.glb").write_bytes(model())
+    (other / "real.glb").write_bytes(model())
+    (tmp_path / "outside.glb").write_bytes(model())
+    hero_path = "heroes/ural_batyr/hero.json"
+    escaped = {"model_3d": {"file": "heroes/ural_batyr/../humai/models3d/real.glb"}}
+    outside = {"model_3d": {"file": "heroes/ural_batyr/../../outside.glb"}}
+    assert _validate_hero_models(content, hero_path, escaped)
+    assert _validate_hero_models(content, hero_path, outside)
+    missing = {"model_3d": {"file": "heroes/ural_batyr/models3d/missing.glb"}}
+    assert _validate_hero_models(content, hero_path, missing)
+    static = glb({"buffers": [{"byteLength": 36}],
+                   "bufferViews": [{"buffer": 0, "byteLength": 36}],
+                   "accessors": [{"count": 3, "bufferView": 0, "componentType": 5126, "type": "VEC3"}],
+                   "meshes": [{"primitives": [{"attributes": {"POSITION": 0}}]}],
+                   "nodes": [{"mesh": 0}]}, bytes(36))
+    (own / "static.glb").write_bytes(static)
+    root_only = {"model_3d": {"file": "heroes/ural_batyr/models3d/static.glb",
+                              "anchors": {"hit": {"bone": "@root", "offset": [0, 1, 0]}}}}
+    assert _validate_hero_models(content, hero_path, root_only) == []
+    bad_bone = {"model_3d": {"file": "heroes/ural_batyr/models3d/static.glb",
+                             "anchors": {"hit": {"bone": "hips", "offset": [0, 0, 0]}}}}
+    assert _validate_hero_models(content, hero_path, bad_bone)
+    good = {"model_3d": {"file": "heroes/ural_batyr/models3d/body.glb",
+                         "anchors": {"hit": {"bone": "hips", "offset": [0, 0, 0]}}}}
+    assert _validate_hero_models(content, hero_path, good) == []
+
+
+async def test_bad_zip_does_not_leave_partial_draft(published):
+    client = published
+    await make_admin()
+    headers = await admin_headers(client)
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as archive:
+        archive.writestr("good.glb", model())
+        archive.writestr("bad.glb", b"glTF" + b"\x00" * 32)
+    upload = await client.post("/api/v1/admin/models3d/ural_batyr/upload", headers=headers, content=buf.getvalue())
+    assert upload.status_code == 422, upload.text
+    draft = (await client.get("/api/v1/admin/draft", headers=headers)).json()
+    assert all("models3d" not in item["path"] for item in draft["changes"])
+
+
+async def test_patch_and_form_cannot_publish_missing_model(published):
+    from tests.test_admin import zip_of
+    client = published
+    await make_admin()
+    headers = await admin_headers(client)
+    hero = (await client.get("/api/v1/admin/sections/heroes/objects/ural_batyr", headers=headers)).json()["data"]
+    assert "model_3d" not in hero
+    # Форма и «Как JSON» пишут в один и тот же метод. Ссылки проверяются при сборке релиза.
+    hero["model_3d"] = {"file": "heroes/ural_batyr/models3d/missing.glb"}
+    saved = await client.put("/api/v1/admin/sections/heroes/objects/ural_batyr", headers=headers, json={"data": hero})
+    assert saved.status_code == 200, saved.text
+    blocked = await client.post("/api/v1/admin/draft/test", headers=headers, json={"comment": "форма"})
+    assert blocked.status_code == 422
+    await client.post("/api/v1/admin/draft/revert", headers=headers, json={})
+    patch = {"id": "missing-model", "format_version": 1, "section": "heroes", "description": "нет glb",
+             "operations": [{"op": "update", "id": "ural_batyr",
+                             "data": {"model_3d": {"file": "heroes/ural_batyr/../humai/models3d/x.glb"}}}]}
+    applied = await client.post("/api/v1/admin/patches/apply", headers=headers, content=zip_of(patch))
+    assert applied.status_code == 200, applied.text
+    blocked_patch = await client.post("/api/v1/admin/draft/test", headers=headers, json={"comment": "патч"})
+    assert blocked_patch.status_code == 422
+    await client.post("/api/v1/admin/draft/revert", headers=headers, json={})
+    path = "heroes/ural_batyr/models3d/pilot.glb"
+    ok_patch = {"id": "pilot-model", "format_version": 1, "section": "heroes", "description": "glb",
+                "operations": [{"op": "update", "id": "ural_batyr", "files": [path],
+                                "data": {"model_3d": {"file": path, "anchors": {"hit": {"bone": "@root", "offset": [0, 0, 0]}}}}}]}
+    applied_ok = await client.post("/api/v1/admin/patches/apply", headers=headers, content=zip_of(ok_patch, {path: model()}))
+    assert applied_ok.status_code == 200, applied_ok.text
+    released = await client.post("/api/v1/admin/draft/test", headers=headers, json={"comment": "патч с моделью"})
+    assert released.status_code == 200, released.text
+    again = (await client.get("/api/v1/admin/sections/heroes/objects/ural_batyr", headers=headers)).json()["data"]
+    assert again["model_3d"]["file"] == path and again["model_3d"]["anchors"]["hit"]["bone"] == "@root"
+
