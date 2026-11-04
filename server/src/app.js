@@ -111,7 +111,7 @@ export function createApp({ dataDir, contentPath, adminDir, env = process.env })
     if (p.startsWith('/api/')) {
       const acc = game.authenticate(bearer(req));
       if (p === '/api/me' && m === 'GET') return json(res, 200, game.me(acc));
-      if (p === '/api/content' && m === 'GET') { const c = game.getContent(); return json(res, 200, { id: c.id, heroes: c.heroes, enemies: c.enemies, stages: c.stages.map(({ n, name, enemies, reward }) => ({ n, name, enemies, reward })), progression: c.progression, battle: c.battle, tutorial: c.tutorial || { steps: [] }, arena: c.arena, media: media.manifest() }); }
+      if (p === '/api/content' && m === 'GET') { const c = game.getContent(); return json(res, 200, { id: c.id, abilities: c.abilities || [], heroes: c.heroes, enemies: c.enemies, stages: c.stages.map(({ n, name, enemies, reward }) => ({ n, name, enemies, reward })), progression: c.progression, battle: c.battle, tutorial: c.tutorial || { steps: [] }, arena: c.arena, media: media.manifest() }); }
       const b = m === 'POST' ? await readBody(req) : {};
       if (p === '/api/bind') return json(res, 200, game.bind(acc, b.login, b.password));
       if (p === '/api/formation') return json(res, 200, game.setFormation(acc, b.slots));

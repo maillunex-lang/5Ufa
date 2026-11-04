@@ -76,9 +76,13 @@ func _ready() -> void:
 	_load_camera()
 	_result = State.battle_result
 	_events = _result.get("events", [])
+	for a in State.content.get("abilities", []):
+		if typeof(a) == TYPE_DICTIONARY:
+			_abilities[str(a.get("id", ""))] = a
 	for d in State.content.get("heroes", []) + State.content.get("enemies", []):
 		for a in d.get("abilities", []):
-			_abilities[a["id"]] = a
+			if typeof(a) == TYPE_DICTIONARY:
+				_abilities[str(a["id"])] = a
 	_build_scene()
 	_build_hud()
 
@@ -759,7 +763,11 @@ func _on_cast(e: Dictionary) -> void:
 	var strong: bool = e["type"] == "skill"
 	if _units.has(e["dst"]):
 		_face(u, (_units[e["dst"]]["node"] as Node3D).position)
-	u["busy"] = maxf(_play(u, _attack_anim(u["kind"], strong)), 0.4)
+	var a := _ability(aid)
+	var logical := str(a.get("anim", ""))
+	if logical == "":
+		logical = _attack_anim(u["kind"], strong)
+	u["busy"] = maxf(_play(u, logical), 0.4)
 	u["running"] = false
 
 	# Цели того же умения в этот же момент (для групповых умений — все враги)
@@ -773,7 +781,6 @@ func _on_cast(e: Dictionary) -> void:
 	if targets.is_empty():
 		targets.append(e["dst"])
 
-	var a := _ability(aid)
 	if a.get("kind", "") == "main":
 		_banner(u, str(a.get("name", "Главное умение")))
 		_ult_zoom(u, targets, 0.9)

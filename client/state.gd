@@ -84,8 +84,17 @@ func hero_stats(key: String, level: int) -> Dictionary:
 	for k in ["hp", "atk", "def"]:
 		st[k] = float(st[k]) * g
 	for a in d["abilities"]:
-		if a["kind"] == "passive":
-			for k in a.get("mods", {}):
+		var ab: Variant = a
+		if typeof(a) == TYPE_STRING:
+			ab = {}
+			for lib in content.get("abilities", []):
+				if str(lib.get("id", "")) == str(a):
+					ab = lib
+					break
+		if typeof(ab) != TYPE_DICTIONARY or ab.is_empty():
+			continue
+		if str(ab.get("kind", "")) == "passive":
+			for k in ab.get("mods", {}):
 				if st.has(k):
-					st[k] = float(st[k]) * float(a["mods"][k])
+					st[k] = float(st[k]) * float(ab["mods"][k])
 	return st

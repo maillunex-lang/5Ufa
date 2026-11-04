@@ -195,7 +195,7 @@ window.addEventListener('beforeunload', (e) => { if (dirty()) { e.preventDefault
 
 const NAV = [
   ['', [['home', 'Главная']]],
-  ['Контент', [['heroes', 'Герои'], ['enemies', 'Враги и боссы'], ['balance', 'Баланс и прогрессия'], ['stages', 'Этапы: награды и сила'], ['arena', 'Арена и камера'], ['tutorial', 'Обучение']]],
+  ['Контент', [['heroes', 'Герои'], ['enemies', 'Враги и боссы'], ['abilities', 'Способности'], ['balance', 'Баланс и прогрессия'], ['stages', 'Этапы: награды и сила'], ['arena', 'Арена и камера'], ['tutorial', 'Обучение']]],
   ['Интерфейс', [['soon:ui', 'Экраны (скоро)']]],
   ['Игроки', [['soon:players', 'Аккаунты (скоро)']]],
   ['Система', [['media', 'Медиатека (модели)'], ['versions', 'Версии контента']]],
@@ -225,7 +225,7 @@ function render() {
   const { page, arg } = route();
   drawNav(page);
   const view = $('view');
-  const fn = { home: viewHome, heroes: () => viewUnits('heroes', arg), enemies: () => viewUnits('enemies', arg), balance: viewBalance, stages: viewStages, arena: viewArena, tutorial: viewTutorial, media: viewMedia, versions: viewVersions }[page] || viewHome;
+  const fn = { home: viewHome, heroes: () => viewUnits('heroes', arg), enemies: () => viewUnits('enemies', arg), abilities: () => viewAbilities(arg), balance: viewBalance, stages: viewStages, arena: viewArena, tutorial: viewTutorial, media: viewMedia, versions: viewVersions }[page] || viewHome;
   view.replaceChildren();
   Promise.resolve(fn(view)).catch((e) => view.replaceChildren(h('div', { class: 'card bad' }, e.message)));
 }
@@ -298,9 +298,34 @@ async function viewVersions(view) {
 
 // ---------------------------------------------------------------- Герои и враги
 
+function resolvedAbilities(u) {
+  return (u.abilities || []).map((a) => (typeof a === 'string' ? (D.abilities || []).find((x) => x.id === a) || { id: a, kind: '?', _missing: true } : a));
+}
+function abilityUsers(id) {
+  const out = [];
+  for (const [kind, list] of [['heroes', D.heroes || []], ['enemies', D.enemies || []]]) {
+    for (const u of list) {
+      if ((u.abilities || []).some((a) => (typeof a === 'string' ? a : a.id) === id)) out.push({ kind, u });
+    }
+  }
+  return out;
+}
+function pullAbilitiesIntoLibrary() {
+  D.abilities ||= [];
+  const have = new Set(D.abilities.map((a) => a.id));
+  for (const u of [...D.heroes, ...D.enemies]) {
+    if (!(u.abilities || []).some((a) => a && typeof a === 'object')) continue;
+    u.abilities = u.abilities.map((a) => {
+      if (typeof a === 'string') return a;
+      if (!have.has(a.id)) { D.abilities.push(a); have.add(a.id); }
+      return a.id;
+    });
+  }
+  touch();
+}
 function growthFactor(level) { return 1 + (D.progression.growth || 0) * (level - 1); }
 function passiveMult(u, stat) {
-  return (u.abilities || []).filter((a) => a.kind === 'passive').reduce((m, a) => m * (a.mods?.[stat] ?? 1), 1);
+  return resolvedAbilities(u).filter((a) => a.kind === 'passive').reduce((m, a) => m * (a.mods?.[stat] ?? 1), 1);
 }
 
 function viewUnits(kind, key) {
@@ -333,7 +358,7 @@ function createDialog(kind) {
   const name = h('input', { placeholder: 'Название (например Паладин)' });
   const tpl = h('select', {}, opts.map(([v, l]) => h('option', { value: v }, l)));
   const err = h('div', { class: 'bad' });
-  const m = modal([h('h3', {}, isHero ? 'Новый герой' : 'Новый враг'), field('Ключ', key, 'Менять нельзя после создания'), field('Название', name), field('Основа', tpl, 'Создаётся независимая копия: правки не затрагивают оригинал'),
+  const m = modal([h('h3', {}, isHero ? 'Новый герой' : 'Новый враг'), field('Ключ', key, 'Менять нельзя после создания'), field('Название', name), field('Основа', tpl, 'Характеристики копируются. Способности общие: правка меняет всех, кто их использует.'),
     err, h('button', { onclick: () => {
       const k = key.value.trim();
       if (!/^[a-z][a-z0-9_]{1,31}$/.test(k)) { err.textContent = 'Ключ: латиница в нижнем регистре, цифры и _, 2–32 символа, первая — буква'; return; }
@@ -343,8 +368,10 @@ function createDialog(kind) {
       const u = clone(src);
       u.key = k; u.name = name.value.trim() || k;
       if (isHero) u.starter = false;
-      const used = new Set([...D.heroes, ...D.enemies].flatMap((x) => x.abilities.map((a) => a.id)));
-      u.abilities.forEach((a) => {
+      const used = new Set([...D.heroes, ...D.enemies].flatMap((x) => (x.abilities || []).map((a) => (typeof a === 'string' ? a : a.id))));
+      if ((u.abilities || []).every((a) => typeof a === 'string')) {
+        /* ссылки на общую библиотеку остаются теми же */
+      } else u.abilities.forEach((a) => {
         const suffix = a.id.includes('_') ? a.id.split('_').slice(1).join('_') : a.kind;
         let id = `${k}_${suffix}`, n = 2;
         while (used.has(id)) id = `${k}_${suffix}${n++}`;
@@ -440,26 +467,40 @@ function tabStats(u, isHero, draw) {
 }
 
 function tabAbil(u, isHero, draw) {
-  const cards = u.abilities.map((a) => abilityCard(u, a, draw));
+  const linked = (u.abilities || []).every((a) => typeof a === 'string');
+  const cards = resolvedAbilities(u).map((a, i) => abilityCard(u, a, draw, { linked, index: i }));
   const kind = h('select', {}, Object.entries(KIND_L).filter(([k]) => k !== 'basic').map(([v, l]) => h('option', { value: v }, l)));
+  const pick = h('select', {}, (D.abilities || []).filter((a) => !(u.abilities || []).includes(a.id)).map((a) => h('option', { value: a.id }, `${KIND_L[a.kind] || a.kind}: ${a.name || a.id}`)));
   return [
     ...cards,
-    h('div', { class: 'card' }, h('b', {}, 'Добавить способность'), h('div', { class: 'toolbar' }, kind, h('button', { onclick: () => {
-      const used = new Set([...D.heroes, ...D.enemies].flatMap((x) => x.abilities.map((a) => a.id)));
+    linked ? h('div', { class: 'card' }, h('b', {}, 'Взять из библиотеки'), h('div', { class: 'toolbar' }, pick, h('button', { onclick: () => {
+      if (!pick.value) return;
+      u.abilities.push(pick.value); touch(); draw();
+    } }, 'Добавить ссылку'))) : null,
+    h('div', { class: 'card' }, h('b', {}, 'Новая способность'), h('div', { class: 'toolbar' }, kind, h('button', { onclick: () => {
+      const used = new Set((D.abilities || []).map((a) => a.id).concat(...[...D.heroes, ...D.enemies].map((x) => (x.abilities || []).map((a) => typeof a === 'string' ? a : a.id))));
       let n = 1; while (used.has(`${u.key}_${kind.value}${n}`)) n++;
       const id = `${u.key}_${kind.value}${n}`;
       const a = { id, kind: kind.value };
       if (kind.value === 'passive') a.mods = { hp: 1.1 }; else { a.effect = 'single'; a.mult = 1.5; if (kind.value === 'skill') a.cooldown = 6; }
-      u.abilities.push(a); touch(); draw();
-    } }, 'Добавить')),
-    h('p', { style: 'color:var(--mut);font-size:12px' }, 'Правила: ровно одна базовая атака, не больше одной главной. Критический удар — только у базовой атаки. Общую библиотеку способностей и конструктор блоков добавим позже.')),
+      if (linked) { (D.abilities ||= []).push(a); u.abilities.push(id); }
+      else u.abilities.push(a);
+      touch(); draw();
+    } }, 'Создать'))),
+    h('p', { style: 'color:var(--mut);font-size:12px' }, 'Правила: ровно одна базовая атака, не больше одной главной. Критический удар — только у базовой атаки. Описание способности общее для всех, кто на неё ссылается.'),
   ];
 }
 
-function abilityCard(u, a, draw) {
-  const parts = [h('div', { style: 'display:flex;justify-content:space-between;gap:8px;align-items:center' },
-    h('b', {}, KIND_L[a.kind] || a.kind, h('span', { class: 'tag' }, a.id)),
-    a.kind === 'basic' ? null : h('button', { class: 'danger', onclick: () => { u.abilities = u.abilities.filter((x) => x !== a); touch(); draw(); } }, 'Удалить'))];
+function abilityCard(u, a, draw, opts = {}) {
+  const users = abilityUsers(a.id).filter((x) => x.u !== u);
+  const parts = [h('div', { style: 'display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap' },
+    h('b', {}, KIND_L[a.kind] || a.kind, h('span', { class: 'tag' }, a.id), a._missing ? h('span', { class: 'tag' }, 'нет в библиотеке') : null),
+    ((a.kind === 'basic' && !opts.linked) || opts.library) ? null : h('button', { class: 'danger', onclick: () => {
+      if (opts.linked) u.abilities = u.abilities.filter((id) => id !== a.id);
+      else u.abilities = u.abilities.filter((x) => x !== a);
+      touch(); draw();
+    } }, opts.linked ? 'Убрать у этого бойца' : 'Удалить'))];
+  if (users.length) parts.push(h('p', { style: 'color:var(--mut);font-size:13px' }, 'Также используется: ' + users.map((x) => x.u.name).join(', ') + '. Правка здесь изменит всех.'));
   parts.push(grid(field('Название', text(a, 'name', { optional: true, placeholder: 'Например Огненная комета' })), a.kind === 'basic' ? null : field('Вид', select(a, 'kind', Object.entries(KIND_L).filter(([k]) => k !== 'basic'), { on: () => { if (a.kind === 'passive') { delete a.effect; delete a.mult; delete a.cooldown; a.mods ||= { hp: 1.1 }; } else { delete a.mods; a.effect ||= 'single'; a.mult ||= 1.5; if (a.kind === 'skill') a.cooldown ??= 6; else delete a.cooldown; } draw(); } }))));
   if (a.kind === 'passive') {
     const mods = (a.mods ||= {});
@@ -473,13 +514,79 @@ function abilityCard(u, a, draw) {
     parts.push(grid(
       a.kind === 'basic' ? null : field('Действие', select(a, 'effect', Object.entries(EFFECT_L))),
       field('Множитель атаки (урон или лечение = атака × множитель)', num(a, 'mult', { step: 0.1, min: 0.1 })),
-      a.kind === 'skill' ? field('Перезарядка, с', num(a, 'cooldown', { step: 0.5, min: 0 })) : null));
+      a.kind === 'skill' ? field('Перезарядка, с', num(a, 'cooldown', { step: 0.5, min: 0 })) : null,
+      field('Анимация', select(a, 'anim', animOptions(a), { optional: true }))));
     if (a.kind !== 'basic') parts.push(h('div', { class: 'toolbar' }, field('Описание', text(a, 'description', { optional: true })),
       field('Эффект при применении', select(a, 'vfx.style', [['', 'По умолчанию (по роли)'], ['none', 'Без снаряда'], ['magic_bolt', 'Магический снаряд'], ['fire_comet', 'Огненная комета']], { optional: true, on: () => { if (a.vfx && !a.vfx.style && !a.vfx.color) delete a.vfx; touch(); } })),
       field('Цвет эффекта', color(a, 'vfx.color'))));
+    parts.push(h('button', { class: 'sec', onclick: () => previewAbility(u, a.anim || '') }, 'Проиграть на модели'));
     if (a.kind === 'main') parts.push(h('p', { style: 'color:var(--mut);font-size:12px' }, 'Главная срабатывает автоматически при полной энергии. Энергию дают атаки и полученный урон (раздел «Баланс»).'));
   }
   return h('div', { class: 'card' }, parts);
+}
+
+function animOptions(a) {
+  const opts = [['', 'Как раньше, по роли'], ...SLOTS.map(([id, l]) => [id, l])];
+  if (a.anim && !opts.some(([v]) => v === a.anim)) opts.push([a.anim, a.anim]);
+  return opts;
+}
+
+function viewAbilities(arg) {
+  const view = $('view');
+  if (!Array.isArray(D.abilities)) {
+    view.append(h('h2', {}, 'Способности'), h('div', { class: 'card' }, h('p', {}, 'В этой версии способности ещё лежат внутри героев и врагов.'),
+      h('button', { onclick: () => { pullAbilitiesIntoLibrary(); render(); } }, 'Собрать общую библиотеку')));
+    return;
+  }
+  if (arg) {
+    const a = D.abilities.find((x) => x.id === arg);
+    if (!a) { view.append(h('div', { class: 'card bad' }, 'Способность не найдена'), h('button', { class: 'sec', onclick: () => { location.hash = '#/abilities'; } }, '← К списку')); return; }
+    const users = abilityUsers(a.id);
+    view.append(h('button', { class: 'sec', onclick: () => { location.hash = '#/abilities'; } }, '← К списку'), h('h2', {}, a.name || a.id),
+      abilityCard({ key: 'lib', name: 'библиотека', abilities: [a.id], visual: users[0]?.u.visual }, a, () => render(), { linked: false, library: true }),
+      h('div', { class: 'card' }, h('b', {}, 'Где используется'), users.length ? h('ul', {}, users.map((x) => h('li', {}, h('a', { onclick: () => { UI.tab = 'abil'; location.hash = `#/${x.kind}/${x.u.key}`; } }, x.u.name), h('span', { class: 'tag' }, x.u.key)))) : h('p', {}, 'Никто не использует. Можно удалить.'),
+        users.length ? null : h('button', { class: 'danger', onclick: () => { if (!confirm('Удалить способность из библиотеки?')) return; D.abilities = D.abilities.filter((x) => x !== a); touch(); location.hash = '#/abilities'; } }, 'Удалить из библиотеки')));
+    return;
+  }
+  const q = (UI.q || '').toLowerCase();
+  const items = D.abilities.filter((a) => !q || a.id.includes(q) || (a.name || '').toLowerCase().includes(q));
+  view.append(h('h2', {}, 'Библиотека способностей'), h('p', { style: 'color:var(--mut)' }, 'Одно описание на всех героев и врагов, которые на него ссылаются.'),
+    h('div', { class: 'toolbar' }, h('input', { placeholder: 'Поиск', value: UI.q, oninput: (e) => { UI.q = e.target.value; render(); } })),
+    ...items.map((a) => h('div', { class: 'item', onclick: () => { location.hash = '#/abilities/' + a.id; } },
+      h('div', {}, h('b', {}, a.name || a.id), h('span', { class: 'tag' }, a.id), h('span', { class: 'tag' }, KIND_L[a.kind] || a.kind),
+        h('div', { class: 'meta' }, 'Используется: ' + (abilityUsers(a.id).map((x) => x.u.name).join(', ') || 'никем') + (a.anim ? ` · анимация ${a.anim}` : ''))),
+      h('span', {}, '›'))));
+}
+
+async function previewAbility(unit, anim) {
+  const name = unit?.visual?.model;
+  const host = h('div', { style: 'width:100%;height:340px' });
+  const msg = h('div', { style: 'color:var(--mut);font-size:13px' });
+  let viewer = null;
+  const m = modal([h('h3', {}, 'Просмотр на модели'), host, msg, h('button', { class: 'sec', onclick: () => { viewer?.dispose?.(); m.remove(); } }, 'Закрыть')]);
+  try { await loadMedia(); } catch (err) { msg.textContent = err.message; return; }
+  const e = mediaEntry(name);
+  if (!name || !e?.active) { msg.textContent = name ? `Модели «${name}» нет в медиатеке, проиграть здесь нельзя. В игре используется вшитая копия, если она есть.` : 'У героя не выбрана модель.'; return; }
+  try {
+    const mod = await viewerModule();
+    viewer = mod.createViewer(host, { height: 340 });
+    if (!viewer) return;
+    const url = await blobUrl(e.active.sha);
+    await viewer.load(url);
+    URL.revokeObjectURL(url);
+    viewer.setScale(unit.visual?.scale || 1);
+    viewer.setYaw(unit.visual?.yaw || 0);
+    viewer.hideParts(unit.visual?.hide);
+    const logical = anim || 'attack_melee';
+    const mapped = unit.visual?.anims?.[logical] || DEFAULT_ANIMS[logical] || logical;
+    const file = unit.visual?.anim_files?.[logical];
+    if (file && mediaEntry(file)?.active) {
+      const extra = await blobUrl(mediaEntry(file).active.sha);
+      await viewer.addClips(extra, file);
+      URL.revokeObjectURL(extra);
+      if (!viewer.play(`${file}::${mapped}`, { loop: logical !== 'death' })) msg.textContent = `Нет клипа «${mapped}» в файле ${file}`;
+    } else if (!viewer.play(mapped, { loop: logical !== 'death' })) msg.textContent = `В модели нет анимации «${mapped}»`;
+  } catch (err) { msg.textContent = err.message; }
 }
 
 // ---------------------------------------------------------------- Баланс

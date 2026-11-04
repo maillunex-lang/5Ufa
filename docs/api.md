@@ -16,7 +16,7 @@
 | Метод | Путь | Тело → ответ |
 | --- | --- | --- |
 | GET | `/api/me` | → `{account,heroes[{id,key,level}],balances,formation[5 id],clearedStages,contentVersion,maxLevel}` |
-| GET | `/api/content` | → герои, враги, этапы, прогрессия, параметры боя, `tutorial.steps` (шаги обучения: id, text, highlight[], done), `arena.bounds` (прямоугольник арены xMin, xMax, yMin, yMax: бойцы за него не выходят), `arena.camera` (position[3], lookAt[3], fov, depth: камера боя), `media` (манифест: имя → `{kind,version,sha,size,bundled}`) |
+| GET | `/api/content` | → герои, враги, этапы, прогрессия, параметры боя, `abilities` (общая библиотека), `tutorial.steps` (шаги обучения: id, text, highlight[], done), `arena.bounds` (прямоугольник арены xMin, xMax, yMin, yMax: бойцы за него не выходят), `arena.camera` (position[3], lookAt[3], fov, depth: камера боя), `media` (манифест: имя → `{kind,version,sha,size,bundled}`). У героя и врага `abilities` в этом ответе уже раскрыты в полные описания. В сохранённом контенте это ссылки на `content.abilities` (строки id). Поле `anim` — какое движение играть (пусто = как раньше, по роли). |
 | POST | `/api/bind` | `{login,password}` → `{recoveryCode}` (показать игроку один раз) |
 | POST | `/api/formation` | `{slots:[5 id героев]}` (0–1 перед, 2–4 зад) |
 | POST | `/api/tutorial/done` | → `{ok}` |

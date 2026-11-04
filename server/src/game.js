@@ -2,7 +2,7 @@ import { randomUUID, randomInt, createHash } from 'node:crypto';
 import { tx } from './db.js';
 import { buildUnit, simulate } from './battle.js';
 import { sha, newToken, hashPassword, checkPassword, newRecoveryCode, normCode } from './auth.js';
-import { loadContentFile, validateContent, diffContent } from './content.js';
+import { loadContentFile, validateContent, diffContent, expandAbilities } from './content.js';
 
 export class GameError extends Error {
   constructor(code, msg, status = 400, details) { super(msg || code); this.code = code; this.status = status; this.details = details; }
@@ -37,7 +37,7 @@ export function createGame(db, { contentPath }) {
       if (!row) throw new GameError('no_version', 'Версия контента не найдена', 404);
       contentCache.set(id, { id, ...JSON.parse(row.json) });
     }
-    return contentCache.get(id);
+    return expandAbilities(contentCache.get(id));
   }
 
   // Файл content/game.json — «зерно»: импортируется только когда изменился сам файл (по хешу), иначе каждый деплой

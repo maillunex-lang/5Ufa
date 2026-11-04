@@ -4,11 +4,12 @@ import { fileURLToPath } from 'node:url';
 import { openDb } from '../src/db.js';
 import { createGame, GameError } from '../src/game.js';
 import { buildUnit, simulate } from '../src/battle.js';
-import { loadContentFile, validateContent } from '../src/content.js';
+import { loadContentFile, validateContent, expandAbilities } from '../src/content.js';
 
 const contentPath = fileURLToPath(new URL('../../content/game.json', import.meta.url));
 const mk = () => createGame(openDb(':memory:'), { contentPath });
-const content = () => JSON.parse(loadContentFile(contentPath).json);
+const raw = () => JSON.parse(loadContentFile(contentPath).json);
+const content = () => expandAbilities(raw());
 
 function unit(c, key, side, slot, over = {}) {
   const d = structuredClone([...c.heroes, ...c.enemies].find((x) => x.key === key));
@@ -264,20 +265,26 @@ test('контент: камера арены проверяется', () => {
 });
 
 test('контент: правила юнитов и способностей, дополнительные нестартовые герои', () => {
-  const c = content();
+  const c = raw();
   assert.deepEqual(validateContent(c), []);
-  // новый нестартовый герой допустим, но игрок получает только стартовых
+  assert.ok(c.abilities.length >= 5);
+  assert.equal(typeof c.heroes[0].abilities[0], 'string');
   const ok = structuredClone(c);
   const h = structuredClone(ok.heroes[0]);
   h.key = 'paladin'; h.name = 'Паладин'; h.starter = false;
-  h.abilities.forEach((a) => { a.id = 'pal_' + a.id; });
+  h.abilities = h.abilities.map((id) => {
+    const copy = structuredClone(ok.abilities.find((a) => a.id === id));
+    copy.id = 'pal_' + id;
+    ok.abilities.push(copy);
+    return copy.id;
+  });
   ok.heroes.push(h);
   assert.deepEqual(validateContent(ok), []);
   const bad = structuredClone(c);
   bad.heroes[1].key = 'Bad Key';
   bad.heroes[2].stats.critChance = 2;
-  bad.heroes[3].abilities[0].id = bad.heroes[0].abilities[0].id;
-  bad.heroes[4].abilities.push({ id: 'x_main2', kind: 'main', effect: 'aoe', mult: 1 }, { id: 'x_main3', kind: 'main', effect: 'aoe', mult: 1 });
+  bad.abilities.push(structuredClone(bad.abilities[0]));
+  bad.heroes[4].abilities.push('eb_main', 'em_main');
   bad.stages[0].reward.gold = -5;
   bad.progression.growth = 99;
   const errs = validateContent(bad).join(' | ');
@@ -285,4 +292,7 @@ test('контент: правила юнитов и способностей, �
   const few = structuredClone(c);
   few.heroes[0].starter = false;
   assert.ok(validateContent(few).some((e) => e.includes('стартовых')));
+  const missing = structuredClone(c);
+  missing.heroes[0].abilities[0] = 'no_such';
+  assert.ok(validateContent(missing).some((e) => e.includes('неизвестная способность')));
 });

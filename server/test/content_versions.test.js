@@ -189,7 +189,12 @@ test('аккаунт получает только стартовых герое
   const { game } = setup();
   const c = edit(game, (x) => {
     const h = clone(x.heroes[0]); h.key = 'paladin'; h.name = 'Паладин'; h.starter = false;
-    h.abilities.forEach((a) => { a.id = 'pal_' + a.id; });
+    h.abilities = h.abilities.map((id) => {
+      const copy = clone(x.abilities.find((a) => a.id === id));
+      copy.id = 'pal_' + id;
+      x.abilities.push(copy);
+      return copy.id;
+    });
     x.heroes.push(h);
   });
   game.publishContent(c, { baseVersion: 1 });
