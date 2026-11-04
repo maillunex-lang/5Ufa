@@ -18,6 +18,7 @@ var _world: Array = []        # Transform2D для каждой кости
 var _sprites: Array = []      # [{sprite, bone_idx, x, y, rot}]
 var _fired: Dictionary = {}
 var _queue_after := ""        # анимация после текущей (обычно idle)
+var frozen := false           # редактор анимации: поза задаётся вручную (pose_at), время не идёт
 
 static var _tex_cache: Dictionary = {}
 
@@ -82,8 +83,41 @@ func anchor_position(anchor: String) -> Vector2:
 	return transform * (_world[idx] * Vector2(float(a.get("x", 0)), float(a.get("y", 0))))
 
 
+## Редактор анимации: показать позу анимации anim в момент t и остановить время
+func pose_at(anim: String, t: float) -> void:
+	frozen = true
+	current = anim
+	_time = t
+	_update_pose()
+
+
+## Пересобрать героя по изменённому скелету (редактор: новые части, кости, ключи)
+func rebuild(skeleton: Dictionary) -> void:
+	for s in _sprites:
+		s["sprite"].queue_free()
+	_sprites.clear()
+	_bones.clear()
+	_bone_index.clear()
+	_world.clear()
+	var was := current
+	var t := _time
+	setup(base_dir, skeleton)
+	if frozen and was != "":
+		pose_at(was, t)
+
+
+func bone_names() -> Array:
+	return _bones.map(func(b): return b["name"])
+
+
+## Положение и поворот кости в координатах рига
+func bone_world(bone: String) -> Transform2D:
+	var i: int = _bone_index.get(bone, -1)
+	return _world[i] if i >= 0 and i < _world.size() and _world[i] != null else Transform2D.IDENTITY
+
+
 func _process(delta: float) -> void:
-	if current == "":
+	if current == "" or frozen:
 		return
 	var a: Dictionary = data["animations"][current]
 	var dur := float(a.get("duration", 1.0))

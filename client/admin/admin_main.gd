@@ -66,7 +66,7 @@ func _frame(title: String, with_back := true) -> VBoxContainer:
 	var head := HBoxContainer.new()
 	head.add_theme_constant_override("separation", 10)
 	if with_back:
-		var b := Ui.button("←", _back)
+		var b := Ui.button("<", _back)
 		b.custom_minimum_size = Vector2(80, 72)
 		head.add_child(b)
 	var t := Ui.label(title, 30, "accent")
@@ -217,6 +217,8 @@ func _show_home() -> void:
 	b.add_child(_row([_btn("Черновик (%d)" % _draft_count, func(): _open(_show_draft)),
 			_btn("Версии", func(): _open(_show_releases)), _btn("Журнал", func(): _open(_show_audit.bind(0)))]))
 	b.add_child(_row([_btn("ZIP-патч", func(): _open(_show_patch)), _btn("Предпросмотр", func(): _open(_show_previews))]))
+	b.add_child(_row([_btn("Игроки", func(): _open(_show_players.bind(""))), _btn("Бэкапы", func(): _open(_show_backups)),
+			_btn("Версии APK", func(): _open(_show_apk))]))
 	b.add_child(Ui.label("Разделы", 26, "accent"))
 	var grid := GridContainer.new()
 	grid.columns = 2
@@ -224,7 +226,7 @@ func _show_home() -> void:
 	grid.add_theme_constant_override("v_separation", 8)
 	b.add_child(grid)
 	for s in res.data["sections"]:
-		var mark := "  ✎%d" % int(s["draft_changes"]) if int(s["draft_changes"]) > 0 else ""
+		var mark := "  (правок: %d)" % int(s["draft_changes"]) if int(s["draft_changes"]) > 0 else ""
 		var btn := _btn("%s%s\n%d объект., %d файл." % [s["title"], mark, int(s["objects"]), int(s["assets"])],
 				func(): _open(_show_section.bind(str(s["id"]))), 20)
 		btn.custom_minimum_size = Vector2(330, 96)
@@ -306,7 +308,39 @@ func _load_thumb(path: String, btn: Button) -> void:
 
 
 func _asset_actions(path: String) -> void:
-	_confirm("%s\nЧто сделать?" % path, func(): _pick_and_upload(path), "Заменить")
+	_choose(path, [["Заменить", func(): _pick_and_upload(path)], ["Скачать", func(): _download(path)],
+			["Удалить", func(): _confirm("Удалить %s в черновике?" % path, func():
+				var r: Dictionary = await api.call_api(HTTPClient.METHOD_DELETE, "/files?path=" + path.uri_encode())
+				_say("Файл удалён в черновике" if r.ok else "Ошибка: " + str(r.error), r.get("errors", [])), "Удалить")]])
+
+
+func _download(path: String) -> void:
+	var r: Dictionary = await api.call_api(HTTPClient.METHOD_GET, "/files?path=" + path.uri_encode(), null, true)
+	if not r.ok:
+		_fail(r)
+		return
+	Previews.save_file(self, path.get_file(), r.bytes, func(where: String): _say("Сохранено: " + where))
+
+
+## Окно с несколькими действиями: options = [[текст, Callable], ...]
+func _choose(text: String, options: Array) -> void:
+	var dim := ColorRect.new()
+	dim.color = Color(0, 0, 0, 0.75)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(dim)
+	var panel := PanelContainer.new()
+	panel.position = Vector2(40, 360)
+	panel.custom_minimum_size = Vector2(640, 0)
+	dim.add_child(panel)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 12)
+	panel.add_child(box)
+	box.add_child(Ui.label(text, 22))
+	for o in options:
+		box.add_child(_btn(str(o[0]), func():
+			dim.queue_free()
+			o[1].call()))
+	box.add_child(_btn("Отмена", func(): dim.queue_free()))
 
 
 func _show_json_file(path: String) -> void:
@@ -535,7 +569,7 @@ func _show_releases() -> void:
 	for r in res.data["items"]:
 		var rid := int(r["id"])
 		var tags: Array = r["channels"]
-		var src: String = {"base": "из репозитория", "admin": "из админки", "patch": "патч"}.get(str(r["source"]), str(r["source"]))
+		var src: String = {"base": "из репозитория", "admin": "из админки", "patch": "патч", "merge": "репозиторий + правки админки"}.get(str(r["source"]), str(r["source"]))
 		var panel := PanelContainer.new()
 		var box := VBoxContainer.new()
 		panel.add_child(box)
@@ -567,7 +601,9 @@ func _release_publish(rid: int, channel: String) -> void:
 const ACTION_NAMES := {"login": "вход", "login_failed": "неудачный вход", "logout": "выход", "object_update": "изменение",
 		"object_create": "добавление", "object_delete": "удаление", "file_put": "файл", "file_delete": "удалён файл",
 		"draft_revert": "отмена правок", "draft_rebase": "перенос черновика", "draft_test": "на тест",
-		"publish": "публикация", "rollback": "откат", "test": "на тест", "patch_apply": "ZIP-патч", "export": "выгрузка"}
+		"publish": "публикация", "rollback": "откат", "test": "на тест", "patch_apply": "ZIP-патч", "export": "выгрузка",
+		"player_wallet": "ресурсы игрока", "player_test": "тестовый аккаунт", "player_ban": "бан",
+		"backup_request": "бэкап", "client_release": "версия APK"}
 
 
 func _show_audit(before_id: int) -> void:
@@ -604,7 +640,7 @@ func _patch_preview(bytes: PackedByteArray, name: String) -> void:
 	var p: Dictionary = res.data
 	b.add_child(_text("«%s» · раздел %s\n%s" % [str(p["patch"].get("id")), str(p["patch"].get("section")), str(p["patch"].get("description"))], 20))
 	for c in p["changes"]:
-		b.add_child(_text("%s  %s%s" % [{"add": "＋", "update": "✎", "delete": "－"}.get(c["op"], "•"), c["path"],
+		b.add_child(_text("%s  %s%s" % [{"add": "+", "update": "*", "delete": "-"}.get(c["op"], "•"), c["path"],
 				("  (" + str(c["object"]) + ")") if c.get("object") != null else ""], 18))
 	for w in p["warnings"]:
 		b.add_child(_text("Внимание: " + str(w), 18))
@@ -646,6 +682,177 @@ func _pick_and_upload(path: String) -> void:
 			_say("Файл %s в черновике" % path)
 		else:
 			_fail(r))
+
+
+# --- Игроки ------------------------------------------------------------------------------
+
+const CURRENCIES := [["gold", "золото"], ["hero_xp", "опыт"], ["essence", "эссенция"], ["crystals", "кристаллы"],
+		["scrolls", "свитки призыва"], ["ore", "руда"], ["legacy_shards", "осколки наследия"]]
+
+
+func _show_players(query: String) -> void:
+	var b := _frame("Игроки")
+	var q := Ui.line_edit("Номер (#1001), имя или почта")
+	q.text = query
+	b.add_child(q)
+	b.add_child(_btn("Найти", func(): _show_players(q.text.strip_edges()), 22))
+	var res: Dictionary = await api.call_api(HTTPClient.METHOD_GET, "/players?q=" + query.uri_encode())
+	if not res.ok:
+		_fail(res)
+		return
+	if res.data["items"].is_empty():
+		b.add_child(_text("Никого не найдено", 20))
+	for p in res.data["items"]:
+		var flags := []
+		if bool(p["is_test"]):
+			flags.append("ТЕСТ")
+		if p["banned_until"] != null:
+			flags.append("БАН")
+		b.add_child(_btn("#%d %s · %s %s" % [int(p["number"]), p["name"], p["email"] if p["email"] != null else "гость",
+				" ".join(flags)], func(): _open(_show_player.bind(str(p["id"]))), 20))
+
+
+func _show_player(pid: String) -> void:
+	var b := _frame("Игрок")
+	var res: Dictionary = await api.call_api(HTTPClient.METHOD_GET, "/players/" + pid)
+	if not res.ok:
+		_fail(res)
+		return
+	var p: Dictionary = res.data
+	b.add_child(Ui.label("#%d %s" % [int(p["number"]), p["name"]], 28, "accent"))
+	b.add_child(_text("%s
+Создан: %s · последний вход: %s
+Кампания: пройдено этапов %d · предметов: %d · устройств: %d%s%s" % [
+			p["email"] if p["email"] != null else "гость (без почты)", str(p["created_at"]).substr(0, 10),
+			str(p["last_login_at"]).substr(0, 16).replace("T", " "), int(p["campaign_cleared"]), int(p["items"]), int(p["sessions"]),
+			"\nТЕСТОВЫЙ аккаунт — видит канал test" if bool(p["is_test"]) else "",
+			("\nЗАБАНЕН до %s: %s" % [str(p["banned_until"]).substr(0, 16).replace("T", " "), p["ban_reason"]]) if p["banned_until"] != null else ""], 19))
+	b.add_child(Ui.label("Кошелёк", 24, "accent"))
+	var w: Dictionary = p["wallet"]
+	var lines := []
+	for cur in CURRENCIES:
+		lines.append("%s: %d" % [cur[1], int(w.get(cur[0], 0))])
+	for k in w.keys():
+		if str(k).begins_with("faction_scroll_"):
+			lines.append("%s: %d" % [k, int(w[k])])
+	b.add_child(_text(" · ".join(lines), 19))
+	var pick := OptionButton.new()
+	pick.custom_minimum_size = Vector2(0, 64)
+	for cur in CURRENCIES:
+		pick.add_item(cur[1])
+	var amount := Ui.line_edit("Сколько: 500 — добавить, -500 — списать")
+	amount.virtual_keyboard_type = LineEdit.KEYBOARD_TYPE_NUMBER
+	var reason := Ui.line_edit("Причина (обязательно, попадёт в журнал)")
+	b.add_child(pick)
+	b.add_child(amount)
+	b.add_child(reason)
+	b.add_child(_btn("Изменить ресурсы", func():
+		if not amount.text.strip_edges().is_valid_int():
+			_say("Ошибка: введите целое число")
+			return
+		var code: String = CURRENCIES[pick.selected][0]
+		var r: Dictionary = await api.call_api(HTTPClient.METHOD_POST, "/players/%s/wallet" % pid,
+				{"changes": {code: int(amount.text.strip_edges())}, "reason": reason.text.strip_edges()})
+		if r.ok:
+			_show_player(pid)
+			_say("Готово")
+		else:
+			_fail(r), 22))
+	b.add_child(_btn("Сделать обычным аккаунтом" if bool(p["is_test"]) else "Сделать тестовым (видит канал test)", func():
+		var r: Dictionary = await api.call_api(HTTPClient.METHOD_POST, "/players/%s/test" % pid, {"on": not bool(p["is_test"])})
+		if r.ok:
+			_show_player(pid)
+		else:
+			_fail(r), 20))
+	if p["banned_until"] != null:
+		b.add_child(_btn("Снять бан", func():
+			var r: Dictionary = await api.call_api(HTTPClient.METHOD_POST, "/players/%s/ban" % pid, {"days": 0})
+			if r.ok:
+				_show_player(pid)
+			else:
+				_fail(r), 20))
+	else:
+		var days := Ui.line_edit("Бан: сколько дней (36500 — навсегда)")
+		days.virtual_keyboard_type = LineEdit.KEYBOARD_TYPE_NUMBER
+		var why := Ui.line_edit("Причина бана (игрок её увидит)")
+		b.add_child(days)
+		b.add_child(why)
+		b.add_child(_btn("Забанить", func():
+			if not days.text.strip_edges().is_valid_int():
+				_say("Ошибка: введите число дней")
+				return
+			_confirm("Забанить игрока #%d на %s дн.?" % [int(p["number"]), days.text], func():
+				var r: Dictionary = await api.call_api(HTTPClient.METHOD_POST, "/players/%s/ban" % pid,
+						{"days": int(days.text.strip_edges()), "reason": why.text.strip_edges()})
+				if r.ok:
+					_show_player(pid)
+				else:
+					_fail(r), "Забанить"), 20))
+	b.add_child(Ui.label("Герои (%d)" % p["heroes"].size(), 24, "accent"))
+	var hl := []
+	for h in p["heroes"]:
+		hl.append("%s — %s, ур. %d%s" % [h["hero"], h["tier"], int(h["level"]), " ◆" if bool(h["crystal"]) else ""])
+	b.add_child(_text("\n".join(hl), 18))
+
+
+# --- Бэкапы и версии APK ----------------------------------------------------------------------
+
+func _show_backups() -> void:
+	var b := _frame("Бэкапы")
+	var res: Dictionary = await api.call_api(HTTPClient.METHOD_GET, "/backups")
+	if not res.ok:
+		_fail(res)
+		return
+	var d: Dictionary = res.data
+	b.add_child(_text("Каждый день в 05:00 по Уфе: база игроков + контент. Хранятся %d дней." % int(d["retention_days"]), 19))
+	if str(d["last_result"]) != "":
+		b.add_child(_text("Последний бэкап по запросу: " + str(d["last_result"]).replace("ok", "успешно").replace("error", "ОШИБКА"), 19))
+	if bool(d["pending"]):
+		b.add_child(_text("Бэкап запрошен и скоро начнётся…", 19))
+	b.add_child(_btn("Сделать бэкап сейчас", func():
+		var r: Dictionary = await api.call_api(HTTPClient.METHOD_POST, "/backups/run", {})
+		if r.ok:
+			_show_backups()
+			_say(str(r.data["message"]))
+		else:
+			_fail(r), 22))
+	b.add_child(_btn("Обновить список", _show_backups, 20))
+	for x in d["items"]:
+		b.add_child(_text("%s · %s%s" % [x["name"], Content.format_mb(int(x["size"])), "" if bool(x["complete"]) else " · НЕПОЛНЫЙ"], 19))
+	if d["items"].is_empty():
+		b.add_child(_text("Бэкапов пока нет", 19))
+	b.add_child(_text("Восстановление (вся база вернётся к выбранному дню) — только на VPS, для безопасности:\n%s\nПеред восстановлением автоматически делается свежий бэкап." % d["restore_command"], 18))
+
+
+func _show_apk() -> void:
+	var b := _frame("Версии APK игры")
+	var res: Dictionary = await api.call_api(HTTPClient.METHOD_GET, "/client-releases")
+	if not res.ok:
+		_fail(res)
+		return
+	b.add_child(_text("Игроки получают предложение обновиться до последней включённой версии. «Обязательная» — старые версии не пустит в игру.", 18))
+	for r in res.data["items"]:
+		var code := int(r["code"])
+		var panel := PanelContainer.new()
+		var box := VBoxContainer.new()
+		panel.add_child(box)
+		box.add_child(_text("%s (код %d) · %s · %s%s%s" % [r["name"], code, Content.format_mb(int(r["size"])), str(r["at"]).substr(0, 10),
+				"" if bool(r["active"]) else " · ВЫКЛЮЧЕНА", " · ОБЯЗАТЕЛЬНАЯ" if bool(r["mandatory"]) else ""], 18))
+		var btns := [_btn("Выключить" if bool(r["active"]) else "Включить", func():
+			_apk_set(code, {"active": not bool(r["active"])}), 18)]
+		if bool(r["active"]):
+			btns.append(_btn("Необязательная" if bool(r["mandatory"]) else "Обязательная", func():
+				_confirm("Изменить обязательность версии %s?" % r["name"], func(): _apk_set(code, {"mandatory": not bool(r["mandatory"])})), 18))
+		box.add_child(_row(btns))
+		b.add_child(panel)
+
+
+func _apk_set(code: int, body: Dictionary) -> void:
+	var r: Dictionary = await api.call_api(HTTPClient.METHOD_POST, "/client-releases/%d" % code, body)
+	if r.ok:
+		_show_apk()
+	else:
+		_fail(r)
 
 
 # --- Предпросмотр ------------------------------------------------------------------------
@@ -703,13 +910,13 @@ func _preview_hub() -> void:
 		_fail(res)
 		return
 	var hub: Dictionary = res.data["data"]
-	b.add_child(_text("Перетаскивайте здания пальцем, затем «Сохранить в черновик».", 19))
-	var editor: Control = Previews.hub_editor(hub)
-	b.add_child(editor)
+	b.add_child(_text("Перетаскивайте здания пальцем; листать — пальцем по фону. Затем «Сохранить в черновик».", 19))
 	b.add_child(_row([_btn("Сохранить в черновик", func():
 		var r: Dictionary = await api.call_api(HTTPClient.METHOD_PUT, "/sections/hub/objects/hub", {"data": hub})
 		_say("Расположение сохранено в черновик" if r.ok else "Ошибка: " + str(r.error), r.get("errors", [])), 20),
 		_btn("Как в игре", func(): _open_game("res://scenes/main.tscn"), 20)]))
+	var editor: Control = Previews.hub_editor(hub)
+	b.add_child(editor)
 
 
 func _preview_heroes() -> void:
@@ -753,6 +960,30 @@ func _preview_hero(hero_id: String) -> void:
 	b.add_child(grid)
 	b.add_child(_row([_btn("Отразить (как враг)", func(): rig.scale.x = -rig.scale.x, 18),
 			_btn("Скорость ×0.5 / ×1", func(): rig.speed = 0.5 if rig.speed == 1.0 else 1.0, 18)]))
+	b.add_child(_btn("Редактор анимации и частей героя", func(): _open(_anim_editor.bind(hero_id)), 22))
+
+
+func _anim_editor(hero_id: String) -> void:
+	var b := _frame("Анимация: " + hero_id)
+	if not Content.has_file("heroes/%s/hero.json" % hero_id):
+		await _with_draft(func(): pass)
+	var hero: Variant = Content.load_json("heroes/%s/hero.json" % hero_id)
+	if not hero is Dictionary:
+		_say("Ошибка: герой не найден")
+		return
+	var path := str(hero["art"]["skeleton"])
+	var res: Dictionary = await api.call_api(HTTPClient.METHOD_GET, "/files?path=" + path.uri_encode(), null, true)
+	if not res.ok:
+		_fail(res)
+		return
+	var skel: Variant = JSON.parse_string(res.bytes.get_string_from_utf8())
+	if not skel is Dictionary:
+		_say("Ошибка: skeleton.json повреждён")
+		return
+	var ed := AnimEditor.new()
+	ed.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	b.add_child(ed)
+	ed.setup(self, hero_id, path, skel)
 
 
 func _preview_campaign() -> void:
@@ -762,6 +993,28 @@ func _preview_campaign() -> void:
 		if not ch is Dictionary:
 			break
 		b.add_child(Previews.chapter_card(ch, i))
+
+
+func _anim_selftest() -> void:
+	## Ключ, поставленный в редакторе, сохраняется в skeleton.json черновика
+	await _anim_editor("ural_batyr")
+	var ed: AnimEditor = null
+	for c in _body.get_children():
+		if c is AnimEditor:
+			ed = c
+	ed.bone = "arm_front"
+	ed._select_anim("attack")
+	ed._set_time(0.3)
+	ed._set_key("rotate", [-60])
+	await ed.save()
+	var d: Dictionary = await api.call_api(HTTPClient.METHOD_GET, "/draft")
+	var f: Dictionary = await api.call_api(HTTPClient.METHOD_GET, "/files?path=heroes/ural_batyr/skeleton.json", null, true)
+	var sk: Variant = JSON.parse_string(f.bytes.get_string_from_utf8())
+	var keys: Array = sk["animations"]["attack"]["bones"]["arm_front"]["rotate"] if sk is Dictionary else []
+	var ok: bool = d.ok and d.data["changes"].size() == 1 and keys.any(func(k): return absf(float(k[0]) - 0.3) < 0.01 and int(k[1]) == -60)
+	print("AUTOTEST ANIM: ", JSON.stringify({"ok": ok, "changes": d.data.get("changes", []).size(), "keys": keys}))
+	await api.call_api(HTTPClient.METHOD_POST, "/draft/revert", {})
+	get_tree().quit(0 if ok else 1)
 
 
 # --- Автопроверка: godot --path client res://admin/admin_main.tscn -- --server=... --admin-autotest=login:pass
@@ -802,5 +1055,9 @@ func _autotest(creds: String) -> void:
 				"hub": _open(_preview_hub)
 				"section": _open(_show_section.bind("hub"))
 				"game": _open_game("res://scenes/inventory.tscn")
+				"anim": _open(_anim_editor.bind("ural_batyr"))
+				"animtest": await _anim_selftest()
+				"players": _open(_show_players.bind(""))
+				"backups": _open(_show_backups)
 	if "--screenshot-after=" not in str(OS.get_cmdline_user_args()):
 		get_tree().quit(0 if summary["ok"] else 1)

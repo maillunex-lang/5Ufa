@@ -38,6 +38,7 @@ func forget() -> void:
 func call_api(method: int, path: String, body: Variant = null, raw := false) -> Dictionary:
 	var req := HTTPRequest.new()
 	req.timeout = 120.0
+	req.accept_gzip = not OS.has_feature("web")  # браузер сам распаковывает gzip
 	req.body_size_limit = 300 * 1024 * 1024
 	add_child(req)
 	var headers := PackedStringArray(["Accept: application/json",

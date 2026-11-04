@@ -222,7 +222,7 @@ func _section(title: String, s: Dictionary) -> Array:
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 6)
 	var head := Button.new()
-	head.text = "▾ " + title
+	head.text = "[-] " + title
 	head.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	head.custom_minimum_size = Vector2(0, 56)
 	head.add_theme_font_size_override("font_size", 21)
@@ -241,7 +241,7 @@ func _section(title: String, s: Dictionary) -> Array:
 	box.add_child(margin)
 	head.pressed.connect(func():
 		margin.visible = not margin.visible
-		head.text = ("▾ " if margin.visible else "▸ ") + title)
+		head.text = ("[-] " if margin.visible else "[+] ") + title)
 	return [box, inner]
 
 
@@ -323,7 +323,7 @@ func _make_array(value: Array, s: Dictionary, base: String, key: String) -> Dict
 		n["control"].size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		line.add_child(n["control"])
 		var del := Button.new()
-		del.text = "✕"
+		del.text = "X"
 		del.custom_minimum_size = Vector2(56, 56)
 		line.add_child(del)
 		list.add_child(line)

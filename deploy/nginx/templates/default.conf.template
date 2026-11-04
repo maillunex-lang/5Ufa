@@ -49,7 +49,8 @@ server {
 
     # --- Веб-версия админки (для браузера ПК). Без пароля администратора бесполезна ---
     location = /admin {
-        return 301 $fwd_proto://$host${PUBLIC_PATH_PREFIX}/admin/;
+        absolute_redirect off;
+        return 301 ${PUBLIC_PATH_PREFIX}/admin/;
     }
     location /admin/ {
         alias /srv/content-store/admin-web/current/;

@@ -1,5 +1,8 @@
 extends RefCounted
 ## Предпросмотр в админке и работа с файлами устройства (выбор ZIP/картинки, сохранение выгрузки).
+## Телефон — системное окно выбора файла; браузер (веб-версия) — окно браузера через JavaScript.
+
+static var _js_callback: JavaScriptObject  # держим ссылку, пока браузер не вернёт файл
 
 
 static func texture_from_bytes(bytes: PackedByteArray, path: String) -> Texture2D:
@@ -17,6 +20,9 @@ static func texture_from_bytes(bytes: PackedByteArray, path: String) -> Texture2
 
 ## Выбрать файл на устройстве. on_picked(bytes: PackedByteArray, name: String)
 static func pick_file(owner: Node, filters: Array, on_picked: Callable) -> void:
+	if OS.has_feature("web"):
+		_pick_file_web(filters, on_picked)
+		return
 	var done := func(paths: PackedStringArray):
 		if paths.is_empty():
 			return
@@ -46,6 +52,10 @@ static func pick_file(owner: Node, filters: Array, on_picked: Callable) -> void:
 
 ## Сохранить файл (выгрузка ZIP). on_saved(где: String)
 static func save_file(owner: Node, name: String, bytes: PackedByteArray, on_saved: Callable) -> void:
+	if OS.has_feature("web"):
+		JavaScriptBridge.download_buffer(bytes, name, "application/zip")
+		on_saved.call("папка «Загрузки» браузера")
+		return
 	var write := func(path: String) -> bool:
 		var f := FileAccess.open(path, FileAccess.WRITE)
 		if f == null:
@@ -64,6 +74,28 @@ static func save_file(owner: Node, name: String, bytes: PackedByteArray, on_save
 		on_saved.call(path)
 
 
+static func _pick_file_web(filters: Array, on_picked: Callable) -> void:
+	var accept := ",".join(filters.map(func(f): return str(f).replace("*", "")))
+	_js_callback = JavaScriptBridge.create_callback(func(args: Array):
+		on_picked.call(Marshalls.base64_to_raw(str(args[0])), str(args[1])))
+	var window: JavaScriptObject = JavaScriptBridge.get_interface("window")
+	window.godotAdminPicked = _js_callback
+	JavaScriptBridge.eval("""(function(){
+		var i = document.createElement('input'); i.type = 'file'; i.accept = '%s';
+		i.onchange = function(){
+			var f = i.files[0]; if (!f) return;
+			var r = new FileReader();
+			r.onload = function(){
+				var b = new Uint8Array(r.result), s = '';
+				for (var k = 0; k < b.length; k += 32768) s += String.fromCharCode.apply(null, b.subarray(k, k + 32768));
+				window.godotAdminPicked(btoa(s), f.name);
+			};
+			r.readAsArrayBuffer(f);
+		};
+		i.click();
+	})();""" % accept)
+
+
 ## Кнопка «← Админка» поверх экранов игры в предпросмотре
 static func add_back_button(tree: SceneTree) -> void:
 	if tree.root.has_node("AdminBack"):
@@ -72,7 +104,7 @@ static func add_back_button(tree: SceneTree) -> void:
 	layer.name = "AdminBack"
 	layer.layer = 100
 	var b := Button.new()
-	b.text = "← Админка"
+	b.text = "< Админка"
 	b.add_theme_font_size_override("font_size", 18)
 	b.position = Vector2(566, 2)
 	b.size = Vector2(150, 44)
@@ -89,6 +121,7 @@ static func hub_editor(hub: Dictionary) -> Control:
 	var root := Control.new()
 	root.custom_minimum_size = Vector2(680, h * k)
 	root.clip_contents = true
+	root.mouse_filter = Control.MOUSE_FILTER_PASS  # палец по фону листает экран
 	var bg := TextureRect.new()
 	bg.texture = Content.load_texture(str(hub.get("background", "")))
 	bg.expand_mode = TextureRect.EXPAND_IGNORE_SIZE

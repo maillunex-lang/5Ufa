@@ -12,6 +12,12 @@ var autotest := false
 
 func _ready() -> void:
 	client_version = str(ProjectSettings.get_setting("application/config/version", "0.0.0"))
+	if OS.has_feature("web"):
+		# Веб-версия (админка в браузере): сервер — тот же адрес, с которого открыта страница (…/admin/)
+		var here := str(JavaScriptBridge.eval("window.location.origin + window.location.pathname"))
+		var cut := here.find("/admin/")
+		if cut > 0:
+			server_url = here.substr(0, cut)
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--server="):
 			server_url = arg.substr("--server=".length()).strip_edges().trim_suffix("/")

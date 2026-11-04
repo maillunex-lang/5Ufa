@@ -132,6 +132,9 @@ jobs:
           AAPT="$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -1)"
           "$AAPT" dump badging "$OUT" | grep -q "^package: name='lunex.ufa.admin'"
 
+      - name: Сборка веб-версии админки
+        run: GODOT="$HOME/godot/godot" bash scripts/build-admin-web.sh
+
       - name: Артефакт сборки
         uses: actions/upload-artifact@v4
         with:
@@ -139,6 +142,7 @@ jobs:
           path: |
             client/build/ufa-${{ steps.build.outputs.version_name }}.apk
             client/build/ufa-admin-${{ steps.build.outputs.version_name }}.apk
+            client/build/admin-web.zip
           retention-days: 30
 
       - name: Публикация в Releases
@@ -182,6 +186,24 @@ jobs:
               200) echo "APK $V загружен на сервер — игроки получат предложение обновиться"; exit 0 ;;
               403|409|413|422) exit 1 ;;
             esac
+            sleep 30
+          done
+          exit 1
+
+      - name: Загрузка веб-админки на сервер (/admin/)
+        if: steps.keystore.outputs.temp == 'false'
+        env:
+          TOKEN: ${{ secrets.CLIENT_UPLOAD_TOKEN }}
+          V: ${{ steps.build.outputs.version_name }}
+        run: |
+          TOKEN="$(printf '%s' "$TOKEN" | tr -d '[:space:]')"
+          [ -z "$TOKEN" ] && { echo "::warning::Нет CLIENT_UPLOAD_TOKEN — веб-админка не обновлена"; exit 0; }
+          for i in $(seq 1 10); do
+            CODE_HTTP=$(curl -sS -o /tmp/resp.txt -w "%{http_code}" -X PUT --data-binary "@client/build/admin-web.zip" \
+              -H "Content-Type: application/zip" -H "X-Upload-Token: $TOKEN" "$SERVER_URL/api/v1/admin-web/$V" || echo 000)
+            echo "Попытка $i: HTTP $CODE_HTTP $(head -c 200 /tmp/resp.txt)"
+            [ "$CODE_HTTP" = "200" ] && { echo "Веб-админка $V: $SERVER_URL/admin/"; exit 0; }
+            case "$CODE_HTTP" in 403|422) exit 1 ;; esac
             sleep 30
           done
           exit 1

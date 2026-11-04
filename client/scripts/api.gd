@@ -104,6 +104,7 @@ func _do_request(method: int, path: String, body: Variant, use_auth: bool,
 		extra_headers: PackedStringArray) -> Dictionary:
 	var req := HTTPRequest.new()
 	req.timeout = 25.0
+	req.accept_gzip = not OS.has_feature("web")  # браузер сам распаковывает gzip
 	add_child(req)
 	var headers := PackedStringArray([
 		"Accept: application/json",
