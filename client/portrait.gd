@@ -19,8 +19,8 @@ static func make(host: Node, model_path: String, yaw_deg: float = 0.0) -> Textur
 	var found := model.find_children("*", "AnimationPlayer", true, false)
 	if found.size() > 0:
 		var p: AnimationPlayer = found[0]
-		for n in ["Idle", "Idle_11", "Idle_Combat"]:
-			if p.has_animation(n):
+		for n in p.get_animation_list():
+			if str(n).to_lower().contains("idle"):
 				p.play(n)
 				p.seek(0.4, true)
 				p.pause()

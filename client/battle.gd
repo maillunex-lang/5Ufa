@@ -487,6 +487,9 @@ func _spawn(u: Dictionary) -> void:
 		if found.size() > 0:
 			player = found[0]
 			_load_extra_anims(player, vis, anim_names)
+			if vis.get("root_lock", false):
+				_lock_root(player)
+		_attach_props(body, vis)
 	else:
 		var m := MeshInstance3D.new()   # запасной вариант: капсула
 		var cap := CapsuleMesh.new()
@@ -540,6 +543,70 @@ func _spawn(u: Dictionary) -> void:
 			res[lg] = _resolve(rec, lg)
 		print("[anim] ", u["key"], " ", res)
 	_play(rec, "idle")
+
+
+## Убирает смещение таза по горизонтали в анимациях (выпады, падение): боец остаётся на месте, как его ведёт сервер.
+## Вертикаль (прыжок, падение) сохраняется. Включается данными: visual.root_lock = true.
+func _lock_root(player: AnimationPlayer) -> void:
+	for an_name in player.get_animation_list():
+		var anim := player.get_animation(an_name)
+		for t in anim.get_track_count():
+			if anim.track_get_type(t) != Animation.TYPE_POSITION_3D:
+				continue
+			if not str(anim.track_get_path(t)).to_lower().contains("hips"):
+				continue
+			var n := anim.track_get_key_count(t)
+			if n == 0:
+				continue
+			var first: Vector3 = anim.track_get_key_value(t, 0)
+			for k in n:
+				var v: Vector3 = anim.track_get_key_value(t, k)
+				anim.track_set_key_value(t, k, Vector3(first.x, v.y, first.z))
+
+
+## Предметы в руках: visual.attachments = [{"bone": "...", "prop": "sword", "pos": [x,y,z], "rot": [x,y,z], "scale": 1}].
+## Позиция задаётся в метрах модели (до масштаба героя). Кость ищем по имени; запасные имена: weapon_socket, Hand_R, RightHand.
+func _attach_props(body: Node3D, vis: Dictionary) -> void:
+	var list: Array = vis.get("attachments", [])
+	if list.is_empty():
+		return
+	var sks := body.find_children("*", "Skeleton3D", true, false)
+	if sks.is_empty():
+		push_warning("нет скелета для креплений")
+		return
+	var sk := sks[0] as Skeleton3D
+	for at in list:
+		var bone := -1
+		for cand in [str(at.get("bone", "")), "weapon_socket", "Hand_R", "RightHand"]:
+			if cand == "":
+				continue
+			for i in sk.get_bone_count():
+				var nm := sk.get_bone_name(i)
+				if nm == cand or nm.to_lower().ends_with(cand.to_lower()):
+					bone = i
+					break
+			if bone >= 0:
+				break
+		if bone < 0:
+			push_warning("не найдена кость для крепления " + str(at.get("bone", "")))
+			continue
+		var ba := BoneAttachment3D.new()
+		sk.add_child(ba)
+		ba.bone_name = sk.get_bone_name(bone)
+		# масштаб между моделью и скелетом (у Mixamo Armature = 0.01): компенсируем, чтобы предмет был в метрах модели
+		var s := 1.0
+		var n: Node = sk
+		while n != body and n != null:
+			if n is Node3D:
+				s *= (n as Node3D).scale.x
+			n = n.get_parent()
+		var prop := Props.make(str(at.get("prop", "sword")))
+		var p: Array = at.get("pos", [0, 0, 0])
+		var r: Array = at.get("rot", [0, 0, 0])
+		prop.scale = Vector3.ONE * float(at.get("scale", 1.0)) / s
+		prop.position = Vector3(float(p[0]), float(p[1]), float(p[2])) / s
+		prop.rotation_degrees = Vector3(float(r[0]), float(r[1]), float(r[2]))
+		ba.add_child(prop)
 
 
 func _load_extra_anims(player: AnimationPlayer, vis: Dictionary, anim_names: Dictionary) -> void:
