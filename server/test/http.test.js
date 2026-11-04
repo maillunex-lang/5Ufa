@@ -9,7 +9,7 @@ import { createApp } from '../src/app.js';
 const root = fileURLToPath(new URL('../../', import.meta.url));
 
 test('HTTP: гость → бой → админка → техработы', async () => {
-  const app = createApp({ dataDir: mkdtempSync(join(tmpdir(), '5ufa-')), contentPath: root + 'content/game.json', adminDir: root + 'admin', env: { ADMIN_PASSWORD: 'secret-pass-1' } });
+  const app = createApp({ dataDir: mkdtempSync(join(tmpdir(), '5ufa-')), contentPath: root + 'content/game.json', adminDir: root + 'admin', env: { ADMIN_PASSWORD: 'secret-pass-1', RELEASES_DISABLED: '1' } });
   await new Promise((r) => app.server.listen(0, '127.0.0.1', r));
   const base = `http://127.0.0.1:${app.server.address().port}`;
   const call = async (path, { body, token, method } = {}) => {
@@ -34,6 +34,7 @@ test('HTTP: гость → бой → админка → техработы', as
     await call('/admin/api/maintenance', { body: { on: true, message: 'x' }, token: a });
     assert.equal((await call('/api/battle/start', { body: { stage: 1 }, token })).status, 503);
     assert.equal((await call('/api/config')).body.maintenance, true);
+    assert.equal((await call('/api/config')).body.update, null);
     const page = await fetch(base + '/admin/');
     assert.equal(page.status, 200);
     assert.equal((await fetch(base + '/admin/app.js')).status, 200); // скрипт админки отдаётся рядом со страницей

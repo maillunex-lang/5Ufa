@@ -6,11 +6,27 @@
 | Метод | Путь | Тело → ответ |
 | --- | --- | --- |
 | GET | `/health` | → `{ok,version,uptimeSec}` |
-| GET | `/api/config` | → `{server,maintenance,maintenanceMessage,contentVersion,update}`; `update` пока `null` (будет у трека Releases) |
+| GET | `/api/config` | → `{server,maintenance,maintenanceMessage,contentVersion,update}`. `update` — `null` или обязательное обновление, см. ниже |
 | GET | `/api/media/:sha` | → файл по хешу: GLB, PNG или JPEG (без входа, кэшируется навсегда) |
 | POST | `/api/guest` | → `{token,accountId}` (создаёт аккаунт, 5 героев, стартовые ресурсы) |
 | POST | `/api/login` | `{login,password}` → `{token,accountId}` |
 | POST | `/api/recover` | `{login,code,newPassword}` → `{token,accountId,recoveryCode}` (новый код) |
+
+### `update` в `/api/config`
+`null`, если обязательного обновления нет. Иначе:
+
+`{versionCode, versionName, package, sha256, size, url, tag}`
+
+Сервер смотрит последние 100 релизов GitHub (`maillunex-lang/5Ufa`, другой репозиторий — `RELEASES_REPO`) и кэширует ответ около 10 минут. Файл APK не скачивается: `sha256` берётся из текста релиза. При сбое GitHub остаётся прошлый удачный ответ (или `null`). Токен `GITHUB_TOKEN` не обязателен и в журнал не пишется.
+
+Релиз подходит, только если всё сразу:
+- не draft и не prerelease (тестовые `client-test-N` не подходят);
+- тег ровно `client-vX.Y.Z`, и это не старая игра `client-v0.1.*`;
+- в описании есть строки `package: ru.ttsufa.fiveufa`, `versionCode: <целое 1…2000000000>`, `versionName: X.Y.Z` (как в теге), `sha256: <64 hex>`;
+- ровно один файл `.apk` по https-ссылке GitHub, размер от 1 байта до 99 МБ включительно.
+
+Если подходят несколько, берётся больший `versionCode`. Два релиза с одним номером не выбираются. Клиент показывает экран обновления до входа, только если `versionCode` больше номера этой сборки и `url` начинается с `https://`. Исходники держат номер 1; тестовый APK подставляет номер сборки Actions. Обычного релиза нового пакета пока нет, поэтому на сервере `update` остаётся `null`.
+
 
 ## Игрок (нужен токен)
 | Метод | Путь | Тело → ответ |
