@@ -137,6 +137,8 @@ test('миграция старой базы: openDb добавляет коло
   const old = new DatabaseSync(file);
   old.exec('CREATE TABLE content_versions(id INTEGER PRIMARY KEY, hash TEXT NOT NULL, json TEXT NOT NULL, note TEXT, created INTEGER NOT NULL)');
   old.prepare('INSERT INTO content_versions(hash,json,note,created) VALUES(?,?,?,?)').run('h', JSON.stringify({ x: 1 }), 'старая', 1);
+  old.exec('CREATE TABLE battles(id TEXT PRIMARY KEY, account_id INTEGER NOT NULL, stage INTEGER NOT NULL, content_version INTEGER NOT NULL, seed INTEGER NOT NULL, winner TEXT NOT NULL, timeout INTEGER NOT NULL, duration REAL NOT NULL, events TEXT NOT NULL, reward TEXT, created INTEGER NOT NULL)');
+  old.prepare('INSERT INTO battles(id,account_id,stage,content_version,seed,winner,timeout,duration,events,created) VALUES(?,?,?,?,?,?,?,?,?,?)').run('b1', 1, 1, 1, 1, 'attacker', 0, 1.5, '[]', 1);
   old.close();
   const db = openDb(file); // настоящая функция открытия с миграцией
   const cols = db.prepare('PRAGMA table_info(content_versions)').all().map((c) => c.name);
@@ -145,6 +147,9 @@ test('миграция старой базы: openDb добавляет коло
   assert.ok(db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='story_progress'").get());
   const mediaCols = db.prepare('PRAGMA table_info(media)').all().map((c) => c.name);
   for (const c of ['folder', 'tags', 'license', 'requirements', 'prompt']) assert.ok(mediaCols.includes(c), `нет колонки media.${c}`);
+  const battleCols = db.prepare('PRAGMA table_info(battles)').all().map((c) => c.name);
+  assert.ok(battleCols.includes('media'));
+  assert.equal(db.prepare("SELECT media FROM battles WHERE id='b1'").get().media, null);
   db.close();
   openDb(file).close(); // повторное открытие не падает (колонки уже есть)
 });

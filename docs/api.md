@@ -39,15 +39,15 @@
 | POST | `/api/story/complete` | `{questId}` → `{storyDone[]}`. Только сюжетное задание. Награду не даёт. Повтор ничего не дублирует. Закрытое задание: 403 `locked`. |
 | POST | `/api/hero/upgrade` | `{heroId}` → `{level,spent,balances}` |
 | POST | `/api/hero/reset` | `{heroId}` → `{level,refunded,balances}` |
-| POST | `/api/battle/start` | `{stage}` → `{battleId,winner,timeout,duration,reward,events,balances,contentVersion}` |
-| GET | `/api/battle/:id` | → тот же результат (для переподключения; награду повторно не даёт) |
+| POST | `/api/battle/start` | `{stage}` → `{battleId,stage,winner,timeout,duration,reward,events,balances,contentVersion,media}`. `media` — активные файлы на момент старта (как `media` в `/api/content`). У старого боя, начатого до этого поля, `media` равен `null` |
+| GET | `/api/battle/:id` | → тот же результат, включая `media` именно этого боя (для переподключения; награду повторно не даёт) |
 
 ## События боя (`events[]`, время `t` в секундах игрового времени)
 `start{units[{id,key,side:'a'|'d',slot,level,hp,x,y}]}` · `move{id,to:[x,y],speed}` (повторяется при смене цели пути) · `stop{id,x,y}` (боец остановился, точная позиция) · `attack{src,dst,ability}` · `skill{src,dst,ability}` · `damage{src,dst,amount,crit,ability,hp}` · `heal{src,dst,amount,hp,ability}` · `death{id}` · `energy{id,value}` (значение 0–100, только у героев с главной способностью) · `end{winner,timeout}`.
 Координаты в условных единицах арены: игрок слева (x<0), враги справа. Клиент воспроизводит события с нужной скоростью; сам ничего не считает.
 
 ## Админ-API (`Authorization: Bearer <admin token>`, префикс `/admin/api/`)
-`POST login{login,password}` · `GET status` · `POST maintenance{on,message}` · `POST backup`.
+`POST login{login,password}` · `GET status` · `POST maintenance{on,message}` · `POST backup` → `{name, mediaCopied}` (копия базы и новые файлы медиатеки; уже скопированные файлы не дублируются).
 
 Контент (версии линейные, активна последняя; правка и откат создают новую версию, история не переписывается):
 | Метод | Путь | Тело → ответ |

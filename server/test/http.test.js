@@ -25,6 +25,8 @@ test('HTTP: гость → бой → админка → техработы', as
     assert.equal(b.status, 200);
     assert.ok(b.body.events.length > 5);
     assert.equal((await call('/api/battle/' + b.body.battleId, { token })).body.winner, b.body.winner);
+    assert.equal(b.body.media.Knight.bundled, true);
+    assert.equal((await call('/api/battle/' + b.body.battleId, { token })).body.media.Knight.sha, b.body.media.Knight.sha);
 
     assert.equal((await call('/admin/api/status')).status, 401);
     assert.equal((await call('/admin/api/login', { body: { login: 'owner', password: 'bad' } })).status, 401);

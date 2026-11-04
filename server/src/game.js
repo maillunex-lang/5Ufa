@@ -17,7 +17,8 @@ export function createGame(db, { contentPath }) {
 
   // ---------- контент и версии ----------
   // Версии линейные: активна последняя. Правка и откат создают НОВУЮ версию (история не переписывается).
-  // Бой закрепляет версию в момент старта (battles.content_version), поэтому правки действуют со следующего боя.
+  // Бой закрепляет версию контента и снимок медиатеки в момент старта:
+  // правка правил и смена активного файла действуют со следующего боя.
   const audit = (actor, action, detail) => run('INSERT INTO audit(ts,actor,action,detail) VALUES(?,?,?,?)', now(), actor, action, detail ? JSON.stringify(detail) : null);
   const hashOf = (text) => createHash('sha256').update(text).digest('hex');
   const currentVersionId = () => one('SELECT MAX(id) m FROM content_versions').m;
@@ -283,6 +284,8 @@ export function createGame(db, { contentPath }) {
     const seed = opts.seed ?? randomInt(1, 2 ** 31);
     const res = simulate({ attackers, defenders, seed, config: { ...c.battle, bounds: c.arena?.bounds } });
     const id = randomUUID();
+    const mediaJson = opts.media == null ? null : JSON.stringify(opts.media);
+    if (mediaJson && mediaJson.length > 500_000) throw new GameError('bad_media', 'Список ресурсов слишком большой');
 
     // Бой, результат и награда — одна транзакция; награда за первую победу выдаётся ровно один раз.
     return tx(db, () => {
@@ -296,9 +299,9 @@ export function createGame(db, { contentPath }) {
           reward = stage.reward;
         }
       }
-      run('INSERT INTO battles(id,account_id,stage,content_version,seed,winner,timeout,duration,events,reward,created) VALUES(?,?,?,?,?,?,?,?,?,?,?)',
-        id, acc, stageN, c.id, seed, res.winner, res.timeout ? 1 : 0, res.duration, JSON.stringify(res.events), reward ? JSON.stringify(reward) : null, now());
-      return { battleId: id, stage: stageN, contentVersion: c.id, winner: res.winner, timeout: res.timeout, duration: res.duration, reward, events: res.events, balances: balances(acc) };
+      run('INSERT INTO battles(id,account_id,stage,content_version,seed,winner,timeout,duration,events,reward,created,media) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)',
+        id, acc, stageN, c.id, seed, res.winner, res.timeout ? 1 : 0, res.duration, JSON.stringify(res.events), reward ? JSON.stringify(reward) : null, now(), mediaJson);
+      return { battleId: id, stage: stageN, contentVersion: c.id, winner: res.winner, timeout: res.timeout, duration: res.duration, reward, events: res.events, balances: balances(acc), media: opts.media ?? null };
     });
   }
 
@@ -306,7 +309,7 @@ export function createGame(db, { contentPath }) {
   function getBattle(acc, id) {
     const b = one('SELECT * FROM battles WHERE id=? AND account_id=?', id, acc);
     if (!b) throw new GameError('no_battle', 'Бой не найден', 404);
-    return { battleId: b.id, stage: b.stage, contentVersion: b.content_version, winner: b.winner, timeout: !!b.timeout, duration: b.duration, reward: b.reward ? JSON.parse(b.reward) : null, events: JSON.parse(b.events), balances: balances(acc) };
+    return { battleId: b.id, stage: b.stage, contentVersion: b.content_version, winner: b.winner, timeout: !!b.timeout, duration: b.duration, reward: b.reward ? JSON.parse(b.reward) : null, events: JSON.parse(b.events), balances: balances(acc), media: b.media ? JSON.parse(b.media) : null };
   }
 
   return { db, audit, syncContentFromFile, getContent, currentVersionId, listVersions, getVersion, diffVersions, publishContent, rollbackTo, getContent, guest, authenticate, bind, login, recover, me, setFormation, setTutorialDone, completeStory, upgradeHero, resetHero, startBattle, getBattle, addRes, balances, isMaintenance, q, one, run };
