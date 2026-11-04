@@ -22,6 +22,18 @@ export function validateContent(c) {
   need(ek.size === enemies.length, 'ключи врагов не уникальны');
   for (const k of hk) need(!ek.has(k), `ключ ${k} есть и у героя, и у врага`);
   const abilityIds = new Set();
+  const library = new Map();
+  if (c.abilities !== undefined) {
+    need(Array.isArray(c.abilities), 'abilities: нужен список способностей');
+    for (const a of c.abilities || []) {
+      checkAbility(a);
+      if (a && typeof a.id === 'string') {
+        need(!library.has(a.id), `id способности ${a.id} не уникален`);
+        library.set(a.id, a);
+        abilityIds.add(a.id);
+      }
+    }
+  }
   for (const u of [...heroes, ...enemies]) {
     need(typeof u.key === 'string' && KEYRE.test(u.key), `ключ «${u.key}»: латиница в нижнем регистре, цифры и _, 2–32 символа, первая буква`);
     need(typeof u.name === 'string' && u.name.trim().length > 0, `${u.key}: нужно имя`);
@@ -35,20 +47,21 @@ export function validateContent(c) {
       if (Number.isFinite(v)) need(v >= lo && v <= hi, `${u.key}: ${s}=${v} вне допустимых ${lo}–${hi}`);
     }
     const ab = Array.isArray(u.abilities) ? u.abilities : [];
-    need(ab.filter((a) => a.kind === 'basic').length === 1, `${u.key}: нужна ровно одна базовая атака`);
-    need(ab.filter((a) => a.kind === 'main').length <= 1, `${u.key}: главная способность не больше одной`);
-    for (const a of ab) {
-      need(typeof a.id === 'string' && KEYRE.test(a.id), `${u.key}: id способности «${a.id}» некорректен`);
-      need(!abilityIds.has(a.id), `id способности ${a.id} не уникален`);
-      abilityIds.add(a.id);
-      need(KINDS.includes(a.kind), `${a.id}: неизвестный вид ${a.kind}`);
-      if (a.kind === 'passive') {
-        for (const [k, m] of Object.entries(a.mods || {})) need(k in STAT_RANGES && Number.isFinite(m) && m > 0 && m <= 10, `${a.id}: пассивный бонус ${k}=${m} некорректен`);
-      } else {
-        need(Number.isFinite(a.mult) && a.mult > 0 && a.mult <= 50, `${a.id}: множитель mult должен быть больше 0`);
-        if (a.kind !== 'basic') need(EFFECTS.includes(a.effect), `${a.id}: неизвестное действие ${a.effect}`);
-        if (a.kind === 'skill') need(Number.isFinite(a.cooldown) && a.cooldown >= 0, `${a.id}: нужна перезарядка cooldown`);
-      }
+    const refs = ab.length > 0 && ab.every((a) => typeof a === 'string');
+    const embedded = ab.length > 0 && ab.every((a) => a && typeof a === 'object');
+    need(refs || embedded || ab.length === 0, `${u.key}: способности должны быть либо все ссылками, либо все описаниями`);
+    const resolved = refs ? ab.map((id) => library.get(id)) : ab;
+    if (refs) {
+      need(c.abilities !== undefined, `${u.key}: ссылки на способности требуют список content.abilities`);
+      for (const id of ab) need(library.has(id), `${u.key}: неизвестная способность ${id}`);
+    }
+    need(resolved.filter((a) => a && a.kind === 'basic').length === 1, `${u.key}: нужна ровно одна базовая атака`);
+    need(resolved.filter((a) => a && a.kind === 'main').length <= 1, `${u.key}: главная способность не больше одной`);
+    if (!refs) for (const a of ab) {
+      if (a && library.has(a.id)) continue; // уже раскрытая копия записи библиотеки
+      checkAbility(a);
+      need(typeof a?.id === 'string' && !abilityIds.has(a.id), `id способности ${a?.id} не уникален`);
+      if (typeof a?.id === 'string') abilityIds.add(a.id);
     }
   }
   need(c.stages?.length === 10, 'нужно 10 этапов');
@@ -92,6 +105,37 @@ export function validateContent(c) {
   for (const k of ['energyMax', 'energyOnAttack', 'energyOnDamaged']) need(Number.isFinite(BT[k]) && BT[k] >= 0, `battle.${k}: число не меньше 0`);
   need(Number.isFinite(BT.defConst) && BT.defConst > 0, 'battle.defConst: больше 0');
   return errs;
+
+  function checkAbility(a) {
+    need(a && typeof a === 'object', 'способность должна быть объектом');
+    if (!a || typeof a !== 'object') return;
+    need(typeof a.id === 'string' && KEYRE.test(a.id), `id способности «${a.id}» некорректен`);
+    need(KINDS.includes(a.kind), `${a.id}: неизвестный вид ${a.kind}`);
+    if (a.anim !== undefined && a.anim !== '') need(typeof a.anim === 'string' && a.anim.length <= 80 && /^[\w:./ -]+$/.test(a.anim), `${a.id}: анимация anim некорректна`);
+    if (a.kind === 'passive') {
+      for (const [k, m] of Object.entries(a.mods || {})) need(k in STAT_RANGES && Number.isFinite(m) && m > 0 && m <= 10, `${a.id}: пассивный бонус ${k}=${m} некорректен`);
+    } else {
+      need(Number.isFinite(a.mult) && a.mult > 0 && a.mult <= 50, `${a.id}: множитель mult должен быть больше 0`);
+      if (a.kind !== 'basic') need(EFFECTS.includes(a.effect), `${a.id}: неизвестное действие ${a.effect}`);
+      if (a.kind === 'skill') need(Number.isFinite(a.cooldown) && a.cooldown >= 0, `${a.id}: нужна перезарядка cooldown`);
+    }
+  }
+}
+
+// Ссылки героев и врагов на content.abilities заменяются полными описаниями.
+// Старый контент, где описание лежит прямо у героя, не меняется. Возвращается копия.
+export function expandAbilities(c) {
+  const out = structuredClone(c);
+  const lib = new Map((out.abilities || []).filter((a) => a && typeof a === 'object' && typeof a.id === 'string').map((a) => [a.id, a]));
+  for (const u of [...(out.heroes || []), ...(out.enemies || [])]) {
+    if (!Array.isArray(u.abilities) || !u.abilities.every((a) => typeof a === 'string')) continue;
+    u.abilities = u.abilities.map((id) => {
+      const a = lib.get(id);
+      if (!a) throw new Error(`нет способности ${id}`);
+      return structuredClone(a);
+    });
+  }
+  return out;
 }
 
 export function loadContentFile(path) {

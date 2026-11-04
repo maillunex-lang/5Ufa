@@ -31,6 +31,133 @@
    "hero_exp": 300
   }
  },
+ "abilities": [
+  {
+   "id": "tank_basic",
+   "kind": "basic",
+   "mult": 1
+  },
+  {
+   "id": "tank_main",
+   "kind": "main",
+   "effect": "single",
+   "mult": 2.5
+  },
+  {
+   "id": "tank_p1",
+   "kind": "passive",
+   "mods": {
+    "hp": 1.15
+   }
+  },
+  {
+   "id": "tank_p2",
+   "kind": "passive",
+   "mods": {
+    "def": 1.2
+   }
+  },
+  {
+   "id": "war_basic",
+   "kind": "basic",
+   "mult": 1
+  },
+  {
+   "id": "war_cleave",
+   "kind": "skill",
+   "effect": "single",
+   "mult": 2,
+   "cooldown": 6
+  },
+  {
+   "id": "arc_basic",
+   "kind": "basic",
+   "mult": 1
+  },
+  {
+   "id": "arc_power",
+   "kind": "skill",
+   "effect": "single",
+   "mult": 2.2,
+   "cooldown": 5
+  },
+  {
+   "id": "mage_basic",
+   "kind": "basic",
+   "mult": 1
+  },
+  {
+   "id": "mage_main",
+   "kind": "main",
+   "effect": "aoe",
+   "mult": 1.6,
+   "name": "Огненная комета",
+   "description": "Маг запускает огненные кометы во всех врагов.",
+   "vfx": {
+    "style": "fire_comet",
+    "color": "#ff7a1c",
+    "_test": true
+   }
+  },
+  {
+   "id": "mage_p1",
+   "kind": "passive",
+   "mods": {
+    "atk": 1.2
+   }
+  },
+  {
+   "id": "mage_p2",
+   "kind": "passive",
+   "mods": {
+    "hp": 1.1
+   }
+  },
+  {
+   "id": "heal_basic",
+   "kind": "basic",
+   "mult": 1
+  },
+  {
+   "id": "heal_heal",
+   "kind": "skill",
+   "effect": "heal",
+   "mult": 2.4,
+   "cooldown": 4
+  },
+  {
+   "id": "ef_basic",
+   "kind": "basic",
+   "mult": 1
+  },
+  {
+   "id": "es_basic",
+   "kind": "basic",
+   "mult": 1
+  },
+  {
+   "id": "em_basic",
+   "kind": "basic",
+   "mult": 1
+  },
+  {
+   "id": "em_main",
+   "kind": "main",
+   "effect": "aoe",
+   "mult": 1.2
+  },
+  {
+   "id": "eb_basic",
+   "kind": "basic",
+   "mult": 1
+  },
+  {
+   "id": "eb_main",
+   "kind": "main",
+   "effect": "aoe",
+   "mult": 1.4
+  }
+ ],
  "heroes": [
   {
    "key": "tank",
@@ -48,35 +175,14 @@
     "speed": 3
    },
    "abilities": [
-    {
-     "id": "tank_basic",
-     "kind": "basic",
-     "mult": 1.0
-    },
-    {
-     "id": "tank_main",
-     "kind": "main",
-     "effect": "single",
-     "mult": 2.5
-    },
-    {
-     "id": "tank_p1",
-     "kind": "passive",
-     "mods": {
-      "hp": 1.15
-     }
-    },
-    {
-     "id": "tank_p2",
-     "kind": "passive",
-     "mods": {
-      "def": 1.2
-     }
-    }
+    "tank_basic",
+    "tank_main",
+    "tank_p1",
+    "tank_p2"
    ],
    "visual": {
     "model": "Knight",
-    "scale": 1.0,
+    "scale": 1,
     "_test": true,
     "hide": [
      "1H_Sword_Offhand",
@@ -100,22 +206,12 @@
     "critChance": 0.1,
     "critPower": 1.6,
     "range": 1.6,
-    "interval": 1.0,
+    "interval": 1,
     "speed": 3.4
    },
    "abilities": [
-    {
-     "id": "war_basic",
-     "kind": "basic",
-     "mult": 1.0
-    },
-    {
-     "id": "war_cleave",
-     "kind": "skill",
-     "effect": "single",
-     "mult": 2.0,
-     "cooldown": 6
-    }
+    "war_basic",
+    "war_cleave"
    ],
    "visual": {
     "model": "Swordsman",
@@ -132,7 +228,7 @@
      "death": "Dead"
     },
     "anim_speed": {
-     "attack_melee": 3.0,
+     "attack_melee": 3,
      "attack_melee_strong": 1.8,
      "death": 1.2
     },
@@ -150,7 +246,7 @@
        0,
        -90
       ],
-      "scale": 1.0
+      "scale": 1
      }
     ],
     "source": "Meshy (владелец), модель мечника",
@@ -174,22 +270,12 @@
     "speed": 3
    },
    "abilities": [
-    {
-     "id": "arc_basic",
-     "kind": "basic",
-     "mult": 1.0
-    },
-    {
-     "id": "arc_power",
-     "kind": "skill",
-     "effect": "single",
-     "mult": 2.2,
-     "cooldown": 5
-    }
+    "arc_basic",
+    "arc_power"
    ],
    "visual": {
     "model": "Rogue_Hooded",
-    "scale": 1.0,
+    "scale": 1,
     "_test": true,
     "hide": [
      "Knife_Offhand",
@@ -216,42 +302,14 @@
     "speed": 2.8
    },
    "abilities": [
-    {
-     "id": "mage_basic",
-     "kind": "basic",
-     "mult": 1.0
-    },
-    {
-     "id": "mage_main",
-     "kind": "main",
-     "effect": "aoe",
-     "mult": 1.6,
-     "name": "Огненная комета",
-     "description": "Маг запускает огненные кометы во всех врагов.",
-     "vfx": {
-      "style": "fire_comet",
-      "color": "#ff7a1c",
-      "_test": true
-     }
-    },
-    {
-     "id": "mage_p1",
-     "kind": "passive",
-     "mods": {
-      "atk": 1.2
-     }
-    },
-    {
-     "id": "mage_p2",
-     "kind": "passive",
-     "mods": {
-      "hp": 1.1
-     }
-    }
+    "mage_basic",
+    "mage_main",
+    "mage_p1",
+    "mage_p2"
    ],
    "visual": {
     "model": "Mage",
-    "scale": 1.0,
+    "scale": 1,
     "_test": true,
     "magic_color": "#8a7bff",
     "hide": [
@@ -278,18 +336,8 @@
     "speed": 3
    },
    "abilities": [
-    {
-     "id": "heal_basic",
-     "kind": "basic",
-     "mult": 1.0
-    },
-    {
-     "id": "heal_heal",
-     "kind": "skill",
-     "effect": "heal",
-     "mult": 2.4,
-     "cooldown": 4
-    }
+    "heal_basic",
+    "heal_heal"
    ],
    "visual": {
     "model": "Priest",
@@ -309,7 +357,7 @@
     "anim_speed": {
      "cast": 1.8,
      "cast_strong": 1.5,
-     "attack_melee": 2.0,
+     "attack_melee": 2,
      "attack_melee_strong": 1.8,
      "hit": 1.8,
      "death": 1.2
@@ -337,15 +385,11 @@
     "speed": 3
    },
    "abilities": [
-    {
-     "id": "ef_basic",
-     "kind": "basic",
-     "mult": 1.0
-    }
+    "ef_basic"
    ],
    "visual": {
     "model": "Skeleton_Warrior",
-    "scale": 1.0,
+    "scale": 1,
     "_test": true
    }
   },
@@ -363,15 +407,11 @@
     "speed": 3
    },
    "abilities": [
-    {
-     "id": "es_basic",
-     "kind": "basic",
-     "mult": 1.0
-    }
+    "es_basic"
    ],
    "visual": {
     "model": "Skeleton_Rogue",
-    "scale": 1.0,
+    "scale": 1,
     "_test": true
    }
   },
@@ -389,21 +429,12 @@
     "speed": 2.8
    },
    "abilities": [
-    {
-     "id": "em_basic",
-     "kind": "basic",
-     "mult": 1.0
-    },
-    {
-     "id": "em_main",
-     "kind": "main",
-     "effect": "aoe",
-     "mult": 1.2
-    }
+    "em_basic",
+    "em_main"
    ],
    "visual": {
     "model": "Skeleton_Mage",
-    "scale": 1.0,
+    "scale": 1,
     "_test": true,
     "magic_color": "#ff5a6a"
    }
@@ -422,17 +453,8 @@
     "speed": 2.6
    },
    "abilities": [
-    {
-     "id": "eb_basic",
-     "kind": "basic",
-     "mult": 1.0
-    },
-    {
-     "id": "eb_main",
-     "kind": "main",
-     "effect": "aoe",
-     "mult": 1.4
-    }
+    "eb_basic",
+    "eb_main"
    ],
    "visual": {
     "model": "Skeleton_Warrior",
@@ -731,13 +753,39 @@
     },
     null
    ],
-   "power": 1.0,
+   "power": 1,
    "reward": {
     "gold": 1250,
     "hero_exp": 800
    }
   }
  ],
+ "arena": {
+  "id": "arena_1",
+  "name": "Арена 1",
+  "bounds": {
+   "xMin": -5,
+   "xMax": 5,
+   "yMin": -3.4,
+   "yMax": 3.4
+  },
+  "_test": true,
+  "camera": {
+   "position": [
+    0,
+    10.8,
+    9.8
+   ],
+   "lookAt": [
+    0,
+    0,
+    0.4
+   ],
+   "fov": 56,
+   "depth": 1.7,
+   "_test": true
+  }
+ },
  "tutorial": {
   "_test": true,
   "steps": [
@@ -769,31 +817,5 @@
     "done": "button_ack"
    }
   ]
- },
- "arena": {
-  "id": "arena_1",
-  "name": "Арена 1",
-  "bounds": {
-   "xMin": -5.0,
-   "xMax": 5.0,
-   "yMin": -3.4,
-   "yMax": 3.4
-  },
-  "_test": true,
-  "camera": {
-   "position": [
-    0,
-    10.8,
-    9.8
-   ],
-   "lookAt": [
-    0,
-    0,
-    0.4
-   ],
-   "fov": 56,
-   "depth": 1.7,
-   "_test": true
-  }
  }
 }
