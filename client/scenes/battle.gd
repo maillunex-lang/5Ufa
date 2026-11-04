@@ -114,7 +114,7 @@ func _live_error(message: String) -> void:
 
 func _build_background() -> void:
 	# Фон, «земля» и места HUD — ui/screens/battle.json (конструктор экранов в админке)
-	var built := ScreenLayout.build(ScreenLayout.load_layout("battle"), {"widgets": {}})
+	var built := ScreenLayout.build(ScreenLayout.load_layout("battle"), {"widgets": {}, "screen": "battle"})
 	built["root"].name = "Layout"
 	built["root"].mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(built["root"])

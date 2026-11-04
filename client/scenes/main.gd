@@ -132,7 +132,7 @@ func _build_layout(settings: Variant) -> void:
 		"gold": func(box: Control, _el: Dictionary): _gold_label = _pill_box(box, "ui/hub/icon_coin.png", true),
 		"crystals": func(box: Control, _el: Dictionary): _crystal_label = _pill_box(box, "ui/hub/icon_crystal.png", true),
 	}
-	var built := ScreenLayout.build(ScreenLayout.load_layout("hub"), {"widgets": widgets, "settings": settings,
+	var built := ScreenLayout.build(ScreenLayout.load_layout("hub"), {"widgets": widgets, "settings": settings, "screen": "hub",
 			"badges": _add_badge, "on_action": func(a: Dictionary): _do_action({"action": a})})
 	built["root"].name = "Layout"
 	add_child(built["root"])

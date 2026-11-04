@@ -13,6 +13,10 @@ const SCENES := {"hub": "res://scenes/main.tscn", "campaign": "res://scenes/camp
 		"test_battle": "res://scenes/team_select.tscn", "inventory": "res://scenes/inventory.tscn"}
 const OUTLINE := Color(0.06, 0.03, 0.1)
 
+## Правка в игре (админка): изменённые, ещё не сохранённые раскладки и последний построенный экран
+static var overrides: Dictionary = {}
+static var current: Dictionary = {}       # {"screen", "layout", "nodes", "root", "view", "insets"}
+
 
 ## Размер экрана в единицах игры: ширина 720, высота под пропорции телефона (у вытянутых больше 1280)
 static func view_size() -> Vector2:
@@ -73,6 +77,8 @@ static func place(el: Dictionary, view: Vector2, insets: Vector2 = Vector2.ZERO)
 
 
 static func load_layout(screen: String) -> Dictionary:
+	if overrides.has(screen):
+		return overrides[screen]
 	var d: Variant = Content.load_json("ui/screens/%s.json" % screen)
 	if d is Dictionary and d.has("elements"):
 		return d
@@ -98,7 +104,7 @@ static func screen(root: Control, name: String, actions: Dictionary = {}, widget
 	col.set_anchors_preset(Control.PRESET_FULL_RECT)
 	var w := widgets.duplicate()
 	w["content"] = func(box: Control, _el: Dictionary): box.add_child(col)
-	var built := build(load_layout(name), {"actions": actions, "widgets": w})
+	var built := build(load_layout(name), {"actions": actions, "widgets": w, "screen": name})
 	built["root"].name = "Layout"
 	root.add_child(built["root"])
 	root.move_child(built["root"], 0)
@@ -151,6 +157,8 @@ static func build(layout: Dictionary, ctx: Dictionary) -> Dictionary:
 				node.modulate.a = 0.35
 		root.add_child(node)
 		nodes[str(el.get("id", ""))] = node
+	if ctx.has("screen") and not ctx.get("edit", false):
+		current = {"screen": str(ctx["screen"]), "layout": layout, "nodes": nodes, "root": root, "view": view, "insets": insets}
 	return {"root": root, "nodes": nodes}
 
 

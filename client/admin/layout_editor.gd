@@ -10,7 +10,10 @@ const STYLE_NAMES := {"default": "обычная", "tile": "плитка", "icon
 const SCENES := ["hub", "campaign", "heroes", "summon", "inventory", "test_battle", "more"]
 const BADGES := ["", "heroes", "summon", "campaign"]
 
+signal changed(layout: Dictionary)
+
 var host: Node
+var props_only := false      # правка в игре: только панель свойств выбранного элемента
 var screen := ""
 var path := ""
 var layout: Dictionary = {}
@@ -58,6 +61,20 @@ func setup(p_host: Node, p_screen: String, p_path: String, p_layout: Dictionary,
 	_props.add_theme_constant_override("separation", 6)
 	add_child(_props)
 	_render()
+
+
+## Правка в игре: только свойства элемента index; каждое изменение — сигнал changed
+func setup_props(p_host: Node, p_layout: Dictionary, images: Array, index: int) -> void:
+	host = p_host
+	props_only = true
+	layout = p_layout
+	_images = images
+	selected = index
+	add_theme_constant_override("separation", 6)
+	_props = VBoxContainer.new()
+	_props.add_theme_constant_override("separation", 6)
+	add_child(_props)
+	_render_props()
 
 
 # --- Отрисовка ----------------------------------------------------------------------------
@@ -122,6 +139,10 @@ func _city_preview(box: Control, _el: Dictionary) -> void:
 
 
 func _render() -> void:
+	if props_only:
+		_render_props()
+		changed.emit(layout)
+		return
 	for c in _stage.get_children():
 		c.queue_free()
 	var built := ScreenLayout.build(layout, {"edit": true, "edit_widgets": {"city": _city_preview}})

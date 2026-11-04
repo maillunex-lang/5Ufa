@@ -24,9 +24,10 @@ func _ready() -> void:
 		get_tree().root.add_child.call_deferred(api)
 		await get_tree().process_frame
 	api.logged_out.connect(func(): _open(_show_login, false))
-	var remove := get_node_or_null("/root/AdminBack")
-	if remove:
-		remove.queue_free()
+	for extra in ["/root/AdminBack", "/root/LiveEdit"]:
+		var remove := get_node_or_null(extra)
+		if remove:
+			remove.queue_free()
 	if api.token == "":
 		_open(_show_login, false)
 	else:
@@ -946,6 +947,9 @@ func _open_game(scene: String) -> void:
 		_say("Ошибка входа игрока для предпросмотра: " + str(s.error))
 		return
 	Previews.add_back_button(get_tree())
+	ScreenLayout.overrides.clear()
+	if not get_tree().root.has_node("LiveEdit"):  # долгое нажатие в игре — правка экрана
+		get_tree().root.add_child(preload("res://admin/live_edit.gd").new())
 	get_tree().change_scene_to_file(scene)
 
 
@@ -1139,6 +1143,7 @@ func _autotest(creds: String) -> void:
 				"animtest": await _anim_selftest()
 				"screens": await _with_draft(func(): _open(_screen_editor.bind("hub")))
 				"screentest": await _screen_selftest()
+				"livetest": await _with_draft(func(): _open_game("res://scenes/main.tscn"))
 				"players": _open(_show_players.bind(""))
 				"backups": _open(_show_backups)
 	if "--screenshot-after=" not in str(OS.get_cmdline_user_args()):
