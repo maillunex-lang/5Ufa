@@ -1,7 +1,8 @@
 name: CI
 on:
-  push: { branches: [main, 'ccr-*'] }
+  push: { branches: ['ccr-*'] }
   pull_request:
+  workflow_call:
 jobs:
   server:
     runs-on: ubuntu-latest
