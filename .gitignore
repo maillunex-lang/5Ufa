@@ -9,3 +9,5 @@ node_modules/
 client/assets/models/*.import
 client/assets/models/*_texture.png
 client/assets/models/*_texture.png.import
+client/assets/models/*_Image_*.png
+client/assets/models/*_Image_*.png.import
