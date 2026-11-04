@@ -102,6 +102,9 @@ static func screen(root: Control, name: String, actions: Dictionary = {}, widget
 	var col := VBoxContainer.new()
 	col.add_theme_constant_override("separation", 10)
 	col.set_anchors_preset(Control.PRESET_FULL_RECT)
+	# Godot 4.7: у Container mouse_filter = PASS. Пустая колонка без места «content»
+	# оказывается последним слоем на весь экран и забирает нажатия у кнопок под ней.
+	col.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var w := widgets.duplicate()
 	w["content"] = func(box: Control, _el: Dictionary): box.add_child(col)
 	var built := build(load_layout(name), {"actions": actions, "widgets": w, "screen": name})
