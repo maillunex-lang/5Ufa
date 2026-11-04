@@ -95,10 +95,10 @@ def build_manifest(content_dir: Path, store: ContentStore | None, schemas: Schem
             errors.append(f"{rel}: неподдерживаемый формат «{ext}». Разрешены: {', '.join(sorted(ALLOWED_EXTENSIONS))}")
             continue
         if ext == ".glb":
-            from app.models3d.inspect_glb import ModelError, inspect_glb
+            from app.models3d.inspect_glb import MAX_GLB_BYTES, ModelError, inspect_glb, size_limit_message
             try:
-                if path.stat().st_size > 50 * 1024 * 1024:
-                    raise ModelError("GLB больше 50 МиБ")
+                if path.stat().st_size > MAX_GLB_BYTES:
+                    raise ModelError(size_limit_message(path.stat().st_size))
                 inspect_glb(path.read_bytes())
             except (ModelError, OSError) as exc:
                 errors.append(f"{rel}: {exc}")
@@ -172,7 +172,7 @@ def _validate_hero_models(content_dir: Path, hero_path: str, hero: dict) -> list
     """Проверить ссылки 3D до выпуска релиза, включая правки из формы, JSON и ZIP."""
     from pathlib import PurePosixPath
 
-    from app.models3d.inspect_glb import MAX_GLB_BYTES, ModelError, inspect_glb, require_owned_model_path
+    from app.models3d.inspect_glb import MAX_GLB_BYTES, ModelError, inspect_glb, require_owned_model_path, size_limit_message
 
     errors = []
     hero_dir = Path(hero_path).parent.as_posix()
@@ -190,9 +190,10 @@ def _validate_hero_models(content_dir: Path, hero_path: str, hero: dict) -> list
             if path not in cache:
                 candidate = root.joinpath(*PurePosixPath(path).parts)
                 parent = candidate.parent.resolve()
-                if (not parent.is_relative_to(root) or not candidate.is_file()
-                        or candidate.stat().st_size > MAX_GLB_BYTES):
-                    raise ModelError("файл модели отсутствует или превышает 50 МиБ")
+                if not parent.is_relative_to(root) or not candidate.is_file():
+                    raise ModelError("файл модели отсутствует")
+                if candidate.stat().st_size > MAX_GLB_BYTES:
+                    raise ModelError(size_limit_message(candidate.stat().st_size))
                 cache[path] = inspect_glb(candidate.read_bytes())
             return cache[path]
 

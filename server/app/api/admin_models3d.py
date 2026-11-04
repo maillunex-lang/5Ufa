@@ -18,7 +18,7 @@ from app.admin.security import audit, require_role
 from app.content.validation import ContentError
 from app.db import get_session
 from app.models import AdminUser
-from app.models3d.inspect_glb import MAX_GLB_BYTES, ModelError, inspect_glb, require_owned_model_path
+from app.models3d.inspect_glb import MAX_GLB_BYTES, ModelError, inspect_glb, require_owned_model_path, size_limit_message
 
 router = APIRouter(prefix="/api/v1/admin/models3d", tags=["admin"])
 editor = require_role("editor")
@@ -111,7 +111,7 @@ def unpack(data: bytes, max_bytes: int = MAX_GLB_BYTES) -> list[tuple[str, bytes
     """GLB как есть или ZIP только из GLB. Размер берётся по фактически прочитанным байтам, не по заголовку."""
     if data.startswith(b"glTF"):
         if len(data) > max_bytes:
-            raise ModelError("GLB больше 50 МиБ")
+            raise ModelError(size_limit_message(len(data), max_bytes))
         return [("model.glb", data)]
     try:
         archive = zipfile.ZipFile(io.BytesIO(data))
@@ -130,10 +130,11 @@ def unpack(data: bytes, max_bytes: int = MAX_GLB_BYTES) -> list[tuple[str, bytes
             if not name.lower().endswith(".glb") or name.lower() in names:
                 raise ModelError("В ZIP допустимы только GLB с разными именами")
             if entry.flag_bits & 1 or entry.file_size < 0 or entry.file_size > max_bytes:
-                raise ModelError("Зашифрованный или слишком большой файл в архиве")
+                raise ModelError(size_limit_message(max(0, entry.file_size), max_bytes, "файл в архиве")
+                                 if entry.file_size > max_bytes else "Зашифрованный или слишком большой файл в архиве")
             names.add(name.lower())
         if sum(x.file_size for x in entries) > max_bytes:
-            raise ModelError("Распакованные модели занимают больше 50 МиБ")
+            raise ModelError(size_limit_message(sum(x.file_size for x in entries), max_bytes, "распакованные файлы"))
         out = []
         total = 0
         for entry in entries:
@@ -143,10 +144,10 @@ def unpack(data: bytes, max_bytes: int = MAX_GLB_BYTES) -> list[tuple[str, bytes
             except (zipfile.BadZipFile, RuntimeError, OSError, EOFError, zlib.error) as exc:
                 raise ModelError("Не удалось прочитать ZIP-архив") from exc
             if len(payload) > max_bytes:
-                raise ModelError("Распакованные модели занимают больше 50 МиБ")
+                raise ModelError(size_limit_message(len(payload), max_bytes, "распакованные файлы"))
             total += len(payload)
             if total > max_bytes:
-                raise ModelError("Распакованные модели занимают больше 50 МиБ")
+                raise ModelError(size_limit_message(total, max_bytes, "распакованные файлы"))
             out.append((entry.filename, payload))
         return out
 
@@ -156,11 +157,18 @@ async def upload(hero_id: str, request: Request, skin: str = "", admin: AdminUse
                  session: AsyncSession = Depends(get_session)):
     if not ID.fullmatch(hero_id) or (skin and not ID.fullmatch(skin)):
         raise HTTPException(422, "Некорректный идентификатор героя или скина")
+    declared = request.headers.get("content-length")
+    try:
+        declared_size = int(declared) if declared else None
+    except ValueError:
+        declared_size = None
+    if declared_size is not None and declared_size > MAX_GLB_BYTES:
+        raise HTTPException(413, size_limit_message(declared_size, MAX_GLB_BYTES))
     data = bytearray()
     async for chunk in request.stream():
         data.extend(chunk)
         if len(data) > MAX_GLB_BYTES:
-            raise HTTPException(413, "GLB или ZIP больше 50 МиБ")
+            raise HTTPException(413, size_limit_message(len(data), MAX_GLB_BYTES))
     if not data:
         raise HTTPException(422, "Пустой файл")
     try:

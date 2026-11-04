@@ -7,6 +7,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response
 from pydantic import BaseModel, Field
@@ -110,17 +111,23 @@ def _ai_status_path(sid: str):
     return cut.session_dir(sid) / "ai_status.json"
 
 
+def _write_status(path, payload: dict) -> None:
+    """Сначала во временный файл: прямой write_text обнуляет файл, и параллельный GET читает пустоту."""
+    tmp = path.with_name(path.name + ".tmp")
+    tmp.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+    os.replace(tmp, path)
+
+
 def _ai_job(sid: str, tid: str) -> None:
     path = _ai_status_path(sid)
     try:
         res = cut.ai_cut(sid, tid, gemini.generate_image, gemini.detect_boxes)
-        path.write_text(json.dumps({"status": "done", "result": res}, ensure_ascii=False), encoding="utf-8")
+        _write_status(path, {"status": "done", "result": res})
     except (cut.CutterError, gemini.GeminiError) as e:
-        path.write_text(json.dumps({"status": "error", "error": str(e)}, ensure_ascii=False), encoding="utf-8")
+        _write_status(path, {"status": "error", "error": str(e)})
     except Exception:  # noqa: BLE001 — сообщаем админке, подробности в лог сервера
         log.exception("ИИ-нарезка %s", sid)
-        path.write_text(json.dumps({"status": "error", "error": "Внутренняя ошибка нарезки ИИ (см. лог сервера)"},
-                                   ensure_ascii=False), encoding="utf-8")
+        _write_status(path, {"status": "error", "error": "Внутренняя ошибка нарезки ИИ (см. лог сервера)"})
 
 
 @router.post("/{sid}/ai")
@@ -135,7 +142,7 @@ async def ai_start(sid: str, body: TemplateIn, admin: AdminUser = Depends(editor
     task = _ai_tasks.get(sid)
     if task and not task.done():
         return {"status": "running"}
-    path.write_text(json.dumps({"status": "running"}), encoding="utf-8")
+    _write_status(path, {"status": "running"})
     _ai_tasks[sid] = asyncio.create_task(asyncio.to_thread(_ai_job, sid, body.template))
     return {"status": "running"}
 
@@ -148,7 +155,11 @@ async def ai_status(sid: str, admin: AdminUser = Depends(editor)):
         raise HTTPException(404, str(e))
     if not path.exists():
         return {"status": "none"}
-    st = json.loads(path.read_text(encoding="utf-8"))
+    raw = path.read_text(encoding="utf-8")
+    try:
+        st = json.loads(raw) if raw.strip() else {"status": "running"}
+    except json.JSONDecodeError:
+        return {"status": "running"}
     if st.get("status") == "running" and sid not in _ai_tasks:
         st = {"status": "error", "error": "Нарезка прервалась (сервер перезапускался) — запустите ещё раз"}
     return st

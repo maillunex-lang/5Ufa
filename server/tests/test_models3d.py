@@ -268,3 +268,24 @@ async def test_patch_and_form_cannot_publish_missing_model(published):
     again = (await client.get("/api/v1/admin/sections/heroes/objects/ural_batyr", headers=headers)).json()["data"]
     assert again["model_3d"]["file"] == path and again["model_3d"]["anchors"]["hit"]["bone"] == "@root"
 
+
+def test_oversize_names_file_size_and_limit(monkeypatch):
+    import app.models3d.inspect_glb as glbmod
+    monkeypatch.setattr(glbmod, "MAX_GLB_BYTES", 1024 * 1024)
+    with pytest.raises(ModelError, match=r"файл 2 МиБ, предел 1 МиБ"):
+        glbmod.inspect_glb(b"x" * (2 * 1024 * 1024))
+    assert glbmod.size_limit_message(86 * 1024 * 1024 + 410 * 1024, 200 * 1024 * 1024) == "файл 86.5 МиБ, предел 200 МиБ"
+
+
+async def test_upload_over_limit_reports_size(published, monkeypatch):
+    import app.api.admin_models3d as api
+    monkeypatch.setattr(api, "MAX_GLB_BYTES", 1024 * 1024)
+    client = published
+    await make_admin()
+    headers = await admin_headers(client)
+    body = b"x" * (2 * 1024 * 1024)
+    upload = await client.post("/api/v1/admin/models3d/ural_batyr/upload", headers=headers, content=body)
+    assert upload.status_code == 413
+    assert upload.json()["detail"] == "файл 2 МиБ, предел 1 МиБ"
+
+

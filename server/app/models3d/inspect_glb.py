@@ -3,12 +3,13 @@ from __future__ import annotations
 
 import io
 import json
+import math
 import posixpath
 import re
 import struct
 from PIL import Image, UnidentifiedImageError
 
-MAX_GLB_BYTES = 50 * 1024 * 1024
+MAX_GLB_BYTES = 200 * 1024 * 1024
 MAX_IMAGE_PIXELS = 16_777_216
 MAX_ITEMS = 100_000
 # Обычный GLB Meshy их не использует. С такими расширениями треугольники и текстуры
@@ -23,6 +24,23 @@ _FILE_NAME = re.compile(r"[a-z0-9][a-z0-9_.-]{0,180}\.glb")
 
 class ModelError(ValueError):
     pass
+
+
+def format_mib(n: int, *, up: bool = False) -> str:
+    """Размер в МиБ: предел округляется вниз, фактический файл — вверх, чтобы отказ не выглядел как «ровно предел»."""
+    units = n / (1024 * 1024)
+    scaled = units * 10
+    units = (math.ceil(scaled - 1e-9) if up else math.floor(scaled + 1e-9)) / 10
+    text = f"{units:.1f}"
+    if text.endswith(".0"):
+        text = text[:-2]
+    return f"{text} МиБ"
+
+
+def size_limit_message(actual: int, limit: int | None = None, what: str = "файл") -> str:
+    if limit is None:
+        limit = MAX_GLB_BYTES
+    return f"{what} {format_mib(actual, up=True)}, предел {format_mib(limit)}"
 
 
 def require_owned_model_path(path: str, prefix: str) -> str:
@@ -48,7 +66,7 @@ def _get(items: list, index, what: str) -> dict:
 
 def inspect_glb(data: bytes) -> dict:
     if len(data) > MAX_GLB_BYTES:
-        raise ModelError("GLB больше 50 МиБ")
+        raise ModelError(size_limit_message(len(data)))
     if len(data) < 20:
         raise ModelError("GLB слишком короткий")
     magic, version, length = struct.unpack_from("<4sII", data)
