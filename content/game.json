@@ -165,7 +165,14 @@
      "id": "mage_main",
      "kind": "main",
      "effect": "aoe",
-     "mult": 1.6
+     "mult": 1.6,
+     "name": "Огненная комета",
+     "description": "Маг запускает огненные кометы во всех врагов.",
+     "vfx": {
+      "style": "fire_comet",
+      "color": "#ff7a1c",
+      "_test": true
+     }
     },
     {
      "id": "mage_p1",
@@ -185,7 +192,8 @@
    "visual": {
     "model": "Mage",
     "scale": 1.0,
-    "_test": true
+    "_test": true,
+    "magic_color": "#8a7bff"
    }
   },
   {
@@ -220,7 +228,8 @@
    "visual": {
     "model": "Rogue",
     "scale": 1.0,
-    "_test": true
+    "_test": true,
+    "magic_color": "#5dffa0"
    }
   }
  ],
@@ -306,7 +315,8 @@
    "visual": {
     "model": "Skeleton_Mage",
     "scale": 1.0,
-    "_test": true
+    "_test": true,
+    "magic_color": "#ff5a6a"
    }
   },
   {

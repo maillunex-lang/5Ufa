@@ -53,6 +53,7 @@ export function simulate({ attackers, defenders, seed, config }) {
   const gainEnergy = (u, n) => {
     if (!u.alive || !u.abilities.some((a) => a.kind === 'main')) return;
     u.energy = Math.min(C.energyMax, u.energy + n);
+    ev('energy', { id: u.id, value: u.energy }); // для полосы энергии в клиенте
   };
 
   function hit(src, dst, mult, canCrit, abilityId) {
@@ -108,7 +109,7 @@ export function simulate({ attackers, defenders, seed, config }) {
       ev(a.kind === 'basic' ? 'attack' : 'skill', { src: u.id, dst: tgt.id, ability: a.id });
       const targets = a.effect === 'aoe' ? foes(u) : [tgt];
       for (const d of targets) if (d.alive) hit(u, d, a.mult, a.kind === 'basic', a.id);
-      if (a.kind === 'main') u.energy = 0; else gainEnergy(u, C.energyOnAttack);
+      if (a.kind === 'main') { u.energy = 0; ev('energy', { id: u.id, value: 0 }); } else gainEnergy(u, C.energyOnAttack);
       if (a.cooldown) a.cd = a.cooldown;
       return true;
     }
