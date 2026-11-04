@@ -158,3 +158,13 @@ test('формация валидируется; нельзя списать б�
   assert.deepEqual(g.setFormation(acc, [...ids].reverse()).formation, [...ids].reverse());
   assert.throws(() => g.addRes(acc, 'gold', -999999, 'x'), (e) => e.code === 'not_enough');
 });
+
+test('события энергии: растёт от ударов и обнуляется главной способностью', () => {
+  const c = content();
+  const r = sim(c, [unit(c, 'mage', 'a', 0), null, null, null, null], [unit(c, 'e_boss', 'd', 0, { hp: 99999 }), null, null, null, null]);
+  const en = r.events.filter((e) => e.type === 'energy' && e.id === 'a0');
+  assert.ok(en.length > 3);
+  assert.ok(en.some((e) => e.value === 100));
+  assert.ok(en.some((e) => e.value === 0));
+  assert.ok(en.every((e) => e.value >= 0 && e.value <= 100));
+});

@@ -6,3 +6,6 @@ node_modules/
 *.apk
 .godot/
 !deploy/test-signing/test.keystore
+client/assets/models/*.import
+client/assets/models/*_texture.png
+client/assets/models/*_texture.png.import
