@@ -1,0 +1,67 @@
+# Сборка тестового Android APK клиента (Godot). На PR — только проверка сборки;
+# на push в main — ещё и публикация как prerelease (draft/prerelease игра для обновлений игнорирует).
+name: Client APK
+on:
+  push:
+    branches: [main]
+    paths: ['client/**', '.github/workflows/client.yml']
+  pull_request:
+    paths: ['client/**', '.github/workflows/client.yml']
+  workflow_dispatch:
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    container: barichello/godot-ci:4.4.1
+    steps:
+      - uses: actions/checkout@v4
+      - name: Подготовка Godot и Android
+        run: |
+          set -e
+          mkdir -p "$HOME/.local/share/godot/export_templates" "$HOME/.config/godot"
+          cp -r "/root/.local/share/godot/export_templates/${GODOT_VERSION}.stable" "$HOME/.local/share/godot/export_templates/" 2>/dev/null || true
+          cp -n /root/.config/godot/* "$HOME/.config/godot/" 2>/dev/null || true
+          echo "HOME=$HOME ANDROID_HOME=${ANDROID_HOME:-} ANDROID_SDK_ROOT=${ANDROID_SDK_ROOT:-} JAVA_HOME=${JAVA_HOME:-}"
+          ls "$HOME/.config/godot" "$HOME/.local/share/godot/export_templates" || true
+          ls /root/.config/godot 2>/dev/null || true
+          godot --version
+      - name: Версия APK
+        run: |
+          sed -i "s/^version\/code=.*/version\/code=${{ github.run_number }}/; s/^version\/name=.*/version\/name=\"0.1.${{ github.run_number }}\"/" client/export_presets.cfg
+          sed -i "s/^config\/version=.*/config\/version=\"0.1.${{ github.run_number }}\"/" client/project.godot
+      - name: Импорт ресурсов проекта
+        working-directory: client
+        run: godot --headless --import || true
+      - name: Сборка APK
+        working-directory: client
+        env:
+          GODOT_ANDROID_KEYSTORE_DEBUG_PATH: ${{ github.workspace }}/deploy/test-signing/test.keystore
+          GODOT_ANDROID_KEYSTORE_DEBUG_USER: androiddebugkey
+          GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD: android
+        run: |
+          mkdir -p ../build
+          godot --headless --verbose --export-debug "Android" ../build/5ufa-test.apk
+          ls -la ../build
+      - name: Размер APK (лимит 99 МБ)
+        run: |
+          size=$(stat -c %s build/5ufa-test.apk); echo "APK: $size байт"
+          [ "$size" -le $((99*1024*1024)) ] || { echo "Больше 99 МБ"; exit 1; }
+      - uses: actions/upload-artifact@v4
+        with: { name: 5ufa-test-apk, path: build/5ufa-test.apk, retention-days: 14 }
+
+  release:
+    needs: apk
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions: { contents: write }
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { name: 5ufa-test-apk, path: build }
+      - name: Prerelease с APK
+        env: { GH_TOKEN: '${{ secrets.GITHUB_TOKEN }}' }
+        run: |
+          tag="client-test-${{ github.run_number }}"
+          gh release create "$tag" build/5ufa-test.apk --repo "${{ github.repository }}" --target "${{ github.sha }}" \
+            --prerelease --title "Тестовый APK #${{ github.run_number }}" \
+            --notes "Тестовая сборка клиента (подпись тестовым ключом). Не является обязательным обновлением: prerelease игрой игнорируется."
+          echo "Скачать: https://github.com/${{ github.repository }}/releases/tag/$tag"
