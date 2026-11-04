@@ -11,7 +11,7 @@ extends Node3D
 
 const SPEED := 1.0
 const TIME_LIMIT := 90.0
-const DEPTH := 1.8   # растяжение арены по глубине для экрана (на сервере координаты не меняются)
+const DEPTH := 1.25   # растяжение арены по глубине для экрана (на сервере координаты не меняются)
 const CAM_POS := Vector3(0, 8.0, 11.2)    # угол около 35° над землёй, вид сбоку
 const CAM_LOOK := Vector3(0, 0.9, 0.6)
 const CAM_FOV := 54.0
@@ -572,6 +572,9 @@ func _dispatch(e: Dictionary) -> void:
 				u["target"] = Vector3(float(e["to"][0]), 0, float(e["to"][1]) * DEPTH)
 				u["speed"] = float(e["speed"])
 				_face(u, u["target"])
+		"stop":
+			if _units.has(e["id"]):
+				(_units[e["id"]] as Dictionary)["target"] = Vector3(float(e["x"]), 0, float(e["y"]) * DEPTH)
 		"attack", "skill":
 			_on_cast(e)
 		"damage":

@@ -44,6 +44,8 @@ func _build() -> void:
 		var up := Ui.button("Улучшить\n%d зол. + %d оп." % [int(cost["gold"]) * lv, int(cost["hero_exp"]) * lv], 24, 90)
 		up.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		up.disabled = lv >= maxlv
+		if h == State.me["heroes"][0]:
+			up.add_to_group("upgrade_first")
 		var hid: int = int(h["id"])
 		up.pressed.connect(func(): _act("/api/hero/upgrade", hid))
 		row.add_child(up)
@@ -59,4 +61,6 @@ func _act(path: String, hero_id: int) -> void:
 	if not r["ok"]:
 		Ui.alert(self, str(r["message"]))
 		return
+	if path == "/api/hero/upgrade":
+		State.set_flag("tut_upgraded")
 	await State.refresh_me()

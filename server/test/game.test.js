@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { openDb } from '../src/db.js';
 import { createGame, GameError } from '../src/game.js';
 import { buildUnit, simulate } from '../src/battle.js';
-import { loadContentFile } from '../src/content.js';
+import { loadContentFile, validateContent } from '../src/content.js';
 
 const contentPath = fileURLToPath(new URL('../../content/game.json', import.meta.url));
 const mk = () => createGame(openDb(':memory:'), { contentPath });
@@ -167,4 +167,55 @@ test('события энергии: растёт от ударов и обну�
   assert.ok(en.some((e) => e.value === 100));
   assert.ok(en.some((e) => e.value === 0));
   assert.ok(en.every((e) => e.value >= 0 && e.value <= 100));
+});
+
+test('контент: шаги обучения проверяются по каталогу условий', () => {
+  const c = content();
+  assert.ok(c.tutorial.steps.length >= 3);
+  assert.deepEqual(validateContent(c), []);
+  const bad = structuredClone(c);
+  bad.tutorial.steps[0].done = 'сделать_что_угодно';
+  bad.tutorial.steps[1].highlight = ['tab:9'];
+  const errs = validateContent(bad);
+  assert.ok(errs.some((e) => e.includes('условие')) && errs.some((e) => e.includes('подсветка')));
+});
+
+// Клиент двигает бойцов только по событиям (move/stop) с их скоростью. Проверяем, что итоговые позиции совпадают с серверными.
+function replayPositions(events) {
+  const U = {};
+  let t = 0;
+  const advance = (dt) => {
+    for (const u of Object.values(U)) {
+      if (!u.alive || !u.to) continue;
+      const dx = u.to[0] - u.x, dy = u.to[1] - u.y, d = Math.hypot(dx, dy);
+      const step = Math.min(d, u.speed * dt);
+      if (d > 1e-9) { u.x += (dx / d) * step; u.y += (dy / d) * step; }
+    }
+  };
+  for (const e of events) {
+    advance(e.t - t); t = e.t;
+    if (e.type === 'start') for (const u of e.units) U[u.id] = { x: u.x, y: u.y, speed: 3, alive: true, to: null };
+    else if (e.type === 'move') { U[e.id].to = e.to; U[e.id].speed = e.speed; }
+    else if (e.type === 'stop') { U[e.id].to = [e.x, e.y]; }
+    else if (e.type === 'death') U[e.id].alive = false;
+  }
+  return U;
+}
+
+test('позиции, восстановленные клиентом по событиям, совпадают с серверными (бойцы не «убегают»)', () => {
+  const c = content();
+  const mk = (keys, side) => keys.map((k, i) => (k ? unit(c, k, side, i) : null));
+  const worst = [];
+  for (let seed = 1; seed <= 10; seed++) {
+    const A = mk(['tank', 'warrior', 'archer', 'mage', 'healer'], 'a');
+    const D = mk(['e_fighter', 'e_fighter', 'e_shooter', 'e_mage', 'e_shooter'], 'd');
+    const r = sim(c, A, D, seed);
+    const U = replayPositions(r.events);
+    for (const s of r.survivors) {
+      const u = U[s.id];
+      worst.push(Math.hypot(u.x - s.x, u.y - s.y));
+    }
+  }
+  const max = Math.max(...worst);
+  assert.ok(max < 0.6, `максимальное расхождение клиента и сервера ${max.toFixed(2)}`);
 });

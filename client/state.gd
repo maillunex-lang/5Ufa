@@ -7,6 +7,28 @@ var me: Dictionary = {}
 var content: Dictionary = {}
 var battle_result: Dictionary = {}
 var start_tab: int = 0
+var flags: Dictionary = {}   # локальные отметки клиента (например, обучение), хранятся на устройстве
+const FLAGS_FILE := "user://flags.cfg"
+
+
+func _ready() -> void:
+	var cf := ConfigFile.new()
+	if cf.load(FLAGS_FILE) == OK:
+		for k in cf.get_section_keys("flags"):
+			flags[k] = cf.get_value("flags", k)
+
+
+func set_flag(key: String, value: Variant = true) -> void:
+	flags[key] = value
+	var cf := ConfigFile.new()
+	for k in flags:
+		cf.set_value("flags", k, flags[k])
+	cf.save(FLAGS_FILE)
+
+
+func clear_flags() -> void:
+	flags.clear()
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(FLAGS_FILE))
 
 
 func refresh_me() -> bool:

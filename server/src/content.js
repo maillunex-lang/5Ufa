@@ -21,6 +21,16 @@ export function validateContent(c) {
     for (const e of s.enemies || []) if (e) need(ek.has(e.key), `этап ${s.n}: неизвестный враг ${e.key}`);
     need(s.enemies?.some(Boolean), `этап ${s.n}: нет врагов`);
   });
+  const DONE = /^(stage_cleared:\d+|hero_upgraded|button_ack)$/;
+  const HL = /^(tab:[0-3]|stage:(\d+|next)|upgrade:first)$/;
+  const ids = new Set();
+  for (const st of c.tutorial?.steps || []) {
+    need(typeof st.id === 'string' && st.id && !ids.has(st.id), 'обучение: id шага обязателен и уникален');
+    ids.add(st.id);
+    need(typeof st.text === 'string' && st.text.length > 0, `обучение ${st.id}: нужен текст`);
+    need(DONE.test(st.done || ''), `обучение ${st.id}: неизвестное условие завершения ${st.done}`);
+    for (const h of st.highlight || []) need(HL.test(h), `обучение ${st.id}: неизвестная подсветка ${h}`);
+  }
   need(Number.isInteger(c.progression?.maxLevel) && c.progression.maxLevel >= 1, 'progression.maxLevel');
   return errs;
 }

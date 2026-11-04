@@ -32,6 +32,9 @@ func _build() -> void:
 		var status := "✓ пройден" if cleared else ("доступен" if open else "закрыт")
 		var b := Ui.button("%s\n%s · первая награда: золото %d, опыт %d" % [s["name"], status, int(rw["gold"]), int(rw["hero_exp"])], 26, 110)
 		b.disabled = not open
+		b.add_to_group("stage_%d" % n)
+		if n == done + 1:
+			b.add_to_group("stage_next")
 		var sn := n
 		b.pressed.connect(func(): _formation(sn))
 		_list.add_child(b)
