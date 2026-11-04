@@ -40,7 +40,7 @@ input{width:100%;margin-bottom:8px}table{width:100%;border-collapse:collapse;fon
 <script>
 const $=id=>document.getElementById(id);let T=sessionStorage.getItem('t');
 const esc=s=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
-async function api(path,body){const r=await fetch('/admin/api/'+path,{method:body?'POST':'GET',headers:{'content-type':'application/json',authorization:'Bearer '+T},body:body?JSON.stringify(body):undefined});
+async function api(path,body){const r=await fetch('api/'+path,{method:body?'POST':'GET',headers:{'content-type':'application/json',authorization:'Bearer '+T},body:body?JSON.stringify(body):undefined});
  if(r.status===401&&path!=='login'){T=null;sessionStorage.removeItem('t');show();throw 0}const j=await r.json();if(!r.ok)throw new Error(j.message||r.status);return j}
 function show(){$('login').hidden=!!T;$('app').hidden=!T;if(T)load()}
 $('go').onclick=async()=>{try{const j=await api('login',{login:$('l').value,password:$('p').value});T=j.token;sessionStorage.setItem('t',T);show()}catch(e){$('lerr').textContent=e.message}};
