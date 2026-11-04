@@ -48,7 +48,7 @@ export function createMedia({ db, dir, audit }) {
   const run = (sql, ...p) => db.prepare(sql).run(...p);
   const filePath = (sha) => join(dir, sha + '.glb');
 
-  const pub = (r) => r && ({ id: r.id, name: r.name, kind: r.kind, version: r.version, sha: r.sha, size: r.size, filename: r.filename, source: r.source, note: r.note, author: r.author, created: r.created, active: !!r.active, meta: r.meta ? JSON.parse(r.meta) : null });
+  const pub = (r) => r && ({ id: r.id, name: r.name, kind: r.kind, version: r.version, sha: r.sha, size: r.size, filename: r.filename, source: r.source, note: r.note, author: r.author, created: r.created, active: !!r.active, meta: r.meta ? JSON.parse(r.meta) : null, folder: r.folder || '', tags: r.tags || '', license: r.license || '', requirements: r.requirements || '', prompt: r.prompt || '' });
 
   function store(buf, sha) {
     const target = filePath(sha);
@@ -78,8 +78,10 @@ export function createMedia({ db, dir, audit }) {
     const makeActive = activate ?? !prev?.v;
     if (version > 1 && one('SELECT 1 x FROM media WHERE name=? AND sha=?', name, sha)) throw new GameError('no_changes', 'Такая версия файла уже есть в истории', 400);
     if (makeActive) run('UPDATE media SET active=0 WHERE name=?', name);
-    run('INSERT INTO media(name,kind,version,sha,size,filename,source,note,author,created,active,meta) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)',
-      name, kind, version, sha, buf.length, filename ? basename(String(filename)).slice(0, 120) : null, source, String(note).slice(0, 300), author, Date.now(), makeActive ? 1 : 0, JSON.stringify(meta));
+    const card = one('SELECT folder, tags, license, requirements, prompt FROM media WHERE name=? ORDER BY version DESC LIMIT 1', name);
+    run('INSERT INTO media(name,kind,version,sha,size,filename,source,note,author,created,active,meta,folder,tags,license,requirements,prompt) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+      name, kind, version, sha, buf.length, filename ? basename(String(filename)).slice(0, 120) : null, source, String(note).slice(0, 300), author, Date.now(), makeActive ? 1 : 0, JSON.stringify(meta),
+      card?.folder ?? null, card?.tags ?? null, card?.license ?? null, card?.requirements ?? null, card?.prompt ?? null);
     audit?.(author, 'media_upload', { name, kind, version, sha: sha.slice(0, 12), size: buf.length, source, active: makeActive });
     return pub(one('SELECT * FROM media WHERE name=? AND version=?', name, version));
   }
@@ -100,7 +102,7 @@ export function createMedia({ db, dir, audit }) {
     return names.map((name) => {
       const versions = q('SELECT * FROM media WHERE name=? ORDER BY version DESC', name).map(pub);
       const active = versions.find((v) => v.active) || versions[0];
-      return { name, kind: active.kind, active, versions };
+      return { name, kind: active.kind, folder: active.folder || '', tags: active.tags || '', active, versions };
     });
   }
 
@@ -119,6 +121,33 @@ export function createMedia({ db, dir, audit }) {
     return out;
   }
 
+  // Папка, теги, лицензия, требования к файлу и промпт относятся к имени, а не к одной версии.
+  function setCard(name, card = {}, author = 'owner') {
+    if (!one('SELECT 1 x FROM media WHERE name=?', name)) throw new GameError('no_media', 'Файл не найден', 404);
+    const folder = cleanFolder(card.folder);
+    const tags = cleanTags(card.tags);
+    const license = String(card.license || '').trim().slice(0, 300);
+    const requirements = String(card.requirements || '').trim().slice(0, 500);
+    const prompt = String(card.prompt || '').trim().slice(0, 2000);
+    run('UPDATE media SET folder=?, tags=?, license=?, requirements=?, prompt=? WHERE name=?', folder, tags, license, requirements, prompt, name);
+    audit?.(author, 'media_card', { name, folder, tags });
+    return list().find((m) => m.name === name);
+  }
+
+  function cleanFolder(v) {
+    const s = String(v || '').trim();
+    if (!s) return null;
+    if (s.length > 40 || /[\\/]|\.\./.test(s)) throw new GameError('bad_folder', 'Папка: до 40 символов, без / и без ..', 400);
+    return s;
+  }
+
+  function cleanTags(v) {
+    const parts = String(v || '').split(',').map((s) => s.trim()).filter(Boolean);
+    if (parts.length > 12) throw new GameError('bad_tags', 'Тегов не больше 12', 400);
+    for (const p of parts) if (p.length > 24) throw new GameError('bad_tags', 'Тег длиннее 24 символов', 400);
+    return parts.length ? parts.join(', ') : null;
+  }
+
   // Модели, вшитые в приложение, появляются в медиатеке при первом запуске (чтобы их можно было смотреть и заменять).
   function seed(seedDir) {
     if (!seedDir || !existsSync(seedDir)) return 0;
@@ -133,5 +162,5 @@ export function createMedia({ db, dir, audit }) {
     return n;
   }
 
-  return { upload, activate, list, byHash, manifest, seed, filePath };
+  return { upload, activate, list, byHash, manifest, seed, filePath, setCard };
 }

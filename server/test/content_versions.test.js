@@ -142,6 +142,9 @@ test('миграция старой базы: openDb добавляет коло
   const cols = db.prepare('PRAGMA table_info(content_versions)').all().map((c) => c.name);
   for (const c of ['source', 'author', 'parent']) assert.ok(cols.includes(c), `нет колонки ${c}`);
   assert.equal(db.prepare('SELECT note FROM content_versions').get().note, 'старая');
+  assert.ok(db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='story_progress'").get());
+  const mediaCols = db.prepare('PRAGMA table_info(media)').all().map((c) => c.name);
+  for (const c of ['folder', 'tags', 'license', 'requirements', 'prompt']) assert.ok(mediaCols.includes(c), `нет колонки media.${c}`);
   db.close();
   openDb(file).close(); // повторное открытие не падает (колонки уже есть)
 });

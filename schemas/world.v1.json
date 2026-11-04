@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tts-ufa.ru/games/server/schemas/world.v1.json",
+  "title": "5Ufa world schema v1",
+  "description": "Рабочая схема мира. Проверяет её server/src/world.js (без внешних библиотек). Старый контент без поля world остаётся действительным. Это не полная схема всего game.json.",
+  "type": "object",
+  "required": ["schema", "_demo", "republic", "proposals", "districts", "places", "placeStates", "seasons", "chains", "quests", "scenes", "factions", "resources"],
+  "properties": {
+    "schema": { "const": 1 },
+    "_demo": { "type": "boolean", "description": "true, пока фрагмент демонстрационный и не выдаётся за полную карту." },
+    "republic": { "type": "object" },
+    "proposals": {
+      "type": "object",
+      "description": "Варианты имени духа, виновника и стартового района. Поле chosen запрещено, пока владелец не утвердит.",
+      "required": ["status", "spiritNames", "culprits", "startDistricts"],
+      "properties": { "status": { "enum": ["proposal", "approved"] } }
+    },
+    "districts": { "type": "array", "maxItems": 400 },
+    "places": { "type": "array", "maxItems": 400 },
+    "placeStates": { "type": "array", "description": "Состояние места внутри сезона. Не заменяет место и не стирает прошлый сезон.", "maxItems": 400 },
+    "seasons": { "type": "array", "maxItems": 400 },
+    "chains": { "type": "array", "maxItems": 400 },
+    "quests": { "type": "array", "maxItems": 400 },
+    "scenes": { "type": "array", "maxItems": 400 },
+    "factions": { "type": "array", "description": "Только подписи. Боевых бонусов нет." },
+    "resources": { "type": "array", "description": "Сейчас только gold и hero_exp." }
+  },
+  "additionalProperties": false
+}

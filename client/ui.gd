@@ -19,7 +19,15 @@ static func button(text: String, size: int = 30, min_h: int = 96) -> Button:
 	return b
 
 
-static func box(color: Color, radius: int = 16) -> StyleBoxFlat:
+static func token_color(key: String, fallback: Color) -> Color:
+	var colors: Dictionary = State.content.get("ui", {}).get("colors", {})
+	var hex := str(colors.get(key, ""))
+	if hex.begins_with("#") and hex.length() == 7:
+		return Color.html(hex)
+	return fallback
+
+
+static func box(color: Color, radius: int = 16, border: Color = Color(0, 0, 0, 0), border_w: int = 0) -> StyleBoxFlat:
 	var s := StyleBoxFlat.new()
 	s.bg_color = color
 	s.set_corner_radius_all(radius)
@@ -27,12 +35,18 @@ static func box(color: Color, radius: int = 16) -> StyleBoxFlat:
 	s.content_margin_right = 16
 	s.content_margin_top = 12
 	s.content_margin_bottom = 12
+	if border_w > 0:
+		s.border_color = border
+		s.set_border_width_all(border_w)
 	return s
 
 
-static func panel(color: Color) -> PanelContainer:
+static func panel(color: Color = Color(0, 0, 0, 0)) -> PanelContainer:
 	var p := PanelContainer.new()
-	p.add_theme_stylebox_override("panel", box(color))
+	var c := color if color.a > 0.0 else token_color("panel", Color(0.11, 0.094, 0.078, 1))
+	if color.a <= 0.0:
+		c.a = 0.94
+	p.add_theme_stylebox_override("panel", box(c, 12, token_color("gold", Color.html("#c6a15a")), 2))
 	return p
 
 

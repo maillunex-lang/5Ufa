@@ -111,11 +111,12 @@ export function createApp({ dataDir, contentPath, adminDir, env = process.env })
     if (p.startsWith('/api/')) {
       const acc = game.authenticate(bearer(req));
       if (p === '/api/me' && m === 'GET') return json(res, 200, game.me(acc));
-      if (p === '/api/content' && m === 'GET') { const c = game.getContent(); return json(res, 200, { id: c.id, abilities: c.abilities || [], heroes: c.heroes, enemies: c.enemies, stages: c.stages.map(({ n, name, enemies, reward }) => ({ n, name, enemies, reward })), progression: c.progression, battle: c.battle, tutorial: c.tutorial || { steps: [] }, arena: c.arena, media: media.manifest() }); }
+      if (p === '/api/content' && m === 'GET') { const c = game.getContent(); return json(res, 200, { id: c.id, abilities: c.abilities || [], heroes: c.heroes, enemies: c.enemies, stages: c.stages.map(({ n, name, enemies, reward }) => ({ n, name, enemies, reward })), progression: c.progression, battle: c.battle, tutorial: c.tutorial || { steps: [] }, arena: c.arena, world: c.world || null, ui: c.ui || null, media: media.manifest() }); }
       const b = m === 'POST' ? await readBody(req) : {};
       if (p === '/api/bind') return json(res, 200, game.bind(acc, b.login, b.password));
       if (p === '/api/formation') return json(res, 200, game.setFormation(acc, b.slots));
       if (p === '/api/tutorial/done') return json(res, 200, game.setTutorialDone(acc));
+      if (p === '/api/story/complete' && m === 'POST') return json(res, 200, game.completeStory(acc, String(b.questId || '')));
       if (p === '/api/hero/upgrade') return json(res, 200, game.upgradeHero(acc, b.heroId));
       if (p === '/api/hero/reset') return json(res, 200, game.resetHero(acc, b.heroId));
       if (p === '/api/battle/start') return json(res, 200, game.startBattle(acc, Number(b.stage)));
@@ -146,6 +147,7 @@ export function createApp({ dataDir, contentPath, adminDir, env = process.env })
       if (p === '/admin/api/media' && m === 'GET') return json(res, 200, media.list());
       const b = m === 'POST' ? await readBody(req, p.startsWith('/admin/api/content') ? 3_000_000 : 65536) : {};
       if (p === '/admin/api/media/activate' && m === 'POST') return json(res, 200, media.activate(String(b.name), Number(b.version), adminUser));
+      if (p === '/admin/api/media/card' && m === 'POST') return json(res, 200, media.setCard(String(b.name), b, adminUser));
       if (p === '/admin/api/status') {
         const n = (sql) => db.prepare(sql).get().n;
         return json(res, 200, {

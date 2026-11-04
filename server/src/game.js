@@ -3,6 +3,7 @@ import { tx } from './db.js';
 import { buildUnit, simulate } from './battle.js';
 import { sha, newToken, hashPassword, checkPassword, newRecoveryCode, normCode } from './auth.js';
 import { loadContentFile, validateContent, diffContent, expandAbilities } from './content.js';
+import { unlockPasses } from './world.js';
 
 export class GameError extends Error {
   constructor(code, msg, status = 400, details) { super(msg || code); this.code = code; this.status = status; this.details = details; }
@@ -191,7 +192,7 @@ export function createGame(db, { contentPath }) {
       account: { id: a.id, bound: !!a.login, login: a.login, tutorialDone: !!a.tutorial_done },
       heroes, balances: balances(acc),
       formation: JSON.parse(one('SELECT slots FROM formations WHERE account_id=?', acc).slots),
-      clearedStages: cleared, contentVersion: c.id, maxLevel: c.progression.maxLevel,
+      clearedStages: cleared, storyDone: storyDone(acc), contentVersion: c.id, maxLevel: c.progression.maxLevel,
     };
   }
 
@@ -204,6 +205,22 @@ export function createGame(db, { contentPath }) {
   }
 
   function setTutorialDone(acc) { run('UPDATE accounts SET tutorial_done=1 WHERE id=?', acc); return { ok: true }; }
+
+  function storyDone(acc) {
+    return q('SELECT quest_id FROM story_progress WHERE account_id=? ORDER BY quest_id', acc).map((r) => r.quest_id);
+  }
+
+  // Сюжетная сцена не выдаёт награду и не меняет бой. Повторный просмотр ничего не дублирует.
+  function completeStory(acc, questId) {
+    const c = getContent();
+    const quest = c.world?.quests?.find((x) => x.id === questId);
+    if (!quest || quest.kind !== 'story') throw new GameError('no_quest', 'Сюжетное задание не найдено', 404);
+    const cleared = new Set(q('SELECT stage FROM stage_progress WHERE account_id=? AND cleared=1', acc).map((r) => r.stage));
+    const done = new Set(storyDone(acc));
+    if (!unlockPasses(quest.unlock, { cleared, done })) throw new GameError('locked', 'Задание ещё закрыто', 403);
+    run('INSERT OR IGNORE INTO story_progress(account_id, quest_id, created) VALUES(?,?,?)', acc, questId, now());
+    return { storyDone: storyDone(acc) };
+  }
 
   // ---------- прокачка ----------
   function heroOf(acc, heroId) {
@@ -292,5 +309,5 @@ export function createGame(db, { contentPath }) {
     return { battleId: b.id, stage: b.stage, contentVersion: b.content_version, winner: b.winner, timeout: !!b.timeout, duration: b.duration, reward: b.reward ? JSON.parse(b.reward) : null, events: JSON.parse(b.events), balances: balances(acc) };
   }
 
-  return { db, audit, syncContentFromFile, getContent, currentVersionId, listVersions, getVersion, diffVersions, publishContent, rollbackTo, getContent, guest, authenticate, bind, login, recover, me, setFormation, setTutorialDone, upgradeHero, resetHero, startBattle, getBattle, addRes, balances, isMaintenance, q, one, run };
+  return { db, audit, syncContentFromFile, getContent, currentVersionId, listVersions, getVersion, diffVersions, publishContent, rollbackTo, getContent, guest, authenticate, bind, login, recover, me, setFormation, setTutorialDone, completeStory, upgradeHero, resetHero, startBattle, getBattle, addRes, balances, isMaintenance, q, one, run };
 }
