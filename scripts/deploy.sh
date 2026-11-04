@@ -20,6 +20,8 @@ log() { echo "[deploy $(date -u +%H:%M:%S)] $*"; }
 command -v docker >/dev/null 2>&1 || { log "Docker не найден"; exit 1; }
 
 # 1. Код. Старая игра (другая раскладка файлов) сохраняется в локальной ветке backup/old-game-*.
+# Репозиторий публичный: читаем по HTTPS (ключ GitHub на VPS не нужен), адрес origin переводим на HTTPS.
+git remote set-url origin https://github.com/maillunex-lang/5Ufa.git
 git fetch --quiet origin "$BRANCH"
 if [ ! -f server/src/app.js ]; then
   b="backup/old-game-$(date -u +%Y%m%d-%H%M%S)"
