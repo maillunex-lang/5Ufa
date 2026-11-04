@@ -16,6 +16,7 @@ export function createApp({ dataDir, contentPath, adminDir, env = process.env })
   const game = createGame(db, { contentPath });
   const media = createMedia({ db, dir: join(dataDir, 'media'), audit: game.audit });
   media.seed(env.SEED_MEDIA_DIR || join(dirname(contentPath), '..', 'client', 'assets', 'models'));
+  media.seedImages(env.SEED_IMAGE_DIR || join(dirname(contentPath), '..', 'client', 'assets', 'backgrounds'));
   const started = Date.now();
   const audit = (actor, action, detail) => db.prepare('INSERT INTO audit(ts,actor,action,detail) VALUES(?,?,?,?)').run(Date.now(), actor, action, detail ? JSON.stringify(detail) : null);
   const logError = (source, e) => db.prepare('INSERT INTO error_log(ts,source,message) VALUES(?,?,?)').run(Date.now(), source, String(e?.stack || e).slice(0, 2000));
@@ -72,7 +73,11 @@ export function createApp({ dataDir, contentPath, adminDir, env = process.env })
     req.on('end', () => { if (!dead) ok(Buffer.concat(ch)); });
     req.on('error', fail);
   });
-  const sendFile = (res, path) => { res.writeHead(200, { 'content-type': 'model/gltf-binary', 'cache-control': 'public, max-age=31536000, immutable', 'content-length': statSync(path).size }); createReadStream(path).pipe(res); };
+  const sendFile = (res, path) => {
+    const type = { '.glb': 'model/gltf-binary', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg' }[extname(path).toLowerCase()] || 'application/octet-stream';
+    res.writeHead(200, { 'content-type': type, 'cache-control': 'public, max-age=31536000, immutable', 'content-length': statSync(path).size, 'x-content-type-options': 'nosniff' });
+    createReadStream(path).pipe(res);
+  };
   const bearer = (req) => (req.headers.authorization || '').replace(/^Bearer /, '');
   const ip = (req) => req.headers['x-forwarded-for']?.split(',')[0].trim() || req.socket.remoteAddress;
 
@@ -144,7 +149,7 @@ export function createApp({ dataDir, contentPath, adminDir, env = process.env })
       }
       const fm = p.match(/^\/admin\/api\/media\/file\/([0-9a-f]{64})$/);
       if (fm && m === 'GET') { const f = media.byHash(fm[1]); if (!f) throw new GameError('not_found', 'Файл не найден', 404); return sendFile(res, f); }
-      if (p === '/admin/api/media' && m === 'GET') return json(res, 200, media.list());
+      if (p === '/admin/api/media' && m === 'GET') return json(res, 200, media.list(game.getContent()));
       const b = m === 'POST' ? await readBody(req, p.startsWith('/admin/api/content') ? 3_000_000 : 65536) : {};
       if (p === '/admin/api/media/activate' && m === 'POST') return json(res, 200, media.activate(String(b.name), Number(b.version), adminUser));
       if (p === '/admin/api/media/card' && m === 'POST') return json(res, 200, media.setCard(String(b.name), b, adminUser));

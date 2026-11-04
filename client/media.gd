@@ -1,7 +1,8 @@
 extends Node
-## Модели и анимации. Источник: вшитые в приложение (res://assets/models/<имя>.glb) или скачанные с сервера
-## (user://media/<sha256>.glb). Список «что актуально» приходит в /api/content (media): имя -> {sha, size, bundled}.
-## Замена модели в админке = новая версия того же имени: клиент докачает её при запуске (если не вшита).
+## Модели, анимации и картинки.
+## Вшитое: res://assets/models/<имя>.glb или res://assets/backgrounds/<имя>.png|jpg.
+## Скачанное: user://media/<sha><ext>. Список приходит в /api/content (media).
+## Замена в админке = новая активная версия: клиент докачает её при запуске, если она не вшита.
 
 const DIR := "user://media"
 
@@ -13,19 +14,30 @@ func set_manifest(m: Dictionary) -> void:
 	manifest = m
 
 
-func _path(sha: String) -> String:
-	return "%s/%s.glb" % [DIR, sha]
+func _ext(e: Dictionary) -> String:
+	var ext := str(e.get("ext", ""))
+	if ext.begins_with("."):
+		return ext
+	var k := str(e.get("kind", ""))
+	if k == "image" or k == "background":
+		return ".png"
+	return ".glb"
 
 
-## Что нужно скачать: не вшито и ещё нет на устройстве. [{name, sha, size}]
+func _path(sha: String, ext: String = ".glb") -> String:
+	return "%s/%s%s" % [DIR, sha, ext]
+
+
+## Что нужно скачать: не вшито и ещё нет на устройстве. [{name, sha, size, ext}]
 func missing() -> Array:
 	var out: Array = []
 	for n in manifest:
 		var e: Dictionary = manifest[n]
 		if e.get("bundled", false):
 			continue
-		if not FileAccess.file_exists(_path(str(e["sha"]))):
-			out.append({"name": n, "sha": str(e["sha"]), "size": int(e.get("size", 0))})
+		var ext := _ext(e)
+		if not FileAccess.file_exists(_path(str(e["sha"]), ext)):
+			out.append({"name": n, "sha": str(e["sha"]), "size": int(e.get("size", 0)), "ext": ext})
 	return out
 
 
@@ -43,7 +55,7 @@ func download_missing(progress: Callable = Callable()) -> bool:
 	var done := 0
 	var ok_all := true
 	for m in todo:
-		var dest := _path(str(m["sha"]))
+		var dest := _path(str(m["sha"]), str(m.get("ext", ".glb")))
 		var ok: bool = await Api.download("/api/media/" + str(m["sha"]), dest)
 		# целостность: хеш файла должен совпасть
 		if ok and FileAccess.get_sha256(dest) != str(m["sha"]):
@@ -75,8 +87,9 @@ func instance(name: String) -> Node3D:
 	if name == "":
 		return null
 	var e: Dictionary = manifest.get(name, {})
-	if not e.is_empty() and not e.get("bundled", false):
-		var p := _path(str(e["sha"]))
+	var k := str(e.get("kind", "model"))
+	if not e.is_empty() and not e.get("bundled", false) and k != "image" and k != "background":
+		var p := _path(str(e["sha"]), _ext(e))
 		if FileAccess.file_exists(p):
 			var n := _load_glb(p)
 			if n != null:
@@ -85,3 +98,22 @@ func instance(name: String) -> Node3D:
 	if ResourceLoader.exists(res):
 		return (load(res) as PackedScene).instantiate() as Node3D
 	return null
+
+
+## Картинка из медиатеки, если активная версия не вшита и уже скачана. Иначе null: вызывающий берёт файл из приложения.
+func texture(name: String) -> Texture2D:
+	if name == "":
+		return null
+	var e: Dictionary = manifest.get(name, {})
+	if e.is_empty() or e.get("bundled", false):
+		return null
+	var k := str(e.get("kind", ""))
+	if k != "image" and k != "background":
+		return null
+	var p := _path(str(e["sha"]), _ext(e))
+	if not FileAccess.file_exists(p):
+		return null
+	var img := Image.new()
+	if img.load(p) != OK:
+		return null
+	return ImageTexture.create_from_image(img)

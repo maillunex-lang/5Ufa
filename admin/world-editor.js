@@ -97,7 +97,7 @@ function viewWorld(view) {
     field('Порядок', num(p, 'order', { int: true })),
     field('Факт', ruText(p, 'fact', 3)),
     field('Вымысел', ruText(p, 'fiction', 3)),
-    field('Файл фона', text(p.art ||= { status: 'temporary', need: [] }, 'background', { optional: true })),
+    field('Файл фона', text(p.art ||= { status: 'temporary', need: [] }, 'background', { optional: true, placeholder: 'cave_demo или cave_demo.jpg' }), 'Имя из медиатеки или файл, вшитый в приложение'),
     field('Статус картинки', select(p.art, 'status', [['temporary', 'временная'], ['final', 'финальная']])),
     field('Промпт', area(p, 'prompt', 2, { optional: true })),
   ]);

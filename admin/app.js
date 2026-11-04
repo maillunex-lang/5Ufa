@@ -727,8 +727,10 @@ let VMOD = null;
 const viewerModule = async () => (VMOD ||= await import('./viewer.js'));
 async function loadMedia() { MEDIA = await api('media'); }
 const mediaEntry = (name) => MEDIA.find((m) => m.name === name);
-const safeName = (s) => { let n = String(s).replace(/\.glb$/i, '').replace(/[^A-Za-z0-9_-]+/g, '_').replace(/^_+|_+$/g, ''); if (!/^[A-Za-z]/.test(n)) n = 'M_' + n; return n.slice(0, 64) || 'Model'; };
+const safeName = (s) => { let n = String(s).replace(/\.(glb|png|jpe?g)$/i, '').replace(/[^A-Za-z0-9_-]+/g, '_').replace(/^_+|_+$/g, ''); if (!/^[A-Za-z]/.test(n)) n = 'M_' + n; return n.slice(0, 64) || 'Model'; };
 const fmtMB = (b) => (b / 1048576).toFixed(1) + ' МБ';
+const MEDIA_KIND = { model: 'модель', animation: 'анимации', image: 'картинка', background: 'фон' };
+const mediaKind = (k) => MEDIA_KIND[k] || k;
 
 async function blobUrl(sha) {
   const r = await fetch('api/media/file/' + sha, { headers: { authorization: 'Bearer ' + T } });
@@ -746,9 +748,9 @@ async function uploadFile(file, { name, kind, note, activate }) {
   return j;
 }
 
-function pickFile() {
+function pickFile(accept = '.glb,model/gltf-binary') {
   return new Promise((resolve) => {
-    const i = h('input', { type: 'file', accept: '.glb,model/gltf-binary', style: 'display:none' });
+    const i = h('input', { type: 'file', accept, style: 'display:none' });
     i.addEventListener('change', () => { resolve(i.files[0] || null); i.remove(); });
     document.body.append(i);
     i.click();
@@ -921,16 +923,102 @@ function modelBlock({ unit, fixedName }) {
 
 async function viewMedia(view) {
   await loadMedia();
-  const sel = UI.media && mediaEntry(UI.media) ? UI.media : (MEDIA.find((m) => m.kind === 'model') || {}).name;
-  view.append(h('h2', {}, 'Медиатека: модели и анимации'),
-    h('p', { style: 'color:var(--mut)' }, 'Все файлы моделей и анимаций. Замена файла создаёт новую версию, которую сначала можно посмотреть и только потом включить. Вшитые в приложение модели помечены. Файлы анимаций лежат отдельно и подключаются к героям в карточке героя.'),
-    h('div', { class: 'card' }, ...MEDIA.map((m) => h('div', { class: 'item', onclick: () => { UI.media = m.name; render(); } },
-      h('div', {}, h('b', {}, m.name), h('span', { class: 'tag' }, m.kind === 'model' ? 'модель' : 'анимации'), m.name === sel ? h('span', { class: 'tag' }, 'открыта') : null,
-        h('div', { class: 'meta' }, [m.folder, m.tags, `v${m.active.version}`, fmtMB(m.active.size), `${m.active.meta.triangles} треуг.`, `анимаций ${m.active.meta.clips.length}`, m.active.source === 'bundled' ? 'вшита' : ''].filter(Boolean).join(' · '))),
-      h('span', {}, '›')))));
+  const sel = UI.media && mediaEntry(UI.media) ? UI.media : (MEDIA.find((m) => m.kind === 'model') || MEDIA[0] || {}).name;
+  const folder = UI.mediaFolder || '';
+  const folders = [...new Set(MEDIA.map((m) => m.folder).filter(Boolean))].sort();
+  const shown = MEDIA.filter((m) => !folder || m.folder === folder);
+  view.append(h('h2', {}, 'Медиатека'),
+    h('p', { style: 'color:var(--mut)' }, 'Модели, анимации, картинки и фоны. Замена файла создаёт новую версию: её сначала смотрят и только потом включают. Пока не включена, игроки получают прежнюю. Вшитая версия 1 не скачивается.'),
+    h('div', { class: 'toolbar' },
+      h('button', { onclick: () => uploadImageFlow(null) }, 'Загрузить картинку или фон…'),
+      h('button', { class: 'sec', onclick: () => { UI.mediaFolder = ''; render(); } }, 'Все папки'),
+      ...folders.map((f) => h('button', { class: folder === f ? '' : 'sec', onclick: () => { UI.mediaFolder = f; render(); } }, f))),
+    h('div', { class: 'card' }, shown.length ? shown.map((m) => h('div', { class: 'item', onclick: () => { UI.media = m.name; render(); } },
+      h('div', {}, h('b', {}, m.name), h('span', { class: 'tag' }, mediaKind(m.kind)), m.name === sel ? h('span', { class: 'tag' }, 'открыта') : null,
+        h('div', { class: 'meta' }, [m.folder, m.tags, `v${m.active.version}`, fmtMB(m.active.size), mediaMeta(m), whereShort(m), m.active.source === 'bundled' ? 'вшита' : ''].filter(Boolean).join(' · '))),
+      h('span', {}, '›'))) : h('p', {}, 'В этой папке пусто.')));
   const e = sel && mediaEntry(sel);
-  if (e && e.kind === 'model') view.append(h('div', { class: 'card' }, h('b', {}, e.name), modelBlock({ fixedName: e.name })), mediaCard(e));
-  else if (e) view.append(h('div', { class: 'card' }, h('b', {}, e.name), h('table', {}, e.active.meta.clips.map((c) => h('tr', {}, h('td', {}, c.name), h('td', {}, c.duration + ' с'))))), mediaCard(e));
+  if (!e) return;
+  if (e.kind === 'model') view.append(h('div', { class: 'card' }, h('b', {}, e.name), modelBlock({ fixedName: e.name })), whereBlock(e), mediaCard(e));
+  else if (e.kind === 'image' || e.kind === 'background') view.append(imageBlock(e), whereBlock(e), mediaCard(e));
+  else view.append(h('div', { class: 'card' }, h('b', {}, e.name), h('table', {}, (e.active.meta?.clips || []).map((c) => h('tr', {}, h('td', {}, c.name), h('td', {}, c.duration + ' с'))))), whereBlock(e), mediaCard(e));
+}
+
+function mediaMeta(m) {
+  const meta = m.active.meta || {};
+  if (m.kind === 'image' || m.kind === 'background') return meta.width ? `${meta.width}×${meta.height}` : '';
+  return [meta.triangles != null ? `${meta.triangles} треуг.` : '', meta.clips ? `анимаций ${meta.clips.length}` : ''].filter(Boolean).join(' · ');
+}
+
+function whereShort(m) {
+  const n = (m.used || []).length;
+  if (!n) return 'не используется';
+  return `используется: ${n}`;
+}
+
+function whereBlock(e) {
+  const u = e.used || [];
+  return h('div', { class: 'card' }, h('b', {}, 'Где используется'),
+    u.length ? h('ul', {}, u.map((x) => h('li', {},
+      (x.where === 'heroes' || x.where === 'enemies')
+        ? h('a', { onclick: () => { UI.tab = 'look'; location.hash = `#/${x.where}/${x.key}`; } }, x.label)
+        : x.label,
+      h('span', { class: 'tag' }, x.field)))) : h('p', {}, 'В текущей версии контента ссылок нет. Пока имя нигде не выбрано, замена файла игрокам ничего не меняет.'));
+}
+
+function imageBlock(e) {
+  const root = h('div', { class: 'card' });
+  const img = h('img', { alt: e.name, style: 'max-width:100%;max-height:420px;object-fit:contain;background:#0e1016;border-radius:8px;display:block' });
+  const status = h('div', { style: 'color:var(--mut);font-size:13px;margin:6px 0' });
+  const vers = h('div', {});
+  let blob = '';
+  async function show(v) {
+    status.textContent = 'Загрузка картинки…';
+    try {
+      const url = await blobUrl(v.sha);
+      if (blob) URL.revokeObjectURL(blob);
+      blob = url;
+      img.src = url;
+      const src = v.source === 'bundled' ? 'вшито в приложение' : 'загрузка';
+      status.textContent = `Версия ${v.version}${v.active ? ' (активна)' : ' (не активна, игроки её не видят)'} · ${v.meta?.width || '?'}×${v.meta?.height || '?'} · ${v.meta?.format || ''} · ${fmtMB(v.size)} · ${src}`;
+    } catch (err) { status.textContent = err.message; }
+  }
+  vers.replaceChildren(...e.versions.map((v) => h('div', { class: 'vrow' }, h('b', {}, `v${v.version}${v.active ? ' ✓ активна' : ''}`), ' ', h('span', {}, fmtTime(v.created)), h('span', {}, fmtMB(v.size) + (v.source === 'bundled' ? ', вшита' : ', загрузка')), h('div', { class: 'nt' }, [v.filename, v.note].filter(Boolean).join(' · ')),
+    h('button', { class: 'sec', onclick: () => show(v) }, 'Смотреть'),
+    v.active ? null : h('button', { class: 'sec', onclick: async () => {
+      if (!confirm(`Сделать версию ${v.version} активной для всех игроков?`)) return;
+      try { await api('media/activate', { name: e.name, version: v.version }); await loadMedia(); toast('Версия включена'); render(); } catch (er) { toast(er.message, true); }
+    } }, 'Сделать активной'))));
+  root.append(h('b', {}, e.name), h('p', { style: 'color:var(--mut);font-size:13px' }, e.kind === 'background'
+    ? 'Фон. Место на карте берёт его по имени (cave_demo и cave_demo.jpg — одно и то же). Фон боя — имя arena_mountains: вшитая версия не скачивается, новая активная заменит картинку при следующем входе.'
+    : 'Картинка. Сама по себе в бою не появляется: её нужно выбрать в данных.'),
+  img, status, vers, h('button', { class: 'sec', onclick: () => uploadImageFlow(e) }, 'Загрузить новую версию…'));
+  show(e.active);
+  root.dispose = () => { if (blob) URL.revokeObjectURL(blob); };
+  LIVE.push(root);
+  return root;
+}
+
+async function uploadImageFlow(existing) {
+  const f = await pickFile('.png,.jpg,.jpeg,image/png,image/jpeg');
+  if (!f) return;
+  if (f.size > 8 * 1048576) { toast('Картинка больше 8 МБ', true); return; }
+  const nameIn = h('input', { value: existing ? existing.name : safeName(f.name), disabled: !!existing });
+  const kind = h('select', { disabled: !!existing }, [['background', 'фон'], ['image', 'картинка']].map(([v, l]) => h('option', { value: v, selected: (existing?.kind || 'background') === v }, l)));
+  const err = h('div', { class: 'bad' });
+  const m = modal([h('h3', {}, existing ? 'Новая версия картинки' : 'Загрузка картинки'), h('p', { style: 'color:var(--mut);font-size:13px' }, `${f.name}, ${fmtMB(f.size)}. PNG или JPEG, сторона до 4096.`),
+    field('Имя', nameIn, 'Латиница, цифры, _ и -'), field('Вид', kind), err,
+    h('button', { onclick: async () => {
+      err.textContent = '';
+      try {
+        const r = await uploadFile(f, { name: nameIn.value.trim(), kind: kind.value, note: 'из админки' });
+        await loadMedia();
+        m.remove();
+        UI.media = r.name;
+        toast(r.version > 1 ? `Версия ${r.version} загружена и не активна: посмотрите и включите` : 'Картинка загружена');
+        render();
+      } catch (e) { err.textContent = e.message; }
+    } }, 'Загрузить'), ' ', h('button', { class: 'sec', onclick: () => m.remove() }, 'Отмена')]);
 }
 
 function mediaCard(e) {
@@ -941,7 +1029,8 @@ function mediaCard(e) {
   const prompt = h('textarea', { rows: 3 }, e.active.prompt || '');
   const err = h('div', { class: 'bad' });
   return h('div', { class: 'card' }, h('b', {}, 'Папка, теги и происхождение'),
-    h('p', { style: 'color:var(--mut);font-size:13px' }, 'Это свойства имени файла, не черновик контента: сохраняются сразу и копируются в следующую версию. Генерация по промпту отсюда не запускается.'),
+    h('p', { style: 'color:var(--mut);font-size:13px' }, 'Это свойства имени, не черновик контента: сохраняются сразу и копируются в следующую версию файла. Генерация по промпту отсюда не запускается.'),
+    h('p', { style: 'color:var(--mut);font-size:13px' }, 'Источник активной версии: ' + (e.active.source === 'bundled' ? 'вшито в приложение' : 'загрузка') + '. Это не лицензия. Лицензию и ссылку на автора пишите ниже.'),
     grid(field('Папка', folder, 'Один уровень, без /'), field('Теги', tags), field('Лицензия и источник', license), field('Требования к файлу', requirements)),
     field('Промпт для внешнего ИИ', prompt),
     err,

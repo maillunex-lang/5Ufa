@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 import { openDb } from '../src/db.js';
-import { createMedia, parseGlb } from '../src/media.js';
+import { createMedia, parseGlb, parseImage, mediaUsages } from '../src/media.js';
 import { createApp } from '../src/app.js';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
@@ -168,4 +168,93 @@ test('реальная модель из репозитория разбирае
   assert.ok(info.clips.some((c) => c.name === 'Charged_Spell_Cast'));
   assert.ok(info.bones.includes('mixamorig:RightHand'));
   assert.ok(info.triangles > 5000 && info.triangles < 20000);
+});
+
+function png(w, h) {
+  const sig = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(w, 0);
+  ihdr.writeUInt32BE(h, 4);
+  ihdr[8] = 8;
+  const len = Buffer.alloc(4);
+  len.writeUInt32BE(ihdr.length);
+  return Buffer.concat([sig, len, Buffer.from('IHDR'), ihdr, Buffer.alloc(4), Buffer.from([0, 0, 0, 0, 73, 69, 78, 68, 0, 0, 0, 0])]);
+}
+
+function jpeg(w, h) {
+  const sof = Buffer.alloc(19);
+  sof[0] = 0xff; sof[1] = 0xc0;
+  sof.writeUInt16BE(17, 2);
+  sof[4] = 8;
+  sof.writeUInt16BE(h, 5);
+  sof.writeUInt16BE(w, 7);
+  sof[9] = 3;
+  return Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0, 16, 0x4a, 0x46, 0x49, 0x46, 0, 1, 1, 0, 0, 1, 0, 1, 0, 0]), sof, Buffer.from([0xff, 0xd9])]);
+}
+
+test('картинки: PNG и JPEG, отказ на мусоре и на слишком большой стороне', () => {
+  assert.deepEqual(parseImage(png(32, 48)), { format: 'png', width: 32, height: 48 });
+  assert.deepEqual(parseImage(jpeg(20, 10)), { format: 'jpeg', width: 20, height: 10 });
+  const cave = parseImage(readFileSync(root + 'client/assets/backgrounds/cave_demo.jpg'));
+  assert.equal(cave.format, 'jpeg');
+  assert.ok(cave.width >= 64 && cave.height >= 64);
+  assert.throws(() => parseImage(Buffer.from('не картинка, но достаточно длинная строка')), (e) => e.code === 'bad_image');
+  assert.throws(() => parseImage(png(5000, 10)), (e) => e.code === 'image_too_big');
+});
+
+test('загрузка фона: версии, расширение, где используется, посев', () => {
+  const { media } = setup();
+  const a = media.upload({ name: 'cave_demo', kind: 'background', buf: jpeg(8, 8), filename: 'cave_demo.jpg' });
+  assert.equal(a.active, true);
+  assert.equal(a.meta.format, 'jpeg');
+  assert.equal(media.manifest().cave_demo.ext, '.jpg');
+  assert.ok(media.byHash(a.sha).endsWith('.jpg'));
+  const b = media.upload({ name: 'cave_demo', kind: 'background', buf: png(8, 8) });
+  assert.equal(b.active, false);
+  assert.equal(media.manifest().cave_demo.ext, '.jpg');
+  media.activate('cave_demo', 2);
+  assert.equal(media.manifest().cave_demo.ext, '.png');
+  assert.throws(() => media.upload({ name: 'cave_demo', kind: 'model', buf: glb() }), (e) => e.code === 'kind_mismatch');
+  assert.throws(() => media.upload({ name: 'big_pic', kind: 'image', buf: Buffer.alloc(8 * 1024 * 1024 + 1) }), (e) => e.code === 'too_large');
+  const used = media.list({
+    heroes: [{ key: 'tank', name: 'Танк', visual: { model: 'Knight', anim_files: { run: 'RunSet' } } }],
+    enemies: [],
+    world: { places: [{ id: 'shulgan', name: { ru: 'Пещера' }, art: { background: 'cave_demo.jpg' } }] },
+  });
+  assert.deepEqual(used.find((m) => m.name === 'cave_demo').used.map((x) => x.key), ['shulgan']);
+  const map = mediaUsages({ heroes: [{ key: 'tank', name: 'Танк', visual: { model: 'Knight' } }], world: { places: [] } });
+  assert.equal(map.Knight[0].where, 'heroes');
+  const seed = mkdtempSync(join(tmpdir(), '5ufa-img-'));
+  writeFileSync(join(seed, 'cave_demo.jpg'), jpeg(4, 4));
+  writeFileSync(join(seed, 'note.txt'), 'нет');
+  assert.equal(media.seedImages(seed), 0); // имя уже есть, замену не затирает
+  const fresh = setup().media;
+  assert.equal(fresh.seedImages(seed), 1);
+  assert.equal(fresh.manifest().cave_demo.bundled, true);
+  assert.equal(fresh.seedImages(seed), 0);
+});
+
+test('HTTP: картинка отдаётся как PNG, в списке есть «где используется»', async () => {
+  const dir = mkdtempSync(join(tmpdir(), '5ufa-imgh-'));
+  const file = join(dir, 'game.json');
+  copyFileSync(root + 'content/game.json', file);
+  const app = createApp({ dataDir: join(dir, 'data'), contentPath: file, adminDir: root + 'admin', env: { ADMIN_PASSWORD: 'secret-pass-1', SEED_MEDIA_DIR: '', SEED_IMAGE_DIR: '' } });
+  await new Promise((r) => app.server.listen(0, '127.0.0.1', r));
+  const base = `http://127.0.0.1:${app.server.address().port}`;
+  try {
+    const t = (await (await fetch(base + '/admin/api/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ login: 'owner', password: 'secret-pass-1' }) })).json()).token;
+    const buf = png(16, 16);
+    const up = await fetch(base + '/admin/api/media/upload?name=Knight&kind=model&filename=x.glb', { method: 'POST', headers: { authorization: 'Bearer ' + t, 'content-type': 'application/octet-stream' }, body: glb() });
+    assert.equal(up.status, 200);
+    const pic = await fetch(base + '/admin/api/media/upload?name=Poster&kind=image&filename=p.png', { method: 'POST', headers: { authorization: 'Bearer ' + t, 'content-type': 'application/octet-stream' }, body: buf });
+    assert.equal(pic.status, 200);
+    const body = await pic.json();
+    const got = await fetch(base + '/api/media/' + body.sha);
+    assert.equal(got.status, 200);
+    assert.equal(got.headers.get('content-type'), 'image/png');
+    const list = await (await fetch(base + '/admin/api/media', { headers: { authorization: 'Bearer ' + t } })).json();
+    const knight = list.find((m) => m.name === 'Knight');
+    assert.ok(knight.used.some((u) => u.key === 'tank' && u.field === 'model'));
+    assert.deepEqual(list.find((m) => m.name === 'Poster').used, []);
+  } finally { app.close(); }
 });

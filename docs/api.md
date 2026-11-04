@@ -7,7 +7,7 @@
 | --- | --- | --- |
 | GET | `/health` | → `{ok,version,uptimeSec}` |
 | GET | `/api/config` | → `{server,maintenance,maintenanceMessage,contentVersion,update}`; `update` пока `null` (будет у трека Releases) |
-| GET | `/api/media/:sha` | → GLB по хешу (без входа, кэшируется навсегда) |
+| GET | `/api/media/:sha` | → файл по хешу: GLB, PNG или JPEG (без входа, кэшируется навсегда) |
 | POST | `/api/guest` | → `{token,accountId}` (создаёт аккаунт, 5 героев, стартовые ресурсы) |
 | POST | `/api/login` | `{login,password}` → `{token,accountId}` |
 | POST | `/api/recover` | `{login,code,newPassword}` → `{token,accountId,recoveryCode}` (новый код) |
@@ -16,7 +16,7 @@
 | Метод | Путь | Тело → ответ |
 | --- | --- | --- |
 | GET | `/api/me` | → `{account,heroes[{id,key,level}],balances,formation[5 id],clearedStages,storyDone[id заданий],contentVersion,maxLevel}` |
-| GET | `/api/content` | → герои, враги, этапы, прогрессия, параметры боя, `abilities` (общая библиотека), `world` (карта, сезоны, задания; `null`, если в версии контента ещё нет), `ui` (цвета и рамки, рабочее предложение), `tutorial.steps` (шаги обучения: id, text, highlight[], done), `arena.bounds` (прямоугольник арены xMin, xMax, yMin, yMax: бойцы за него не выходят), `arena.camera` (position[3], lookAt[3], fov, depth: камера боя), `media` (манифест: имя → `{kind,version,sha,size,bundled}`). У героя и врага `abilities` в этом ответе уже раскрыты в полные описания. В сохранённом контенте это ссылки на `content.abilities` (строки id). Поле `anim` — какое движение играть (пусто = как раньше, по роли). |
+| GET | `/api/content` | → герои, враги, этапы, прогрессия, параметры боя, `abilities` (общая библиотека), `world` (карта, сезоны, задания; `null`, если в версии контента ещё нет), `ui` (цвета и рамки, рабочее предложение), `tutorial.steps` (шаги обучения: id, text, highlight[], done), `arena.bounds` (прямоугольник арены xMin, xMax, yMin, yMax: бойцы за него не выходят), `arena.camera` (position[3], lookAt[3], fov, depth: камера боя), `media` (манифест: имя → `{kind,version,sha,size,bundled}`; у картинки ещё `ext`, `.png` или `.jpg`). У героя и врага `abilities` в этом ответе уже раскрыты в полные описания. В сохранённом контенте это ссылки на `content.abilities` (строки id). Поле `anim` — какое движение играть (пусто = как раньше, по роли). |
 | POST | `/api/bind` | `{login,password}` → `{recoveryCode}` (показать игроку один раз) |
 | POST | `/api/formation` | `{slots:[5 id героев]}` (0–1 перед, 2–4 зад) |
 | POST | `/api/tutorial/done` | → `{ok}` |
@@ -44,13 +44,13 @@
 | POST | `content/rollback` | `{version,note}` → `{version,restoredFrom}`; 400 `already_current`, 404 `no_version` |
 | POST | `content/reload` | `{force}` → `{changed,version}`: повторный импорт `content/game.json` |
 
-Медиатека (модели и анимации GLB; имена логические, файлы хранятся по хешу в `data/media`):
+Медиатека (модели и анимации GLB, картинки PNG/JPEG и фоны; имена логические, файлы хранятся по хешу в `data/media`):
 | Метод | Путь | Тело → ответ |
 | --- | --- | --- |
-| GET | `media` | → `[{name,kind,active,versions[]}]`; версия: `{version,sha,size,filename,source,note,author,created,active,meta{clips[],bones[],triangles,...}}` |
-| POST | `media/upload?name=&kind=model\|animation&filename=&note=&activate=0\|1` | двоичное тело GLB (до 40 МБ) → запись версии. Новое имя активно сразу, новая версия существующего имени **не активна** до включения. Ошибки: 422 `bad_glb`, `glb_too_complex`, `no_clips`; 409 `kind_mismatch`; 413; 400 `bad_name`, `no_changes` |
+| GET | `media` | → `[{name,kind,folder,tags,used[{where,key,label,field}],active,versions[]}]`. Версия: `{version,sha,size,filename,source,note,author,created,active,meta,license,requirements,prompt}`. `source`: `bundled` или `upload`. У картинки `meta` — `{format,width,height}`. `used` — где имя есть в текущем контенте (герой, враг, место). |
+| POST | `media/upload?name=&kind=model\|animation\|image\|background&filename=&note=&activate=0\|1` | двоичное тело. GLB до 40 МБ, картинка до 8 МБ, сторона до 4096. Новое имя активно сразу, новая версия существующего имени **не активна** до включения. Ошибки: 422 `bad_glb`, `bad_image`, `image_too_big`, `glb_too_complex`, `no_clips`; 409 `kind_mismatch`; 413 `too_large`; 400 `bad_name`, `no_changes` |
 | POST | `media/activate` | `{name,version}` → запись; включение и откат версии файла |
 | POST | `media/card` | `{name,folder,tags,license,requirements,prompt}` → запись на все версии этого имени. Папка без `/` и `..`. Генерации по промпту нет. |
-| GET | `media/file/:sha` | → GLB (нужен вход) |
+| GET | `media/file/:sha` | → файл версии (нужен вход). Картинка отдаётся как PNG или JPEG. |
 
 Новые редакторы добавляют свои методы здесь.

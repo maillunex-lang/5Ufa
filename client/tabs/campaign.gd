@@ -109,12 +109,15 @@ func _place_block(world: Dictionary) -> void:
 	box.add_child(Ui.label(State.loc(place.get("name", "")), 28, Ui.token_color("gold", Color.html("#c6a15a"))))
 	var art: Dictionary = place.get("art", {})
 	var file := str(art.get("background", ""))
-	if file != "" and ResourceLoader.exists("res://assets/backgrounds/" + file):
+	var tex: Texture2D = Media.texture(file.get_file().get_basename())
+	if tex == null and file != "" and ResourceLoader.exists("res://assets/backgrounds/" + file):
+		tex = load("res://assets/backgrounds/" + file)
+	if tex != null:
 		var rect := TextureRect.new()
 		rect.custom_minimum_size = Vector2(0, 280)
 		rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
-		rect.texture = load("res://assets/backgrounds/" + file)
+		rect.texture = tex
 		box.add_child(rect)
 	if str(art.get("status", "")) == "temporary":
 		box.add_child(Ui.label("Картинка временная. Это не фотография места и не финальный фон.", 18, Ui.token_color("magic", Color.html("#3ecfc4"))))
