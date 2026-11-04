@@ -19,7 +19,13 @@ jobs:
         run: |
           set -e
           mkdir -p "$HOME/.local/share/godot/export_templates" "$HOME/.config/godot"
-          cp -r "/root/.local/share/godot/export_templates/${GODOT_VERSION}.stable" "$HOME/.local/share/godot/export_templates/" 2>/dev/null || true
+          # Android-шаблоны экспорта берём с официальной страницы релиза Godot (в образе их нет)
+          t="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
+          mkdir -p "$t"
+          curl -fsSL --retry 3 -o /tmp/templates.tpz "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
+          unzip -j -o /tmp/templates.tpz 'templates/android_*' 'templates/version.txt' -d "$t"
+          rm -f /tmp/templates.tpz
+          ls -la "$t"
           cp -n /root/.config/godot/* "$HOME/.config/godot/" 2>/dev/null || true
           echo "HOME=$HOME ANDROID_HOME=${ANDROID_HOME:-} ANDROID_SDK_ROOT=${ANDROID_SDK_ROOT:-} JAVA_HOME=${JAVA_HOME:-}"
           ls "$HOME/.config/godot" "$HOME/.local/share/godot/export_templates" || true
