@@ -25,6 +25,10 @@ export function validateContent(c) {
   need(B && [B.xMin, B.xMax, B.yMin, B.yMax].every(Number.isFinite) && B.xMin < B.xMax && B.yMin < B.yMax, 'арена: нужны границы bounds (xMin<xMax, yMin<yMax)');
   if (B) for (const x of [-4, -2, 2, 4]) need(x >= B.xMin && x <= B.xMax, `арена: стартовая позиция x=${x} вне границ`);
   if (B) need(B.yMin <= -2.4 && B.yMax >= 2.4, 'арена: стартовые позиции по глубине вне границ');
+  const CAM = c.arena?.camera;
+  const vec3 = (v) => Array.isArray(v) && v.length === 3 && v.every(Number.isFinite);
+  need(CAM && vec3(CAM.position) && vec3(CAM.lookAt) && Number.isFinite(CAM.fov) && CAM.fov >= 20 && CAM.fov <= 90 && Number.isFinite(CAM.depth) && CAM.depth > 0,
+    'арена: нужна камера camera {position[3], lookAt[3], fov 20–90, depth>0}');
   const DONE = /^(stage_cleared:\d+|hero_upgraded|button_ack)$/;
   const HL = /^(tab:[0-3]|stage:(\d+|next)|upgrade:first)$/;
   const ids = new Set();

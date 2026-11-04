@@ -254,3 +254,11 @@ test('событие start содержит мощь обеих команд', (
   assert.ok(st.power.a > 0 && st.power.d > 0);
   assert.ok(st.power.a > st.power.d);
 });
+
+test('контент: камера арены проверяется', () => {
+  const c = content();
+  assert.deepEqual(validateContent(c), []);
+  const bad = structuredClone(c);
+  bad.arena.camera.fov = 5;
+  assert.ok(validateContent(bad).some((e) => e.includes('камера')));
+});

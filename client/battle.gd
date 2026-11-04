@@ -10,10 +10,6 @@ extends Node3D
 ## ("magic" | "melee" | "ranged"), иначе по роли: маги и целитель бьют магией, а не руками.
 
 const TIME_LIMIT := 90.0
-const DEPTH := 1.7   # растяжение арены по глубине для экрана (на сервере координаты не меняются)
-const CAM_POS := Vector3(0, 10.8, 9.8)    # угол около 48° над землёй, круглая арена в центре
-const CAM_LOOK := Vector3(0, 0.0, 0.4)
-const CAM_FOV := 56.0
 const BAR_W := 1.64
 const GOLD := Color(0.86, 0.68, 0.3)
 const DARK := Color(0.07, 0.06, 0.1, 0.92)
@@ -51,6 +47,11 @@ var _cards_box: HBoxContainer
 var _power_l: Label
 var _power_r: Label
 var _speed := 1.0
+# Камера берётся из данных арены (content.arena.camera): position, lookAt, fov, depth (растяжение арены по глубине на экране)
+var _cam_pos := Vector3(0, 10.8, 9.8)
+var _cam_look := Vector3(0, 0.0, 0.4)
+var _cam_fov := 56.0
+var _depth := 1.7
 var _speed_btn: Button
 var _banner_layer: Control
 var _result_shown := false
@@ -59,7 +60,20 @@ var _toast: Label
 var _cam_tween: Tween
 
 
+func _load_camera() -> void:
+	var c: Dictionary = State.content.get("arena", {}).get("camera", {})
+	if c.is_empty():
+		return
+	var p: Array = c["position"]
+	var l: Array = c["lookAt"]
+	_cam_pos = Vector3(float(p[0]), float(p[1]), float(p[2]))
+	_cam_look = Vector3(float(l[0]), float(l[1]), float(l[2]))
+	_cam_fov = float(c["fov"])
+	_depth = float(c["depth"])
+
+
 func _ready() -> void:
+	_load_camera()
 	_result = State.battle_result
 	_events = _result.get("events", [])
 	for d in State.content.get("heroes", []) + State.content.get("enemies", []):
@@ -74,10 +88,10 @@ func _ready() -> void:
 func _build_scene() -> void:
 	_cam = Camera3D.new()
 	_cam.keep_aspect = Camera3D.KEEP_WIDTH   # ширина сцены постоянна в вертикальной ориентации
-	_cam.fov = CAM_FOV
-	_cam.position = CAM_POS
+	_cam.fov = _cam_fov
+	_cam.position = _cam_pos
 	add_child(_cam)
-	_cam.look_at(CAM_LOOK, Vector3.UP)
+	_cam.look_at(_cam_look, Vector3.UP)
 
 	var sun := DirectionalLight3D.new()
 	sun.rotation_degrees = Vector3(-55, -30, 0)
@@ -449,7 +463,7 @@ func _kind(def: Dictionary, key: String) -> String:
 
 func _spawn(u: Dictionary) -> void:
 	var node := Node3D.new()
-	node.position = Vector3(float(u["x"]), 0, float(u["y"]) * DEPTH)
+	node.position = Vector3(float(u["x"]), 0, float(u["y"]) * _depth)
 	var def := State.hero_def(u["key"])
 	if def.is_empty():
 		def = State.enemy_def(u["key"])
@@ -600,7 +614,7 @@ func _clamp(p: Vector3) -> Vector3:
 	var b: Dictionary = State.content.get("arena", {}).get("bounds", {})
 	if b.is_empty():
 		return p
-	return Vector3(clampf(p.x, float(b["xMin"]), float(b["xMax"])), p.y, clampf(p.z, float(b["yMin"]) * DEPTH, float(b["yMax"]) * DEPTH))
+	return Vector3(clampf(p.x, float(b["xMin"]), float(b["xMax"])), p.y, clampf(p.z, float(b["yMin"]) * _depth, float(b["yMax"]) * _depth))
 
 
 func _update_hp(u: Dictionary) -> void:
@@ -742,11 +756,11 @@ func _ult_zoom(caster: Dictionary, targets: Array, hold: float) -> void:
 	if _cam_tween != null and _cam_tween.is_valid():
 		_cam_tween.kill()
 	_cam_tween = create_tween().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	_cam_tween.tween_property(_cam, "fov", CAM_FOV - 10.0, 0.3)
-	_cam_tween.parallel().tween_property(_cam, "position", CAM_POS + Vector3(focus.x * 0.45, -1.2, -1.8), 0.3)
+	_cam_tween.tween_property(_cam, "fov", _cam_fov - 10.0, 0.3)
+	_cam_tween.parallel().tween_property(_cam, "position", _cam_pos + Vector3(focus.x * 0.45, -1.2, -1.8), 0.3)
 	_cam_tween.tween_interval(hold)
-	_cam_tween.tween_property(_cam, "fov", CAM_FOV, 0.45)
-	_cam_tween.parallel().tween_property(_cam, "position", CAM_POS, 0.45)
+	_cam_tween.tween_property(_cam, "fov", _cam_fov, 0.45)
+	_cam_tween.parallel().tween_property(_cam, "position", _cam_pos, 0.45)
 
 
 func _banner(u: Dictionary, ability_name: String) -> void:
@@ -801,12 +815,12 @@ func _dispatch(e: Dictionary) -> void:
 		"move":
 			if _units.has(e["id"]):
 				var u: Dictionary = _units[e["id"]]
-				u["target"] = _clamp(Vector3(float(e["to"][0]), 0, float(e["to"][1]) * DEPTH))
+				u["target"] = _clamp(Vector3(float(e["to"][0]), 0, float(e["to"][1]) * _depth))
 				u["speed"] = float(e["speed"])
 				_face(u, u["target"])
 		"stop":
 			if _units.has(e["id"]):
-				(_units[e["id"]] as Dictionary)["target"] = _clamp(Vector3(float(e["x"]), 0, float(e["y"]) * DEPTH))
+				(_units[e["id"]] as Dictionary)["target"] = _clamp(Vector3(float(e["x"]), 0, float(e["y"]) * _depth))
 		"attack", "skill":
 			_on_cast(e)
 		"damage":
