@@ -1105,6 +1105,8 @@ func _preview_hero(hero_id: String) -> void:
 	b.add_child(_text("Новый скин — копия картинок обычного вида. Замените их в «Редактор анимации и частей» (выберите скин) или через ZIP героя.", 16))
 	b.add_child(_btn("Нарезать из рисунка (в выбранный вид)", func():
 		_open(_cutter.bind(hero_id, str(skins[pick.selected]["id"]))), 20))
+	b.add_child(_btn("3D-модель выбранного вида", func():
+		_open(_model3d.bind(hero_id, str(skins[pick.selected]["id"]))), 20))
 	b.add_child(_text("Загрузите рисунок, лист персонажа или слои — части и скелет сделаются автоматически или с ИИ, потом поправите пальцем.", 16))
 	b.add_child(Ui.label("Герой целиком", 24, "accent"))
 	b.add_child(_row([_btn("Выгрузить героя (ZIP)", func():
@@ -1116,6 +1118,54 @@ func _preview_hero(hero_id: String) -> void:
 			_fail(r), 18),
 		_btn("Загрузить ZIP героя", func(): _open(_show_patch), 18)]))
 	b.add_child(_text("В ZIP: hero.json, скелет с анимациями, все картинки и скины. Замените картинки (те же имена) и загрузите — покажем список изменений.", 16))
+
+
+func _model3d(hero_id: String, skin_id: String) -> void:
+	var body := _frame("3D-модель героя")
+	var result: Dictionary = await api.call_api(HTTPClient.METHOD_GET, "/sections/heroes/objects/" + hero_id)
+	if not result.ok:
+		_fail(result)
+		return
+	var hero: Dictionary = result.data["data"]
+	var model: Dictionary = hero.get("model_3d", {})
+	if skin_id != "default":
+		model = {}
+		for skin in hero.get("skins", []):
+			if str(skin.get("id", "")) == skin_id:
+				model = skin.get("model_3d", {})
+				break
+	var editor := Model3DEditor.new()
+	body.add_child(editor)
+	editor.setup(self, hero_id, skin_id, model)
+
+
+func _model3d_selftest() -> void:
+	await _model3d("ural_batyr", "default")
+	var editor: Model3DEditor
+	for child in _body.get_children():
+		if child is Model3DEditor:
+			editor = child
+	if editor == null:
+		print("AUTOTEST MODEL3D API: ", JSON.stringify({"ok": false, "error": "Редактор не создан"}))
+		return
+	var data := FileAccess.get_file_as_bytes("res://tests/fixtures/model3d.glb")
+	await editor._upload(data)
+	var deadline := Time.get_ticks_msec() + 10000
+	while not is_instance_valid(editor.model_root) and Time.get_ticks_msec() < deadline:
+		await get_tree().process_frame
+	var ok := is_instance_valid(editor.model_root) and editor.base_pick.selected >= 0
+	if ok:
+		editor.anim_picks["idle"].select(1)
+		await editor._play("idle")
+		ok = is_instance_valid(editor.player) and editor.player.is_playing()
+	if ok:
+		await editor._save()
+		var hero: Dictionary = await api.call_api(HTTPClient.METHOD_GET, "/sections/heroes/objects/ural_batyr")
+		ok = hero.ok and str(hero.data.get("data", {}).get("model_3d", {}).get("file", "")).ends_with(".glb")
+	print("AUTOTEST MODEL3D API: ", JSON.stringify({"ok": ok}))
+	if "--screenshot-after=" not in str(OS.get_cmdline_user_args()):
+		await api.call_api(HTTPClient.METHOD_POST, "/draft/revert", {})
+		get_tree().quit(0 if ok else 1)
 
 
 func _new_skin(hero_id: String) -> void:
@@ -1337,6 +1387,7 @@ func _autotest(creds: String) -> void:
 				"anim": _open(_anim_editor.bind("ural_batyr"))
 				"animtest": await _anim_selftest()
 				"cuttest": await _cut_selftest()
+				"model3dtest": await _model3d_selftest()
 				"screens": await _with_draft(func(): _open(_screen_editor.bind("hub")))
 				"screentest": await _screen_selftest()
 				"skinshot": await _skin_shot()

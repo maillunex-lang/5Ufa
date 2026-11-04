@@ -119,6 +119,13 @@ async def workspace(session: AsyncSession) -> Workspace:
 
 def validate_file(path: str, data: bytes) -> list[str]:
     """Проверка одного файла перед записью в черновик: JSON и схема раздела."""
+    if path.endswith(".glb"):
+        from app.models3d.inspect_glb import ModelError, inspect_glb
+        try:
+            inspect_glb(data)
+        except ModelError as exc:
+            return [f"{path}: {exc}"]
+        return []
     if not path.endswith(".json"):
         return []
     try:

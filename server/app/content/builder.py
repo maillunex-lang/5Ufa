@@ -27,6 +27,7 @@ ALLOWED_EXTENSIONS = {
     ".json",                                 # данные, скелеты, анимации
     ".ttf", ".otf",                          # шрифты
     ".txt",                                  # тексты (лицензии и т.п.)
+    ".glb",                                  # встроенная модель glTF 2.0
 }
 # Файлы, которые не попадают в манифест (служебные)
 SKIP_NAMES = {"packages.json", "README.md", ".gitkeep", ".DS_Store", "Thumbs.db"}
@@ -93,6 +94,15 @@ def build_manifest(content_dir: Path, store: ContentStore | None, schemas: Schem
         if ext not in ALLOWED_EXTENSIONS:
             errors.append(f"{rel}: неподдерживаемый формат «{ext}». Разрешены: {', '.join(sorted(ALLOWED_EXTENSIONS))}")
             continue
+        if ext == ".glb":
+            from app.models3d.inspect_glb import ModelError, inspect_glb
+            try:
+                if path.stat().st_size > 50 * 1024 * 1024:
+                    raise ModelError("GLB больше 50 МиБ")
+                inspect_glb(path.read_bytes())
+            except (ModelError, OSError) as exc:
+                errors.append(f"{rel}: {exc}")
+                continue
         if ext == ".json":
             try:
                 data = json.loads(path.read_text(encoding="utf-8"))
@@ -104,7 +114,10 @@ def build_manifest(content_dir: Path, store: ContentStore | None, schemas: Schem
                 continue
             schema = schemas.schema_for_path(rel)
             if schema:
-                errors.extend(schemas.validate(data, schema, rel))
+                doc_errors = schemas.validate(data, schema, rel)
+                errors.extend(doc_errors)
+                if not doc_errors and schema == "hero.schema.json":
+                    errors.extend(_validate_hero_models(content_dir, rel, data))
 
         pkg = next((d for d in defs if any(p.match(rel) for p in d.patterns)), None)
         if pkg is None:
@@ -153,3 +166,42 @@ def build_manifest(content_dir: Path, store: ContentStore | None, schemas: Schem
         "packages_def": meta,
     }
     return BuildResult(manifest=manifest, content_hash=content_hash, files_count=files_count, total_size=total_size)
+
+
+def _validate_hero_models(content_dir: Path, hero_path: str, hero: dict) -> list[str]:
+    """Проверить ссылки 3D до выпуска релиза, включая правки из ZIP и режима JSON."""
+    from app.models3d.inspect_glb import MAX_GLB_BYTES, ModelError, inspect_glb
+
+    errors = []
+    hero_dir = Path(hero_path).parent.as_posix()
+    kinds = [("", hero.get("model_3d"))]
+    kinds.extend((skin["id"], skin.get("model_3d")) for skin in hero.get("skins", []))
+    for skin, model in kinds:
+        if not model:
+            continue
+        prefix = hero_dir + (f"/skins/{skin}" if skin else "") + "/models3d/"
+        cache = {}
+
+        def report(path):
+            if not path.startswith(prefix) or not path.endswith(".glb"):
+                raise ModelError("файл должен принадлежать выбранному виду героя")
+            if path not in cache:
+                f = content_dir / path
+                if not f.is_file() or f.stat().st_size > MAX_GLB_BYTES:
+                    raise ModelError("файл модели отсутствует или превышает 50 МиБ")
+                cache[path] = inspect_glb(f.read_bytes())
+            return cache[path]
+
+        try:
+            main = report(model["file"])
+            if not main["mesh_instances"]:
+                raise ModelError("основной GLB не содержит отображаемой сетки")
+            for event, anim in model.get("animations", {}).items():
+                if anim["clip"] not in report(anim["file"])["animations"]:
+                    raise ModelError(f"анимация «{event}» не найдена")
+            for name, anchor in model.get("anchors", {}).items():
+                if anchor["bone"] != "@root" and anchor["bone"] not in main["bones"]:
+                    raise ModelError(f"кость точки «{name}» не найдена")
+        except (ModelError, OSError) as exc:
+            errors.append(f"{hero_path}: 3D{' скина ' + skin if skin else ''}: {exc}")
+    return errors

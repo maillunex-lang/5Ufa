@@ -4,7 +4,7 @@ import logging
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
-from app.api import admin, admin_cutter, admin_ops, auth, battle, heroes, campaign, client, content, health
+from app.api import admin, admin_cutter, admin_models3d, admin_ops, auth, battle, heroes, campaign, client, content, health
 from app.content.validation import ContentError
 from app.config import get_settings
 
@@ -35,6 +35,7 @@ app.include_router(campaign.router)
 app.include_router(admin.router)
 app.include_router(admin_ops.router)
 app.include_router(admin_cutter.router)
+app.include_router(admin_models3d.router)
 app.include_router(admin_ops.web_router)
 
 

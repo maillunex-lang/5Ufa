@@ -154,6 +154,8 @@ jobs:
         run: |
           G=~/godot-bin/godot
           $G --headless --path . --import >/dev/null 2>&1 || true
+          timeout 30 $G --headless --path . res://tests/model3d_smoke.tscn > /tmp/model3d.txt 2>&1
+          grep -q 'AUTOTEST MODEL3D: {.*"ok":true' /tmp/model3d.txt || { cat /tmp/model3d.txt; exit 1; }
           run() {
             local rc=0
             timeout 180 $G --headless --path . -- --server=http://127.0.0.1:8085 --autotest "$@" > /tmp/out.txt 2>&1 || rc=$?
@@ -204,6 +206,11 @@ jobs:
             --admin-autotest=owner:ci-admin-pass-1 --admin-show=cuttest > /tmp/out.txt 2>&1 || true
           grep -E "AUTOTEST|SCRIPT ERROR" /tmp/out.txt || true
           grep -q 'AUTOTEST CUT: {.*"ok":true' /tmp/out.txt || { cat /tmp/out.txt; exit 1; }
+          echo "--- 3D-герой: загрузка GLB, импорт Godot и сохранение в черновик"
+          timeout 180 $G --headless --path . res://admin/admin_main.tscn -- --server=http://127.0.0.1:8085 \
+            --admin-autotest=owner:ci-admin-pass-1 --admin-show=model3dtest > /tmp/out.txt 2>&1 || true
+          grep -E "AUTOTEST|SCRIPT ERROR" /tmp/out.txt || true
+          grep -q 'AUTOTEST MODEL3D API: {.*"ok":true' /tmp/out.txt || { cat /tmp/out.txt; exit 1; }
           echo "--- конструктор экранов: перенос элемента сохраняется в черновик"
           timeout 180 $G --headless --path . res://admin/admin_main.tscn -- --server=http://127.0.0.1:8085 \
             --admin-autotest=owner:ci-admin-pass-1 --admin-show=screentest --screenshot-after=120:/dev/null > /tmp/out.txt 2>&1 || true

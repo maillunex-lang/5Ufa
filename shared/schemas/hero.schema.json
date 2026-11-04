@@ -177,9 +177,17 @@
           },
           "description": {
             "type": "string"
+          },
+          "model_3d": {
+            "$ref": "#/$defs/model3d",
+            "description": "Отдельная 3D-модель скина"
           }
         }
       }
+    },
+    "model_3d": {
+      "$ref": "#/$defs/model3d",
+      "description": "Модель GLB и сопоставления анимаций; при отсутствии используется 2D"
     }
   },
   "$defs": {
@@ -340,6 +348,306 @@
           "minItems": 1,
           "items": {
             "$ref": "#/$defs/effect"
+          }
+        }
+      }
+    },
+    "model3d": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "file"
+      ],
+      "properties": {
+        "file": {
+          "$ref": "common.schema.json#/$defs/content_path"
+        },
+        "scale": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 100
+        },
+        "rotation_degrees": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": {
+            "type": "number",
+            "minimum": -1000,
+            "maximum": 1000
+          }
+        },
+        "height": {
+          "type": "number",
+          "minimum": -100,
+          "maximum": 100
+        },
+        "animations": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "idle": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "file",
+                "clip"
+              ],
+              "properties": {
+                "file": {
+                  "$ref": "common.schema.json#/$defs/content_path"
+                },
+                "clip": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200
+                },
+                "impact_ms": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 60000
+                }
+              }
+            },
+            "walk": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "file",
+                "clip"
+              ],
+              "properties": {
+                "file": {
+                  "$ref": "common.schema.json#/$defs/content_path"
+                },
+                "clip": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200
+                },
+                "impact_ms": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 60000
+                }
+              }
+            },
+            "attack": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "file",
+                "clip"
+              ],
+              "properties": {
+                "file": {
+                  "$ref": "common.schema.json#/$defs/content_path"
+                },
+                "clip": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200
+                },
+                "impact_ms": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 60000
+                }
+              }
+            },
+            "skill": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "file",
+                "clip"
+              ],
+              "properties": {
+                "file": {
+                  "$ref": "common.schema.json#/$defs/content_path"
+                },
+                "clip": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200
+                },
+                "impact_ms": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 60000
+                }
+              }
+            },
+            "ultimate": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "file",
+                "clip"
+              ],
+              "properties": {
+                "file": {
+                  "$ref": "common.schema.json#/$defs/content_path"
+                },
+                "clip": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200
+                },
+                "impact_ms": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 60000
+                }
+              }
+            },
+            "hit": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "file",
+                "clip"
+              ],
+              "properties": {
+                "file": {
+                  "$ref": "common.schema.json#/$defs/content_path"
+                },
+                "clip": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200
+                },
+                "impact_ms": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 60000
+                }
+              }
+            },
+            "death": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "file",
+                "clip"
+              ],
+              "properties": {
+                "file": {
+                  "$ref": "common.schema.json#/$defs/content_path"
+                },
+                "clip": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200
+                },
+                "impact_ms": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 60000
+                }
+              }
+            },
+            "victory": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "file",
+                "clip"
+              ],
+              "properties": {
+                "file": {
+                  "$ref": "common.schema.json#/$defs/content_path"
+                },
+                "clip": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200
+                },
+                "impact_ms": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 60000
+                }
+              }
+            }
+          }
+        },
+        "anchors": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "projectile": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "bone",
+                "offset"
+              ],
+              "properties": {
+                "bone": {
+                  "type": "string",
+                  "maxLength": 200
+                },
+                "offset": {
+                  "type": "array",
+                  "minItems": 3,
+                  "maxItems": 3,
+                  "items": {
+                    "type": "number",
+                    "minimum": -1000,
+                    "maximum": 1000
+                  }
+                }
+              }
+            },
+            "hit": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "bone",
+                "offset"
+              ],
+              "properties": {
+                "bone": {
+                  "type": "string",
+                  "maxLength": 200
+                },
+                "offset": {
+                  "type": "array",
+                  "minItems": 3,
+                  "maxItems": 3,
+                  "items": {
+                    "type": "number",
+                    "minimum": -1000,
+                    "maximum": 1000
+                  }
+                }
+              }
+            },
+            "overhead": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "bone",
+                "offset"
+              ],
+              "properties": {
+                "bone": {
+                  "type": "string",
+                  "maxLength": 200
+                },
+                "offset": {
+                  "type": "array",
+                  "minItems": 3,
+                  "maxItems": 3,
+                  "items": {
+                    "type": "number",
+                    "minimum": -1000,
+                    "maximum": 1000
+                  }
+                }
+              }
+            }
           }
         }
       }
