@@ -1,14 +1,9 @@
 extends Control
-## C-1: загрузчик и вход. Проверка /api/config, гостевой вход, /api/me, пробный бой этапа.
-## Отображение боя, город и остальные экраны — задачи C-2…C-4 (docs/ROADMAP.md).
-
-const MAX_STAGE := 10
+## Загрузчик и вход: /api/config (техработы), гостевой вход, /api/me, контент -> главный экран (hub.tscn).
 
 var _status: Label
 var _info: Label
-var _btn_battle: Button
 var _btn_retry: Button
-var _me: Dictionary = {}
 
 
 func _ready() -> void:
@@ -52,13 +47,6 @@ func _build_ui() -> void:
 	_info.add_theme_font_size_override("font_size", 30)
 	box.add_child(_info)
 
-	_btn_battle = Button.new()
-	_btn_battle.custom_minimum_size = Vector2(0, 110)
-	_btn_battle.add_theme_font_size_override("font_size", 34)
-	_btn_battle.visible = false
-	_btn_battle.pressed.connect(_on_battle)
-	box.add_child(_btn_battle)
-
 	_btn_retry = Button.new()
 	_btn_retry.text = "Повторить"
 	_btn_retry.custom_minimum_size = Vector2(0, 110)
@@ -77,7 +65,6 @@ func _fail(text: String) -> void:
 
 func _start() -> void:
 	_btn_retry.visible = false
-	_btn_battle.visible = false
 	_info.text = ""
 	_status.text = "Подключение к серверу…"
 
@@ -112,52 +99,11 @@ func _start() -> void:
 	_show_me(me2["data"])
 
 
-func _next_stage() -> int:
-	var cleared: Array = _me.get("clearedStages", [])
-	var best := 0
-	for s in cleared:
-		best = maxi(best, int(s))
-	return mini(best + 1, MAX_STAGE)
-
-
 func _show_me(me: Dictionary) -> void:
-	_me = me
-	var acc: Dictionary = me["account"]
-	var bal: Dictionary = me["balances"]
-	_status.text = "Вход выполнен"
-	print("[boot] OK me: account=", acc["id"], " heroes=", (me["heroes"] as Array).size(), " cleared=", me["clearedStages"])
-	_info.text = "Аккаунт №%d (%s)\nГероев: %d\nЗолото: %d   Опыт героев: %d\nПройдено этапов: %d" % [
-		int(acc["id"]),
-		"привязан" if acc["bound"] else "гость",
-		(me["heroes"] as Array).size(),
-		int(bal.get("gold", 0)),
-		int(bal.get("hero_exp", 0)),
-		(me["clearedStages"] as Array).size(),
-	]
-	_btn_battle.text = "Пробный бой: этап %d" % _next_stage()
-	_btn_battle.disabled = false
-	_btn_battle.visible = true
-
-
-func _on_battle() -> void:
-	_btn_battle.disabled = true
-	_status.text = "Бой идёт на сервере…"
-	var stage := _next_stage()
-	var r: Dictionary = await Api.request("POST", "/api/battle/start", {"stage": stage})
-	if not r["ok"]:
-		_status.text = "Бой не начался: " + str(r["message"])
-		_btn_battle.disabled = false
+	State.me = me
+	_status.text = "Загружаем данные…"
+	if not await State.load_content():
+		_fail("Не удалось загрузить данные игры.")
 		return
-	var d: Dictionary = r["data"]
-	var won: bool = d["winner"] == "attacker"
-	var text := "%s, этап %d, %.1f с" % ["Победа" if won else "Поражение", stage, float(d["duration"])]
-	if d.get("timeout", false):
-		text += " (время вышло)"
-	if d["reward"] != null:
-		text += "\nНаграда: золото %d, опыт %d" % [int(d["reward"].get("gold", 0)), int(d["reward"].get("hero_exp", 0))]
-	text += "\n(анимация боя — следующий этап разработки)"
-	var me: Dictionary = await Api.request("GET", "/api/me")
-	if me["ok"]:
-		_show_me(me["data"])
-	_status.text = text
-	print("[boot] BATTLE: ", text.replace("\n", " | "))
+	print("[boot] OK me: account=", me["account"]["id"], " heroes=", (me["heroes"] as Array).size(), " cleared=", me["clearedStages"])
+	get_tree().change_scene_to_file.call_deferred("res://hub.tscn")
