@@ -35,3 +35,6 @@
 
 ## Мечник (Meshy, от владельца)
 `client/assets/models/Swordsman.glb`, 6 МБ, ~10,5 тыс. треугольников, скелет Mixamo (24 кости, без пальцев), анимации: Idle_9, Running, Walking, Thrust_Slash, Jump_and_Slam_Back_Down, Dead. Права на модель подтверждены владельцем (настройка тарифа Meshy). Бывшая модель бойца (Barbarian из KayKit) убрана из репозитория, при необходимости берётся из исходного пакета.
+
+## Библиотеки админки
+three.js r160 (MIT, © 2010–2023 three.js authors): `admin/vendor/` (ядро, GLTFLoader, OrbitControls, BufferGeometryUtils). Лицензия: `admin/vendor/LICENSE-three.txt`. Используется только для 3D-просмотра в админке.

@@ -8,7 +8,7 @@ let T = sessionStorage.getItem('t');
 let D = null;      // черновик контента
 let BASE = 0;      // версия, на которой основан черновик
 let SAVED = '';    // JSON сохранённой версии (для определения «есть правки»)
-const UI = { q: '', role: '', tab: 'main' };
+const UI = { q: '', role: '', tab: 'main', media: '' };
 
 const ROLE_L = { tank: 'Танк', melee: 'Боец ближнего боя', ranged: 'Стрелок', mage: 'Маг', healer: 'Целитель' };
 const TYPE_L = { regular: 'Обычный', cool: 'Крутой' };
@@ -198,7 +198,7 @@ const NAV = [
   ['Контент', [['heroes', 'Герои'], ['enemies', 'Враги и боссы'], ['balance', 'Баланс и прогрессия'], ['stages', 'Этапы: награды и сила'], ['arena', 'Арена и камера'], ['tutorial', 'Обучение']]],
   ['Интерфейс', [['soon:ui', 'Экраны (скоро)']]],
   ['Игроки', [['soon:players', 'Аккаунты (скоро)']]],
-  ['Система', [['versions', 'Версии контента']]],
+  ['Система', [['media', 'Медиатека (модели)'], ['versions', 'Версии контента']]],
 ];
 
 function drawNav(cur) {
@@ -216,12 +216,16 @@ function route() {
   return { page: parts[0], arg: parts[1] };
 }
 
+let LIVE = [];
+function disposeLive() { LIVE.forEach((r) => r.dispose?.()); LIVE = []; }
+
 function render() {
   if (!D) return;
+  disposeLive();
   const { page, arg } = route();
   drawNav(page);
   const view = $('view');
-  const fn = { home: viewHome, heroes: () => viewUnits('heroes', arg), enemies: () => viewUnits('enemies', arg), balance: viewBalance, stages: viewStages, arena: viewArena, tutorial: viewTutorial, versions: viewVersions }[page] || viewHome;
+  const fn = { home: viewHome, heroes: () => viewUnits('heroes', arg), enemies: () => viewUnits('enemies', arg), balance: viewBalance, stages: viewStages, arena: viewArena, tutorial: viewTutorial, media: viewMedia, versions: viewVersions }[page] || viewHome;
   view.replaceChildren();
   Promise.resolve(fn(view)).catch((e) => view.replaceChildren(h('div', { class: 'card bad' }, e.message)));
 }
@@ -361,6 +365,7 @@ function viewUnit(kind, u) {
   const tabs = [['main', 'Основное'], ['look', 'Внешний вид и анимации'], ['stats', 'Характеристики и рост'], ['abil', 'Способности']];
   const body = h('div', {});
   const draw = () => {
+    disposeLive();
     body.replaceChildren(...({ main: tabMain, look: tabLook, stats: tabStats, abil: tabAbil }[UI.tab])(u, isHero, draw));
     tabBar.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.t === UI.tab));
   };
@@ -392,6 +397,7 @@ function tabLook(u) {
   const mk = () => `Персонаж для мобильной RPG, ${u.name}${u.role ? ' (' + (ROLE_L[u.role] || u.role) + ')' : ''}. Стиль: мультяшный, чибби, низкополигональный, простые цвета, как KayKit Adventurers. A-поза, руки чуть в стороны, ноги раздельно, одежда выше щиколоток, без плаща и лент, одна фигура, без подставки. Скелет Mixamo (гуманоид). Анимации: стойка, бег, удар, умение, получение удара, смерть. Формат GLB, текстура внутри, до 15 тысяч треугольников.`;
   const prompt = area(u, 'visual.prompt', 6, { optional: true, placeholder: 'Инструкция для внешнего ИИ (Meshy и др.): стиль, ракурс, размеры, список анимаций' });
   return [
+    h('div', { class: 'card' }, h('b', {}, '3D-просмотр, графика и анимации'), modelBlock({ unit: u })),
     h('div', { class: 'card' }, h('b', {}, 'Модель'),
       grid(field('Файл модели', text(u, 'visual.model', { optional: true }), 'Имя файла из client/assets/models без .glb (загрузка через медиатеку появится позже)'),
         field('Масштаб', num(u, 'visual.scale', { step: 0.05, min: 0.1, max: 10 })), field('Поворот модели, °', num(u, 'visual.yaw', { step: 5 }), 'Если модель смотрит не туда'),
@@ -587,6 +593,220 @@ function viewTutorial(view) {
   view.append(h('h2', {}, 'Обучение'), h('p', { style: 'color:var(--mut)' }, 'Тексты шагов. Условия завершения и подсветка выбираются из каталога игры, их менять можно только через редактор JSON.'),
     ...steps.map((st, i) => h('div', { class: 'card' }, h('b', {}, `Шаг ${i + 1}`, h('span', { class: 'tag' }, st.id)),
       field('Текст', area(st, 'text', 4)), h('p', { style: 'color:var(--mut);font-size:12px' }, `Подсветка: ${(st.highlight || []).join(', ') || '—'} · завершается: ${st.done}`))));
+}
+
+
+// ---------------------------------------------------------------- Медиатека и 3D-просмотр
+
+let MEDIA = [];
+let VMOD = null;
+const viewerModule = async () => (VMOD ||= await import('./viewer.js'));
+async function loadMedia() { MEDIA = await api('media'); }
+const mediaEntry = (name) => MEDIA.find((m) => m.name === name);
+const safeName = (s) => { let n = String(s).replace(/\.glb$/i, '').replace(/[^A-Za-z0-9_-]+/g, '_').replace(/^_+|_+$/g, ''); if (!/^[A-Za-z]/.test(n)) n = 'M_' + n; return n.slice(0, 64) || 'Model'; };
+const fmtMB = (b) => (b / 1048576).toFixed(1) + ' МБ';
+
+async function blobUrl(sha) {
+  const r = await fetch('api/media/file/' + sha, { headers: { authorization: 'Bearer ' + T } });
+  if (!r.ok) throw new Error('Файл не получен (' + r.status + ')');
+  return URL.createObjectURL(await r.blob());
+}
+
+async function uploadFile(file, { name, kind, note, activate }) {
+  if (file.size > 40 * 1048576) throw new Error('Файл больше 40 МБ');
+  const q = new URLSearchParams({ name, kind, filename: file.name, note: note || '' });
+  if (activate !== undefined) q.set('activate', activate ? '1' : '0');
+  const r = await fetch('api/media/upload?' + q, { method: 'POST', headers: { authorization: 'Bearer ' + T, 'content-type': 'application/octet-stream' }, body: file });
+  const j = await r.json().catch(() => ({ message: 'Ответ не прочитан (' + r.status + ')' }));
+  if (!r.ok) throw new Error(j.message || r.status);
+  return j;
+}
+
+function pickFile() {
+  return new Promise((resolve) => {
+    const i = h('input', { type: 'file', accept: '.glb,model/gltf-binary', style: 'display:none' });
+    i.addEventListener('change', () => { resolve(i.files[0] || null); i.remove(); });
+    document.body.append(i);
+    i.click();
+  });
+}
+
+const SLOTS = [['idle', 'Стойка'], ['run', 'Бег'], ['attack_melee', 'Удар в ближнем бою'], ['attack_melee_strong', 'Сильный удар (умение)'], ['attack_ranged', 'Выстрел'], ['cast', 'Каст (обычный)'], ['cast_strong', 'Каст (сильный)'], ['hit', 'Получение удара'], ['death', 'Смерть']];
+const DEFAULT_ANIMS = { idle: 'Idle', run: 'Running_A', attack_melee: '1H_Melee_Attack_Slice_Horizontal', attack_melee_strong: '2H_Melee_Attack_Spin', attack_ranged: '1H_Ranged_Shoot', cast: 'Spellcast_Shoot', cast_strong: 'Spellcast_Long', hit: 'Hit_A', death: 'Death_A' };
+
+// Блок просмотра модели. unit — герой/враг (тогда есть выбор модели и назначение анимаций); без unit — просмотр записи медиатеки.
+function modelBlock({ unit, fixedName }) {
+  const root = h('div', {});
+  const host = h('div', { style: 'width:100%' });
+  const status = h('div', { style: 'color:var(--mut);font-size:13px;margin:6px 0' });
+  const clipsBox = h('div', {});
+  const slotsBox = h('div', {});
+  const versBox = h('div', {});
+  const toolsBox = h('div', { class: 'toolbar' });
+  let viewer = null, shownName = null, shownVer = null, token = 0;
+  const modelName = () => (unit ? unit.visual?.model : fixedName);
+
+  async function ensureViewer() {
+    if (viewer) return viewer;
+    const mod = await viewerModule();
+    viewer = mod.createViewer(host, { height: 340 });
+    return viewer;
+  }
+
+  async function show(name, sha) {
+    const my = ++token;
+    clipsBox.replaceChildren(); versBox.replaceChildren();
+    const e = mediaEntry(name);
+    if (!name || !e) { status.textContent = name ? `Модели «${name}» нет в медиатеке: в игре используется вшитая в приложение (если есть). Загрузите файл, чтобы её видеть и менять.` : 'Модель не выбрана.'; drawSlots(); return; }
+    if (e.kind !== 'model') { status.textContent = 'Это файл анимаций, а не модель.'; return; }
+    const ver = sha ? e.versions.find((v) => v.sha === sha) : e.active;
+    status.textContent = 'Загрузка модели…';
+    try {
+      const vw = await ensureViewer();
+      if (!vw) { status.textContent = 'WebGL недоступен в этом браузере.'; return; }
+      const url = await blobUrl(ver.sha);
+      await vw.load(url);
+      URL.revokeObjectURL(url);
+      if (my !== token) return;
+      shownName = name; shownVer = ver;
+      if (unit) { vw.setScale(unit.visual?.scale || 1); vw.setYaw(unit.visual?.yaw || 0); vw.hideParts(unit.visual?.hide); }
+      status.textContent = `${name} · версия ${ver.version}${ver.active ? ' (активна)' : ' (НЕ активна, игроки её не видят)'} · ${ver.meta.triangles} треугольников · костей ${ver.meta.boneCount} · анимаций ${ver.meta.clips.length} · ${fmtMB(ver.size)}`;
+      drawClips(); drawSlots(); drawVersions(e);
+    } catch (err) { status.textContent = 'Ошибка просмотра: ' + err.message; }
+  }
+
+  function drawClips() {
+    clipsBox.replaceChildren(h('div', { style: 'color:var(--mut);font-size:13px;margin:6px 0' }, 'Анимации в модели (нажмите, чтобы посмотреть):'),
+      ...viewer.clipKeys().map((k) => h('button', { class: 'sec chip', onclick: () => viewer.play(k, { loop: !/dead|death|die/i.test(k) }) }, k)),
+      h('div', {}, h('button', { class: 'sec chip', onclick: () => viewer.setPlaying(!viewer.isPlaying()) }, 'Пауза / продолжить'),
+        h('label', { style: 'font-size:13px;margin-left:6px' }, h('input', { type: 'checkbox', onchange: (e) => viewer.showSkeleton(e.target.checked) }), ' скелет'),
+        h('label', { style: 'font-size:13px;margin-left:10px' }, 'скорость ', h('select', { style: 'width:auto;padding:3px', onchange: (e) => viewer.setSpeed(Number(e.target.value)) }, [0.25, 0.5, 1, 2].map((v) => h('option', { value: v, selected: v === 1 }, '×' + v))))));
+  }
+
+  // слоты: событие игры -> анимация модели (или из отдельного файла анимаций)
+  function slotValue(slot) {
+    const v = unit.visual || {};
+    const file = v.anim_files?.[slot];
+    const clip = v.anims?.[slot];
+    return file ? `${file}::${clip ?? ''}` : (clip ?? '');
+  }
+  function setSlot(slot, val) {
+    if (val === '') { acc(unit, 'visual.anims.' + slot).del(); acc(unit, 'visual.anim_files.' + slot).del(); }
+    else if (val.includes('::')) { const [f, c] = val.split('::'); acc(unit, 'visual.anims.' + slot).set(c); acc(unit, 'visual.anim_files.' + slot).set(f); }
+    else { acc(unit, 'visual.anims.' + slot).set(val); acc(unit, 'visual.anim_files.' + slot).del(); }
+    for (const k of ['anims', 'anim_files']) if (unit.visual?.[k] && !Object.keys(unit.visual[k]).length) delete unit.visual[k];
+    touch();
+  }
+  async function previewSlot(slot) {
+    const val = slotValue(slot) || DEFAULT_ANIMS[slot];
+    if (val.includes('::')) {
+      const [f, c] = val.split('::');
+      const fe = mediaEntry(f);
+      if (fe && !viewer.clipKeys().some((k) => k === `${f}::${c}`)) { const url = await blobUrl(fe.active.sha); await viewer.addClips(url, f); URL.revokeObjectURL(url); }
+      if (!viewer.play(`${f}::${c}`, { loop: slot !== 'death' })) toast('Нет такого клипа: ' + c, true);
+    } else if (!viewer.play(val, { loop: slot !== 'death' })) toast(`В модели нет анимации «${val}»`, true);
+  }
+  function drawSlots() {
+    slotsBox.replaceChildren();
+    if (!unit || !shownVer) return;
+    const own = shownVer.meta.clips.map((c) => c.name);
+    const files = MEDIA.filter((m) => m.kind === 'animation');
+    slotsBox.append(h('div', { style: 'color:var(--mut);font-size:13px;margin:10px 0 4px' }, 'Какая анимация играет на каждое событие боя (изменения попадают в черновик, действуют после «Сохранить»):'),
+      ...SLOTS.map(([slot, label]) => {
+        const sel = h('select', { onchange: (e) => setSlot(slot, e.target.value) },
+          h('option', { value: '' }, 'По умолчанию (' + DEFAULT_ANIMS[slot] + ')'),
+          h('optgroup', { label: 'Из модели' }, own.map((n) => h('option', { value: n }, n))),
+          files.map((f) => h('optgroup', { label: 'Файл анимаций ' + f.name }, f.active.meta.clips.map((c) => h('option', { value: `${f.name}::${c.name}` }, c.name)))));
+        sel.value = slotValue(slot);
+        if (sel.value !== slotValue(slot)) { sel.append(h('option', { value: slotValue(slot) }, slotValue(slot) + ' (нет в модели)')); sel.value = slotValue(slot); }
+        return h('div', { class: 'slot' }, h('span', {}, label), sel, h('button', { class: 'sec', onclick: () => previewSlot(slot) }, '▶'));
+      }));
+  }
+
+  function drawVersions(e) {
+    versBox.replaceChildren(h('div', { style: 'color:var(--mut);font-size:13px;margin:10px 0 4px' }, 'Версии файла (включение версии меняет модель у всех игроков при следующем входе):'),
+      ...e.versions.map((v) => h('div', { class: 'vrow' }, h('b', {}, `v${v.version}${v.active ? ' ✓ активна' : ''}`), ' ', h('span', {}, fmtTime(v.created)), h('span', {}, fmtMB(v.size) + (v.source === 'bundled' ? ', вшита' : '')), h('div', { class: 'nt' }, [v.filename, v.note].filter(Boolean).join(' · ')),
+        h('button', { class: 'sec', onclick: () => show(e.name, v.sha) }, 'Смотреть'),
+        v.active ? null : h('button', { class: 'sec', onclick: async () => {
+          if (!confirm(`Сделать версию ${v.version} активной для всех игроков?`)) return;
+          try { await api('media/activate', { name: e.name, version: v.version }); await loadMedia(); toast('Версия включена'); show(e.name); } catch (er) { toast(er.message, true); }
+        } }, 'Сделать активной'))));
+  }
+
+  async function uploadModelFlow() {
+    const f = await pickFile();
+    if (!f) return;
+    const cur = modelName();
+    const replaceable = cur && mediaEntry(cur)?.kind === 'model';
+    const nameIn = h('input', { value: safeName(f.name) });
+    const mode = h('select', {}, replaceable ? h('option', { value: 'replace' }, `Заменить «${cur}» (новая версия, сначала просмотр)`) : null, h('option', { value: 'new' }, 'Новая модель с именем:'));
+    const err = h('div', { class: 'bad' });
+    const m = modal([h('h3', {}, 'Загрузка модели'), h('p', { style: 'color:var(--mut);font-size:13px' }, `${f.name}, ${fmtMB(f.size)}`), field('Что сделать', mode), field('Имя новой модели', nameIn, 'Латиница, цифры, _ и -'), err,
+      h('button', { onclick: async () => {
+        err.textContent = '';
+        const replace = mode.value === 'replace';
+        const name = replace ? cur : nameIn.value.trim();
+        try {
+          const r = await uploadFile(f, { name, kind: 'model', note: 'из админки' });
+          await loadMedia();
+          m.remove();
+          if (unit && !replace) { acc(unit, 'visual.model').set(name); touch(); }
+          toast(replace ? `Версия ${r.version} загружена, не активна: посмотрите и включите` : 'Модель загружена');
+          renderTools();
+          show(name, r.sha);
+        } catch (e) { err.textContent = e.message; }
+      } }, 'Загрузить'), ' ', h('button', { class: 'sec', onclick: () => m.remove() }, 'Отмена')]);
+  }
+
+  async function addAnimFlow() {
+    const f = await pickFile();
+    if (!f) return;
+    const base = safeName((modelName() || 'Anim') + '_' + f.name.replace(/\.glb$/i, ''));
+    const nameIn = h('input', { value: base });
+    const err = h('div', { class: 'bad' });
+    const m = modal([h('h3', {}, 'Добавить анимации из файла'), h('p', { style: 'color:var(--mut);font-size:13px' }, `${f.name}, ${fmtMB(f.size)}. Скелет должен совпадать с моделью (те же имена костей).`), field('Имя файла анимаций в медиатеке', nameIn), err,
+      h('button', { onclick: async () => {
+        try {
+          const r = await uploadFile(f, { name: nameIn.value.trim(), kind: 'animation', note: 'анимации из админки', activate: true });
+          await loadMedia(); m.remove(); toast(`Добавлено анимаций: ${r.meta.clips.length}`);
+          if (viewer) { const url = await blobUrl(r.sha); await viewer.addClips(url, r.name); URL.revokeObjectURL(url); }
+          drawSlots();
+        } catch (e) { err.textContent = e.message; }
+      } }, 'Добавить'), ' ', h('button', { class: 'sec', onclick: () => m.remove() }, 'Отмена')]);
+  }
+
+  function renderTools() {
+    toolsBox.replaceChildren();
+    if (unit) {
+      const names = MEDIA.filter((m) => m.kind === 'model').map((m) => m.name);
+      const cur = modelName();
+      const sel = h('select', { onchange: (e) => { acc(unit, 'visual.model').set(e.target.value); touch(); show(e.target.value); } },
+        h('option', { value: '' }, '— модель не выбрана —'), (cur && !names.includes(cur) ? [cur] : []).concat(names).map((n) => h('option', { value: n }, n)));
+      sel.value = cur || '';
+      toolsBox.append(sel);
+    }
+    toolsBox.append(h('button', { class: 'sec', onclick: uploadModelFlow }, unit ? 'Загрузить / заменить модель…' : 'Загрузить новую версию…'), h('button', { class: 'sec', onclick: addAnimFlow }, 'Добавить анимации из файла…'));
+  }
+
+  root.append(toolsBox, host, status, clipsBox, slotsBox, versBox);
+  (async () => { await loadMedia(); renderTools(); show(modelName()); })();
+  root.dispose = () => { token++; viewer?.dispose(); viewer = null; };
+  LIVE.push(root);
+  return root;
+}
+
+async function viewMedia(view) {
+  await loadMedia();
+  const sel = UI.media && mediaEntry(UI.media) ? UI.media : (MEDIA.find((m) => m.kind === 'model') || {}).name;
+  view.append(h('h2', {}, 'Медиатека: модели и анимации'),
+    h('p', { style: 'color:var(--mut)' }, 'Все файлы моделей и анимаций. Замена файла создаёт новую версию, которую сначала можно посмотреть и только потом включить. Вшитые в приложение модели помечены. Файлы анимаций лежат отдельно и подключаются к героям в карточке героя.'),
+    h('div', { class: 'card' }, ...MEDIA.map((m) => h('div', { class: 'item', onclick: () => { UI.media = m.name; render(); } },
+      h('div', {}, h('b', {}, m.name), h('span', { class: 'tag' }, m.kind === 'model' ? 'модель' : 'анимации'), m.name === sel ? h('span', { class: 'tag' }, 'открыта') : null,
+        h('div', { class: 'meta' }, `v${m.active.version} · ${fmtMB(m.active.size)} · ${m.active.meta.triangles} треуг. · анимаций ${m.active.meta.clips.length}${m.active.source === 'bundled' ? ' · вшита в приложение' : ''}`)),
+      h('span', {}, '›')))));
+  const e = sel && mediaEntry(sel);
+  if (e && e.kind === 'model') view.append(h('div', { class: 'card' }, h('b', {}, e.name), modelBlock({ fixedName: e.name })));
+  else if (e) view.append(h('div', { class: 'card' }, h('b', {}, e.name), h('table', {}, e.active.meta.clips.map((c) => h('tr', {}, h('td', {}, c.name), h('td', {}, c.duration + ' с'))))));
 }
 
 // ---------------------------------------------------------------- вход и запуск

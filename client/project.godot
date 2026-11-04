@@ -13,6 +13,7 @@ config/icon="res://icon.svg"
 
 Api="*res://api.gd"
 State="*res://state.gd"
+Media="*res://media.gd"
 
 [display]
 

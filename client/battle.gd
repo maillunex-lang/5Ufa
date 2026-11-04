@@ -392,7 +392,7 @@ func _make_card(u: Dictionary, rec: Dictionary) -> void:
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	holder.add_child(bg)
 	var vis: Dictionary = rec["vis"]
-	var tex: Texture2D = Portrait.make(self, "res://assets/models/%s.glb" % str(vis.get("model", "")), float(vis.get("yaw", 0.0)))
+	var tex: Texture2D = Portrait.make(self, str(vis.get("model", "")), float(vis.get("yaw", 0.0)))
 	if tex != null:
 		var tr := TextureRect.new()
 		tr.texture = tex
@@ -469,13 +469,13 @@ func _spawn(u: Dictionary) -> void:
 		def = State.enemy_def(u["key"])
 	var vis: Dictionary = def.get("visual", {})
 	var scale_f := float(vis.get("scale", 1.0))
-	var model_path := "res://assets/models/%s.glb" % str(vis.get("model", ""))
 	var player: AnimationPlayer = null
 	var body: Node3D
+	var model_inst: Node3D = Media.instance(str(vis.get("model", "")))
 	var anim_names: Dictionary = DEFAULT_ANIMS.duplicate()
 	anim_names.merge(vis.get("anims", {}), true)
-	if vis.has("model") and ResourceLoader.exists(model_path):
-		body = (load(model_path) as PackedScene).instantiate()
+	if model_inst != null:
+		body = model_inst
 		body.scale = Vector3.ONE * scale_f
 		for hn in vis.get("hide", []):                               # в наборах KayKit в модели лежит весь выбор оружия: лишнее прячем
 			var part := body.find_child(str(hn), true, false)
@@ -616,11 +616,11 @@ func _load_extra_anims(player: AnimationPlayer, vis: Dictionary, anim_names: Dic
 		return
 	var lib: AnimationLibrary = player.get_animation_library("")
 	for lg in files:
-		var path := str(files[lg])
-		if not ResourceLoader.exists(path):
-			push_warning("нет файла анимации " + path)
+		var fname := str(files[lg])   # имя файла анимаций из медиатеки (или прежний путь res://...)
+		var holder: Node = (load(fname) as PackedScene).instantiate() if fname.begins_with("res://") and ResourceLoader.exists(fname) else Media.instance(fname)
+		if holder == null:
+			push_warning("нет файла анимации " + fname)
 			continue
-		var holder: Node = (load(path) as PackedScene).instantiate()
 		var ps := holder.find_children("*", "AnimationPlayer", true, false)
 		if ps.size() > 0:
 			var src: AnimationPlayer = ps[0]

@@ -7,6 +7,7 @@
 | --- | --- | --- |
 | GET | `/health` | → `{ok,version,uptimeSec}` |
 | GET | `/api/config` | → `{server,maintenance,maintenanceMessage,contentVersion,update}`; `update` пока `null` (будет у трека Releases) |
+| GET | `/api/media/:sha` | → GLB по хешу (без входа, кэшируется навсегда) |
 | POST | `/api/guest` | → `{token,accountId}` (создаёт аккаунт, 5 героев, стартовые ресурсы) |
 | POST | `/api/login` | `{login,password}` → `{token,accountId}` |
 | POST | `/api/recover` | `{login,code,newPassword}` → `{token,accountId,recoveryCode}` (новый код) |
@@ -15,7 +16,7 @@
 | Метод | Путь | Тело → ответ |
 | --- | --- | --- |
 | GET | `/api/me` | → `{account,heroes[{id,key,level}],balances,formation[5 id],clearedStages,contentVersion,maxLevel}` |
-| GET | `/api/content` | → герои, враги, этапы, прогрессия, параметры боя, `tutorial.steps` (шаги обучения: id, text, highlight[], done), `arena.bounds` (прямоугольник арены xMin, xMax, yMin, yMax: бойцы за него не выходят), `arena.camera` (position[3], lookAt[3], fov, depth: камера боя) |
+| GET | `/api/content` | → герои, враги, этапы, прогрессия, параметры боя, `tutorial.steps` (шаги обучения: id, text, highlight[], done), `arena.bounds` (прямоугольник арены xMin, xMax, yMin, yMax: бойцы за него не выходят), `arena.camera` (position[3], lookAt[3], fov, depth: камера боя), `media` (манифест: имя → `{kind,version,sha,size,bundled}`) |
 | POST | `/api/bind` | `{login,password}` → `{recoveryCode}` (показать игроку один раз) |
 | POST | `/api/formation` | `{slots:[5 id героев]}` (0–1 перед, 2–4 зад) |
 | POST | `/api/tutorial/done` | → `{ok}` |
@@ -41,5 +42,13 @@
 | POST | `content/save` | `{content,note,baseVersion}` → `{version,changes}`; ошибки: 422 `invalid_content` с `details[]`, 409 `version_conflict`, 409 `hero_in_use`, 400 `no_changes` |
 | POST | `content/rollback` | `{version,note}` → `{version,restoredFrom}`; 400 `already_current`, 404 `no_version` |
 | POST | `content/reload` | `{force}` → `{changed,version}`: повторный импорт `content/game.json` |
+
+Медиатека (модели и анимации GLB; имена логические, файлы хранятся по хешу в `data/media`):
+| Метод | Путь | Тело → ответ |
+| --- | --- | --- |
+| GET | `media` | → `[{name,kind,active,versions[]}]`; версия: `{version,sha,size,filename,source,note,author,created,active,meta{clips[],bones[],triangles,...}}` |
+| POST | `media/upload?name=&kind=model\|animation&filename=&note=&activate=0\|1` | двоичное тело GLB (до 40 МБ) → запись версии. Новое имя активно сразу, новая версия существующего имени **не активна** до включения. Ошибки: 422 `bad_glb`, `glb_too_complex`, `no_clips`; 409 `kind_mismatch`; 413; 400 `bad_name`, `no_changes` |
+| POST | `media/activate` | `{name,version}` → запись; включение и откат версии файла |
+| GET | `media/file/:sha` | → GLB (нужен вход) |
 
 Новые редакторы добавляют свои методы здесь.

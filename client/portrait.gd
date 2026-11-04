@@ -3,8 +3,9 @@ extends RefCounted
 ## Портрет героя для карточки: один раз рисуется из его же 3D-модели (голова и плечи) в отдельной сцене.
 ## Никакой дополнительной графики не нужно: меняется модель — меняется портрет.
 
-static func make(host: Node, model_path: String, yaw_deg: float = 0.0) -> Texture2D:
-	if not ResourceLoader.exists(model_path):
+static func make(host: Node, model_name: String, yaw_deg: float = 0.0) -> Texture2D:
+	var model: Node3D = Media.instance(model_name)
+	if model == null:
 		return null
 	var vp := SubViewport.new()
 	vp.size = Vector2i(256, 300)
@@ -13,7 +14,6 @@ static func make(host: Node, model_path: String, yaw_deg: float = 0.0) -> Textur
 	vp.render_target_update_mode = SubViewport.UPDATE_ONCE
 	host.add_child(vp)
 
-	var model: Node3D = (load(model_path) as PackedScene).instantiate()
 	vp.add_child(model)
 	model.rotation.y = deg_to_rad(yaw_deg)
 	var found := model.find_children("*", "AnimationPlayer", true, false)

@@ -57,3 +57,18 @@ func request(method: String, path: String, body: Variant = null) -> Dictionary:
 	if not ok:
 		msg = str(parsed.get("message", "Ошибка %d" % status)) if parsed is Dictionary else "Ошибка %d" % status
 	return {"ok": ok, "status": status, "data": parsed, "message": msg}
+
+
+## Скачивает файл (двоичный) на устройство. true, если ответ 200 и файл записан.
+func download(path: String, dest: String) -> bool:
+	var req := HTTPRequest.new()
+	req.timeout = 180.0
+	req.download_file = dest
+	add_child(req)
+	var err := req.request(server_url + path, ["Authorization: Bearer " + token] if token != "" else [])
+	if err != OK:
+		req.queue_free()
+		return false
+	var res: Array = await req.request_completed
+	req.queue_free()
+	return int(res[0]) == HTTPRequest.RESULT_SUCCESS and int(res[1]) == 200
