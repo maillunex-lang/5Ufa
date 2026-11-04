@@ -81,7 +81,33 @@ async def player_card(player_id: str, admin: AdminUser = Depends(moderator), ses
     return {**_player_brief(p), "wallet": await wallet.balances(session, p.id),
             "heroes": [{"id": h.id, "hero": h.hero_id, "tier": h.tier, "level": h.level, "crystal": h.crystal_slot is not None,
                         "signature": h.signature_level} for h in heroes],
-            "items": items, "campaign_cleared": progress.cleared if progress else 0, "sessions": sessions}
+            "items": items, "campaign_cleared": progress.cleared if progress else 0, "sessions": sessions,
+            "skins": sorted(f"{h}:{sid}" for h, ids in (await _owned_skins(session, p.id)).items() for sid in ids)}
+
+
+async def _owned_skins(session, pid):
+    from app.progression import skins as sk
+    return await sk.owned(session, pid)
+
+
+class SkinGrantIn(BaseModel):
+    hero: str = Field(min_length=1, max_length=64)
+    skin: str = Field(pattern=r"^[a-z][a-z0-9_]{0,31}$")
+    give: bool = True
+    reason: str = Field(min_length=3, max_length=500)
+
+
+@router.post("/players/{player_id}/skins")
+async def grant_skin(player_id: str, body: SkinGrantIn, request: Request,
+                     admin: AdminUser = Depends(moderator), session: AsyncSession = Depends(get_session)):
+    from app.progression import skins as sk
+    p = await _get_player(session, player_id)
+    await sk.grant(session, p.id, body.hero, body.skin, body.give)
+    await audit(session, request, admin, "player_skin",
+                f"Игрок #{p.number}: {'выдан' if body.give else 'забран'} скин {body.hero}:{body.skin}. Причина: {body.reason}",
+                {"player": str(p.id), "number": p.number, "hero": body.hero, "skin": body.skin, "give": body.give})
+    await session.commit()
+    return {"ok": True}
 
 
 class WalletIn(BaseModel):

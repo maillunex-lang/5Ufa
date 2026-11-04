@@ -41,7 +41,7 @@ func setup(u: Dictionary, e_max: int) -> void:
 	var skel_path := str(hero["art"]["skeleton"]) if hero is Dictionary else hero_dir + "/skeleton.json"
 	rig = SkeletonRig.new()
 	add_child(rig)
-	rig.setup(hero_dir, Content.load_json(skel_path))
+	rig.setup(hero_dir, Content.load_json(skel_path), str(u.get("skin", "")))
 	if side == 1:
 		rig.scale.x = -1  # враги смотрят влево
 	_bars = Node2D.new()

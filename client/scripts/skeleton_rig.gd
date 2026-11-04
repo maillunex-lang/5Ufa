@@ -29,9 +29,23 @@ static func load_texture(path: String) -> Texture2D:
 	return _tex_cache[path]
 
 
-func setup(hero_dir: String, skeleton: Dictionary) -> void:
+var skin := ""                # скин героя: картинки из <герой>/skins/<скин>/, если они есть
+
+
+## Путь картинки с учётом скина (нет файла в скине — картинка обычного вида)
+static func skin_path(hero_dir: String, rel: String, skin_id: String) -> String:
+	if skin_id != "" and skin_id != "default":
+		var p := "%s/skins/%s/%s" % [hero_dir, skin_id, rel]
+		if Content.has_file(p):
+			return p
+	return hero_dir + "/" + rel
+
+
+func setup(hero_dir: String, skeleton: Dictionary, skin_id := "") -> void:
 	base_dir = hero_dir
 	data = skeleton
+	if skin_id != "":
+		skin = skin_id
 	for b in data.get("bones", []):
 		_bone_index[b["name"]] = _bones.size()
 		_bones.append({"name": b["name"], "parent": b.get("parent", ""), "x": float(b.get("x", 0)),
@@ -42,7 +56,7 @@ func setup(hero_dir: String, skeleton: Dictionary) -> void:
 	_world.resize(_bones.size())
 	for s in data.get("slots", []):
 		var spr := Sprite2D.new()
-		spr.texture = load_texture(base_dir + "/" + str(s["image"]))
+		spr.texture = load_texture(skin_path(base_dir, str(s["image"]), skin))
 		spr.centered = false
 		var pivot: Array = s.get("pivot", [0, 0])
 		spr.offset = -Vector2(float(pivot[0]), float(pivot[1]))
@@ -101,7 +115,7 @@ func rebuild(skeleton: Dictionary) -> void:
 	_world.clear()
 	var was := current
 	var t := _time
-	setup(base_dir, skeleton)
+	setup(base_dir, skeleton, skin)
 	if frozen and was != "":
 		pose_at(was, t)
 

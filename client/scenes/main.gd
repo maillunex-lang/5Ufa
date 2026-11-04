@@ -321,7 +321,7 @@ func _refresh_resources() -> void:
 		power += int(heroes[i]["power"])
 	_power_label.text = short_number(power)
 	if not heroes.is_empty():
-		_avatar.texture = Content.load_texture("heroes/%s/portrait.png" % heroes[0]["hero"])
+		_avatar.texture = Ui.portrait(str(heroes[0]["hero"]), str(heroes[0].get("skin", "")))
 	var can_level := false
 	for h in heroes:
 		var cost: Variant = h.get("level_cost")

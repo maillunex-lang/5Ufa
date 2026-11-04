@@ -165,7 +165,7 @@ func _build_hud() -> void:
 			continue
 		var box := VBoxContainer.new()
 		var icon := Button.new()
-		icon.icon = Content.load_texture("heroes/%s/portrait.png" % u["hero"])
+		icon.icon = Ui.portrait(str(u["hero"]), str(u.get("skin", "")))
 		icon.custom_minimum_size = Vector2(118, 118)
 		icon.expand_icon = true
 		icon.pressed.connect(_request_ult.bind(int(u["uid"])))

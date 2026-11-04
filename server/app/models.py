@@ -263,3 +263,25 @@ class DraftMeta(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     base_release_id: Mapped[int | None] = mapped_column(ForeignKey("content_releases.id"), nullable=True)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+# ---------------------------------------------------------------------------
+# Этап 6в-2: скины героев
+# ---------------------------------------------------------------------------
+class PlayerSkin(Base):
+    """Скин, полученный игроком (обычный и бесплатные скины есть у всех без записи)."""
+    __tablename__ = "player_skins"
+
+    player_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("players.id", ondelete="CASCADE"), primary_key=True)
+    hero_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    skin_id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+class PlayerSkinChoice(Base):
+    """Какой скин игрок выбрал для героя (для всех копий героя)."""
+    __tablename__ = "player_skin_choice"
+
+    player_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("players.id", ondelete="CASCADE"), primary_key=True)
+    hero_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    skin_id: Mapped[str] = mapped_column(String(32), nullable=False)

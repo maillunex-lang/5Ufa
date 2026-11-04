@@ -13,6 +13,7 @@ const EVENTS := ["hit", "projectile", "sound", "effect"]
 var host: Node                 # экран админки: api, _say, _fail
 var hero_id := ""
 var skel_path := ""
+var skin_target := "default"   # в какой скин идут замены частей
 var skel: Dictionary = {}
 var rig: SkeletonRig
 var anim := "idle"
@@ -206,6 +207,7 @@ func _build() -> void:
 		_render_events()))
 
 	add_child(Ui.label("Части героя", 22, "accent"))
+	add_child(_skin_picker())
 	_parts_box = VBoxContainer.new()
 	add_child(_parts_box)
 	_render_parts()
@@ -463,7 +465,31 @@ func _render_events() -> void:
 # --- Части героя -----------------------------------------------------------------------------
 
 func _part_path(slot: Dictionary) -> String:
+	## Куда загружать замену: обычный вид или папка выбранного скина
+	if skin_target != "default":
+		return "heroes/%s/skins/%s/%s" % [hero_id, skin_target, slot["image"]]
 	return "heroes/%s/%s" % [hero_id, slot["image"]]
+
+
+func _skin_picker() -> Control:
+	var hero: Variant = Content.load_json("heroes/%s/hero.json" % hero_id)
+	var skins: Array = [{"id": "default", "name": "Обычный вид"}] + (hero.get("skins", []) if hero is Dictionary else [])
+	var row := HBoxContainer.new()
+	row.add_child(_label("Скин:", 18))
+	var pick := OptionButton.new()
+	pick.custom_minimum_size = Vector2(0, 56)
+	pick.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	for i in range(skins.size()):
+		pick.add_item(str(skins[i]["name"]))
+		if skins[i]["id"] == skin_target:
+			pick.selected = i
+	pick.item_selected.connect(func(i):
+		skin_target = str(skins[i]["id"])
+		rig.skin = skin_target
+		rig.rebuild(skel)
+		_render_parts())
+	row.add_child(pick)
+	return row
 
 
 func _render_parts() -> void:
@@ -473,7 +499,7 @@ func _render_parts() -> void:
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 8)
 		var icon := TextureRect.new()
-		icon.texture = SkeletonRig.load_texture(_part_path(slot))
+		icon.texture = SkeletonRig.load_texture(SkeletonRig.skin_path("heroes/" + hero_id, str(slot["image"]), skin_target))
 		icon.custom_minimum_size = Vector2(72, 72)
 		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED

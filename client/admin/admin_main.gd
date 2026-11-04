@@ -605,7 +605,8 @@ const ACTION_NAMES := {"login": "вход", "login_failed": "неудачный 
 		"draft_revert": "отмена правок", "draft_rebase": "перенос черновика", "draft_test": "на тест",
 		"publish": "публикация", "rollback": "откат", "test": "на тест", "patch_apply": "ZIP-патч", "export": "выгрузка",
 		"player_wallet": "ресурсы игрока", "player_test": "тестовый аккаунт", "player_ban": "бан",
-		"backup_request": "бэкап", "client_release": "версия APK"}
+		"backup_request": "бэкап", "client_release": "версия APK", "skin_create": "новый скин",
+		"skin_delete": "удалён скин", "player_skin": "скин игрока"}
 
 
 func _show_audit(before_id: int) -> void:
@@ -835,6 +836,23 @@ func _show_player(pid: String) -> void:
 					_show_player(pid)
 				else:
 					_fail(r), "Забанить"), 20))
+	b.add_child(Ui.label("Скины", 24, "accent"))
+	b.add_child(_text("Получены: " + (", ".join(p.get("skins", [])) if not p.get("skins", []).is_empty() else "нет (обычный вид и бесплатные скины есть у всех)"), 18))
+	var sk_hero := Ui.line_edit("id героя, например humai")
+	var sk_id := Ui.line_edit("id скина, например winter")
+	var sk_why := Ui.line_edit("Причина (в журнал)")
+	b.add_child(sk_hero)
+	b.add_child(sk_id)
+	b.add_child(sk_why)
+	var grant := func(give: bool):
+		var r: Dictionary = await api.call_api(HTTPClient.METHOD_POST, "/players/%s/skins" % pid,
+				{"hero": sk_hero.text.strip_edges(), "skin": sk_id.text.strip_edges(), "give": give, "reason": sk_why.text.strip_edges()})
+		if r.ok:
+			_show_player(pid)
+			_say("Готово")
+		else:
+			_fail(r)
+	b.add_child(_row([_btn("Выдать скин", func(): grant.call(true), 20), _btn("Забрать скин", func(): grant.call(false), 20)]))
 	b.add_child(Ui.label("Герои (%d)" % p["heroes"].size(), 24, "accent"))
 	var hl := []
 	for h in p["heroes"]:
@@ -1011,6 +1029,64 @@ func _preview_hero(hero_id: String) -> void:
 	b.add_child(_row([_btn("Отразить (как враг)", func(): rig.scale.x = -rig.scale.x, 18),
 			_btn("Скорость ×0.5 / ×1", func(): rig.speed = 0.5 if rig.speed == 1.0 else 1.0, 18)]))
 	b.add_child(_btn("Редактор анимации и частей героя", func(): _open(_anim_editor.bind(hero_id)), 22))
+	# Скины: примерить, добавить, удалить
+	b.add_child(Ui.label("Скины", 24, "accent"))
+	var skins: Array = [{"id": "default", "name": "Обычный"}] + hero.get("skins", [])
+	var pick := OptionButton.new()
+	pick.custom_minimum_size = Vector2(0, 60)
+	for sk in skins:
+		pick.add_item("%s%s" % [sk["name"], "  (бесплатный)" if bool(sk.get("free", false)) else ""])
+	pick.item_selected.connect(func(i):
+		rig.skin = str(skins[i]["id"])
+		rig.rebuild(rig.data)
+		rig.play("idle"))
+	b.add_child(pick)
+	b.add_child(_row([_btn("+ Новый скин", func(): _new_skin(hero_id), 18),
+			_btn("Удалить выбранный", func():
+				var sid := str(skins[pick.selected]["id"])
+				if sid == "default":
+					_say("Обычный вид удалить нельзя")
+					return
+				_confirm("Удалить скин «%s»? Игроки, у которых он выбран, увидят обычный вид." % skins[pick.selected]["name"], func():
+					var r: Dictionary = await api.call_api(HTTPClient.METHOD_DELETE, "/heroes/%s/skins/%s" % [hero_id, sid])
+					if r.ok:
+						await _with_draft(func(): pass)
+						_preview_hero(hero_id)
+						_say("Скин удалён в черновике")
+					else:
+						_fail(r), "Удалить"), 18)]))
+	b.add_child(_text("Новый скин — копия картинок обычного вида. Замените их в «Редактор анимации и частей» (выберите скин) или через ZIP героя.", 16))
+	b.add_child(Ui.label("Герой целиком", 24, "accent"))
+	b.add_child(_row([_btn("Выгрузить героя (ZIP)", func():
+		_say("Выгрузка…")
+		var r: Dictionary = await api.call_api(HTTPClient.METHOD_GET, "/heroes/%s/export" % hero_id, null, true)
+		if r.ok:
+			Previews.save_file(self, "hero_%s.zip" % hero_id, r.bytes, func(where: String): _say("Сохранено: " + where))
+		else:
+			_fail(r), 18),
+		_btn("Загрузить ZIP героя", func(): _open(_show_patch), 18)]))
+	b.add_child(_text("В ZIP: hero.json, скелет с анимациями, все картинки и скины. Замените картинки (те же имена) и загрузите — покажем список изменений.", 16))
+
+
+func _new_skin(hero_id: String) -> void:
+	_ask("id скина (латиница, например winter)", "winter", func(sid: String):
+		if sid == "":
+			return
+		_ask("Название скина для игроков", "Зимний", func(name: String):
+			_choose("Скин «%s»: кому доступен?" % name, [
+				["Только тем, кому выдам", func(): _create_skin(hero_id, sid, name, false)],
+				["Всем бесплатно", func(): _create_skin(hero_id, sid, name, true)]])))
+
+
+func _create_skin(hero_id: String, sid: String, name: String, free: bool) -> void:
+	_say("Создание скина…")
+	var r: Dictionary = await api.call_api(HTTPClient.METHOD_POST, "/heroes/%s/skins" % hero_id, {"skin": sid, "name": name, "free": free})
+	if not r.ok:
+		_fail(r)
+		return
+	await _with_draft(func(): pass)
+	_preview_hero(hero_id)
+	_say("Скин «%s» создан в черновике (%d картинок). Замените картинки и опубликуйте." % [name, int(r.data["files"])])
 
 
 func _anim_editor(hero_id: String) -> void:
@@ -1043,6 +1119,18 @@ func _preview_campaign() -> void:
 		if not ch is Dictionary:
 			break
 		b.add_child(Previews.chapter_card(ch, i))
+
+
+func _skin_shot() -> void:
+	## Для снимка: предпросмотр Хумай в скине «winter»
+	await _with_draft(func(): pass)
+	await _preview_hero("humai")
+	for c in _body.get_children():
+		if c is ColorRect and c.has_meta("rig"):
+			var rig: Node = c.get_meta("rig")
+			rig.skin = "winter"
+			rig.rebuild(rig.data)
+			rig.play("idle")
 
 
 func _screen_selftest() -> void:
@@ -1143,6 +1231,7 @@ func _autotest(creds: String) -> void:
 				"animtest": await _anim_selftest()
 				"screens": await _with_draft(func(): _open(_screen_editor.bind("hub")))
 				"screentest": await _screen_selftest()
+				"skinshot": await _skin_shot()
 				"livetest": await _with_draft(func(): _open_game("res://scenes/main.tscn"))
 				"players": _open(_show_players.bind(""))
 				"backups": _open(_show_backups)

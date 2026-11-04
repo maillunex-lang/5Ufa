@@ -95,7 +95,7 @@ func _card(h: Dictionary) -> Control:
 	box.add_theme_constant_override("separation", 2)
 	var b := Button.new()
 	b.custom_minimum_size = Vector2(112, 112)
-	b.icon = Content.load_texture("heroes/%s/portrait.png" % h["hero"])
+	b.icon = Ui.portrait(str(h["hero"]), str(h.get("skin", "")))
 	b.expand_icon = true
 	var style := StyleBoxFlat.new()
 	style.bg_color = Ui.colors["primary"]
@@ -122,7 +122,7 @@ func _detail(h: Dictionary) -> Control:
 	panel.add_child(box)
 	var head := HBoxContainer.new()
 	var icon := TextureRect.new()
-	icon.texture = Content.load_texture("heroes/%s/portrait.png" % h["hero"])
+	icon.texture = Ui.portrait(str(h["hero"]), str(h.get("skin", "")))
 	icon.custom_minimum_size = Vector2(110, 110)
 	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
@@ -163,10 +163,32 @@ func _detail(h: Dictionary) -> Control:
 		dis.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row2.add_child(dis)
 	box.add_child(row2)
+	if h.get("skins", []).size() > 1:
+		box.add_child(_skin_row(h))
 	if h.has("equipment"):
 		box.add_child(_equipment_row(h))
 		box.add_child(_signature_row(h))
 	return panel
+
+
+func _skin_row(h: Dictionary) -> Control:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+	var l := Ui.label("Скин:", 20)
+	row.add_child(l)
+	var pick := OptionButton.new()
+	pick.custom_minimum_size = Vector2(0, 56)
+	pick.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var skins: Array = h["skins"]
+	for i in range(skins.size()):
+		var sk: Dictionary = skins[i]
+		pick.add_item(str(sk["name"]) + ("" if bool(sk["owned"]) else " (не получен)"))
+		pick.set_item_disabled(i, not bool(sk["owned"]))
+		if sk["id"] == h.get("skin", "default"):
+			pick.selected = i
+	pick.item_selected.connect(func(i): _post("/api/v1/heroes/skin", {"hero": h["hero"], "skin": skins[i]["id"]}))
+	row.add_child(pick)
+	return row
 
 
 func _equipment_row(h: Dictionary) -> Control:

@@ -457,3 +457,118 @@ async def prompt(section_id: str, admin: AdminUser = Depends(editor), session: A
     text = sec.ai_prompt(ws, s)
     await session.commit()
     return {"prompt": text}
+
+
+# --- Герой целиком и скины (этап 6в-2) -----------------------------------------------------
+
+def _hero_dir_files(ws, hero_id: str) -> list[str]:
+    prefix = f"heroes/{hero_id}/"
+    return sorted(p for p in ws.files() if p.startswith(prefix))
+
+
+def _skin_base_files(ws, hero: dict, hero_id: str) -> list[str]:
+    """Картинки обычного вида, которые копируются в новый скин: части скелета, портрет, полный арт."""
+    out = []
+    art = hero.get("art", {})
+    for key in ("portrait", "full", "projectile"):
+        if art.get(key):
+            out.append(str(art[key]))
+    try:
+        skel = ws.read_json(str(art.get("skeleton", f"heroes/{hero_id}/skeleton.json")))
+        for slot in skel.get("slots", []):
+            out.append(f"heroes/{hero_id}/{slot['image']}")
+    except (KeyError, ValueError):
+        pass
+    return sorted({p for p in out if ws.exists(p)})
+
+
+@router.get("/heroes/{hero_id}/export")
+async def export_hero(hero_id: str, request: Request, admin: AdminUser = Depends(editor),
+                      session: AsyncSession = Depends(get_session)):
+    """Герой целиком одним ZIP (формат патча): hero.json, скелет и анимации, все картинки и скины."""
+    import io
+    import zipfile
+    ws = await drf.workspace(session)
+    path = f"heroes/{hero_id}/hero.json"
+    if not ws.exists(path):
+        raise HTTPException(404, "Герой не найден")
+    files = [p for p in _hero_dir_files(ws, hero_id) if p != path]
+    patch = {"id": f"hero-{hero_id.replace('_', '-')}", "format_version": 1, "section": "heroes",
+             "description": f"Герой «{ws.read_json(path).get('name', hero_id)}» целиком",
+             "operations": [{"op": "update", "id": hero_id, "data": ws.read_json(path), "files": files}]}
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr("patch.json", json.dumps(patch, ensure_ascii=False, indent=2))
+        zf.writestr("README.txt", "Герой целиком. Замените картинки в files/ (те же имена и размеры, PNG с прозрачностью),\n"
+                    "поправьте patch.json при необходимости и загрузите в админке: «ZIP-патч».\n"
+                    "Скины лежат в files/heroes/<герой>/skins/<скин>/ — те же пути, что у обычного вида.\n")
+        for p in files:
+            zf.writestr("files/" + p, ws.read_bytes(p))
+    await audit(session, request, admin, "export", f"Выгрузка героя «{hero_id}»", {"hero": hero_id})
+    await session.commit()
+    return Response(buf.getvalue(), media_type="application/zip",
+                    headers={"Content-Disposition": f'attachment; filename="hero_{hero_id}.zip"'})
+
+
+class NewSkinIn(BaseModel):
+    skin: str = Field(pattern=r"^[a-z][a-z0-9_]{0,31}$")
+    name: str = Field(min_length=1, max_length=60)
+    free: bool = False
+
+
+@router.post("/heroes/{hero_id}/skins")
+async def create_skin(hero_id: str, body: NewSkinIn, request: Request, admin: AdminUser = Depends(editor),
+                      session: AsyncSession = Depends(get_session)):
+    """Новый скин = копия картинок обычного вида в heroes/<id>/skins/<скин>/ (дальше их заменяют)."""
+    ws = await drf.workspace(session)
+    path = f"heroes/{hero_id}/hero.json"
+    if not ws.exists(path):
+        raise HTTPException(404, "Герой не найден")
+    if body.skin == "default":
+        raise HTTPException(422, "«default» — обычный вид, выберите другое имя")
+    hero = ws.read_json(path)
+    skins = hero.setdefault("skins", [])
+    if any(s["id"] == body.skin for s in skins):
+        raise HTTPException(409, f"Скин «{body.skin}» уже есть")
+    prefix = f"heroes/{hero_id}/"
+    copied = 0
+    try:
+        for p in _skin_base_files(ws, hero, hero_id):
+            rel = p[len(prefix):]
+            await drf.put_file(session, admin.id, f"{prefix}skins/{body.skin}/{rel}", ws.read_bytes(p))
+            copied += 1
+        skins.append({"id": body.skin, "name": body.name, "free": body.free})
+        await drf.put_json(session, admin.id, path, hero)
+    except ContentError as e:
+        raise content_error(e)
+    await audit(session, request, admin, "skin_create", f"Герой «{hero_id}»: новый скин «{body.name}» ({copied} картинок)",
+                {"hero": hero_id, "skin": body.skin})
+    await session.commit()
+    return {"ok": True, "skin": body.skin, "files": copied}
+
+
+@router.delete("/heroes/{hero_id}/skins/{skin_id}")
+async def delete_skin(hero_id: str, skin_id: str, request: Request, admin: AdminUser = Depends(editor),
+                      session: AsyncSession = Depends(get_session)):
+    ws = await drf.workspace(session)
+    path = f"heroes/{hero_id}/hero.json"
+    if not ws.exists(path):
+        raise HTTPException(404, "Герой не найден")
+    hero = ws.read_json(path)
+    before = len(hero.get("skins", []))
+    hero["skins"] = [s for s in hero.get("skins", []) if s["id"] != skin_id]
+    if len(hero["skins"]) == before:
+        raise HTTPException(404, "Такого скина нет")
+    if not hero["skins"]:
+        hero.pop("skins")
+    try:
+        await drf.put_json(session, admin.id, path, hero)
+        for p in _hero_dir_files(ws, hero_id):
+            if p.startswith(f"heroes/{hero_id}/skins/{skin_id}/"):
+                await drf.delete_file(session, admin.id, p)
+    except ContentError as e:
+        raise content_error(e)
+    await audit(session, request, admin, "skin_delete", f"Герой «{hero_id}»: удалён скин «{skin_id}»",
+                {"hero": hero_id, "skin": skin_id})
+    await session.commit()
+    return {"ok": True}

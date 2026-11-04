@@ -71,7 +71,7 @@ def effective_level(cfg: dict, h: PlayerHero, crystal: int | None) -> int:
 
 
 def hero_public(cfg: dict, content_heroes: dict, h: PlayerHero, crystal: int | None,
-                eq_cfg: dict | None = None, worn: dict | None = None) -> dict:
+                eq_cfg: dict | None = None, worn: dict | None = None, skin_info: dict | None = None) -> dict:
     """worn — {слот: PlayerItem} надетого снаряжения; eq_cfg — config/equipment.json (None — без снаряжения)."""
     from app.progression import equipment as eq
     data = content_heroes.get(h.hero_id, {})
@@ -95,6 +95,11 @@ def hero_public(cfg: dict, content_heroes: dict, h: PlayerHero, crystal: int | N
         "ascension_requires": [_describe_req(cfg, content_heroes, h, r) for r in nxt["requires"]] if nxt else [],
         "dismiss_essence": int(cfg.get("dismiss_essence", {}).get(h.tier, 0)),
     }
+    if skin_info is not None:  # {"owned": {hero: set}, "chosen": {hero: skin}}
+        from app.progression import skins as sk
+        have = skin_info["owned"].get(h.hero_id, set())
+        out["skins"] = sk.available(data, have)
+        out["skin"] = sk.effective(data, skin_info["chosen"].get(h.hero_id), have)
     if eq_cfg:
         out["equipment_kind"] = eq.kind_for_role(eq_cfg, data.get("role"))
         out["equipment"] = {slot: eq.item_public(eq_cfg, it, data.get("faction")) for slot, it in (worn or {}).items()}
@@ -229,6 +234,9 @@ async def build_team(session, player_id, cfg, content_heroes, team: list[dict], 
     roster = await heroes_of(session, player_id)
     crystal = crystal_level(cfg, roster)
     worn = eq.worn_map(await eq.items_of(session, player_id)) if eq_cfg else {}
+    from app.progression import skins as sk
+    owned_skins = await sk.owned(session, player_id)
+    chosen_skins = await sk.choices(session, player_id)
     out = []
     for unit in team:
         own = [h for h in roster if h.hero_id == unit["hero"]]
@@ -248,7 +256,9 @@ async def build_team(session, player_id, cfg, content_heroes, team: list[dict], 
         best = max(own, key=strength)
         lvl = effective_level(cfg, best, crystal)
         mult = stat_multiplier(cfg, best.tier, lvl)
-        entry = {"hero": unit["hero"], "slot": unit["slot"], "level": lvl, "tier": best.tier}
+        entry = {"hero": unit["hero"], "slot": unit["slot"], "level": lvl, "tier": best.tier,
+                 "skin": sk.effective(content_heroes.get(unit["hero"], {}), chosen_skins.get(unit["hero"]),
+                                      owned_skins.get(unit["hero"], set()))}
         if eq_cfg:
             mult = round(mult * eq.signature_stat_mult(eq_cfg, best.signature_level), 6)
             entry["bonus"] = eq.hero_bonus(eq_cfg, worn.get(best.id, {}), faction)

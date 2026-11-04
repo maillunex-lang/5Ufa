@@ -170,3 +170,8 @@ static func cost_text(cost: Dictionary) -> String:
 		var name: String = "свитки фракции" if str(code).begins_with("faction_scroll_") else CURRENCY_LABELS.get(code, code)
 		parts.append("%s: %d" % [name, int(cost[code])])
 	return ", ".join(parts) if not parts.is_empty() else "ничего"
+
+
+## Портрет героя с учётом выбранного скина
+static func portrait(hero_id: String, skin_id := "") -> Texture2D:
+	return Content.load_texture(SkeletonRig.skin_path("heroes/" + hero_id, "portrait.png", skin_id))

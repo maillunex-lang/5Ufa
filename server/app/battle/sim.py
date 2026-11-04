@@ -51,6 +51,7 @@ class Unit:
     target: "Unit | None" = None
     low_hp_fired: bool = False
     ult_power: float = 1.0                         # множитель силы ультимейта (уникальный предмет)
+    skin: str = ""                                 # выбранный скин (только внешний вид)
     shields: list = field(default_factory=list)   # [amount, expire_tick]
     buffs: list = field(default_factory=list)     # [stat, percent, expire_tick]
     dots: list = field(default_factory=list)      # [src, per_tick_raw, next_tick, expire_tick]
@@ -139,7 +140,8 @@ class Battle:
             targeting=role.get("targeting", "nearest"),
         )
         u.hp = u.max_hp
-        u.ult_power = float(entry.get("ult_power", 1.0))  # уникальный предмет усиливает ультимейт
+        u.ult_power = float(entry.get("ult_power", 1.0))
+        u.skin = str(entry.get("skin", ""))  # уникальный предмет усиливает ультимейт
         u.energy = int(self.cfg["energy"].get("start", 0))
         for s in hero["skills"]:
             if s["type"] == "active":
@@ -229,7 +231,7 @@ class Battle:
 
     def _unit_public(self, u: Unit) -> dict:
         start_x = (-1 if u.side == 0 else 1) * (self.cfg["field"]["front_x"] if u.slot in FRONT_SLOTS else self.cfg["field"]["back_x"])
-        return {"uid": u.uid, "side": u.side, "slot": u.slot, "hero": u.hero["id"], "name": u.hero["name"],
+        return {"uid": u.uid, "side": u.side, "slot": u.slot, "hero": u.hero["id"], "name": u.hero["name"], "skin": u.skin,
                 "faction": u.faction, "role": u.hero["role"], "x": start_x, "lane": u.lane,
                 "max_hp": u.max_hp, "energy": int(self.cfg["energy"].get("start", 0)),
                 "skills": [{"id": s["id"], "type": s["type"], "name": s["name"]} for s in u.hero["skills"]]}

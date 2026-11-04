@@ -674,6 +674,11 @@ def write_hero(h, hid, role, art, write):
         "rarity": h.get("rarity", "legendary"), "description": h["description"], "lore": h["lore"],
         "stats": stats, "skills": h["skills"], "art": art,
     }
+    old = ROOT / "heroes" / hid / "hero.json"
+    if old.is_file():  # скины, добавленные в админке/вручную, не теряем
+        prev = json.loads(old.read_text(encoding="utf-8"))
+        if prev.get("skins"):
+            hero_json["skins"] = prev["skins"]
     write(f"heroes/{hid}/hero.json", hero_json)
     print(f"{hid:<12} {h['name']:<12} {role:<9} {h['faction']}")
 

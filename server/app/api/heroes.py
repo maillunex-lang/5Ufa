@@ -45,7 +45,9 @@ async def _roster_payload(session, player_id, cfg, content_heroes, eq_cfg: dict 
     roster = await prog.heroes_of(session, player_id)
     crystal = prog.crystal_level(cfg, roster)
     worn = eq.worn_map(await eq.items_of(session, player_id)) if eq_cfg else {}
-    items = [prog.hero_public(cfg, content_heroes, h, crystal, eq_cfg, worn.get(h.id, {})) for h in roster]
+    from app.progression import skins as sk
+    skin_info = {"owned": await sk.owned(session, player_id), "chosen": await sk.choices(session, player_id)}
+    items = [prog.hero_public(cfg, content_heroes, h, crystal, eq_cfg, worn.get(h.id, {}), skin_info) for h in roster]
     items.sort(key=lambda x: (-x["power"], x["name"]))
     return {
         "heroes": items,
@@ -274,3 +276,20 @@ async def upgrade_signature(instance_id: int, player: Player = Depends(current_p
     payload = await _roster_payload(session, player.id, cfg, view.heroes(), eq_cfg)
     await session.commit()
     return {**payload, "message": f"Уникальный предмет: уровень {hero.signature_level}"}
+
+
+# --- Скины (этап 6в-2) ---------------------------------------------------------------------
+
+class SkinIn(BaseModel):
+    hero: str = Field(min_length=1, max_length=64)
+    skin: str = Field(min_length=1, max_length=32)
+
+
+@router.post("/heroes/skin")
+async def choose_skin(body: SkinIn, player: Player = Depends(current_player), session: AsyncSession = Depends(get_session)):
+    from app.progression import skins as sk
+    view, cfg = await _prepare(player, session)
+    await sk.choose(session, player.id, view.heroes(), body.hero, body.skin)
+    payload = await _roster_payload(session, player.id, cfg, view.heroes(), equipment_config(view))
+    await session.commit()
+    return payload
