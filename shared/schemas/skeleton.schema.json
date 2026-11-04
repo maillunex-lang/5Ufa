@@ -43,7 +43,19 @@
           "x": {"type": "number", "description": "Сдвиг картинки относительно кости"},
           "y": {"type": "number"},
           "rotation": {"type": "number"},
-          "pivot": {"type": "array", "items": {"type": "number"}, "minItems": 2, "maxItems": 2, "description": "Точка картинки, совпадающая с костью, в пикселях от левого верхнего угла"}
+          "pivot": {"type": "array", "items": {"type": "number"}, "minItems": 2, "maxItems": 2, "description": "Точка картинки, совпадающая с костью, в пикселях от левого верхнего угла"},
+          "skins": {
+            "type": "object",
+            "description": "Своя картинка и точка крепления части в скине (нарезчик админки): {\"winter\": {\"image\": \"rig/arm_front.png\", \"pivot\": [x, y]}}. Картинка ищется в skins/<скин>/ по этому пути",
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "image": {"type": "string"},
+                "pivot": {"type": "array", "items": {"type": "number"}, "minItems": 2, "maxItems": 2}
+              }
+            }
+          }
         }
       }
     },

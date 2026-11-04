@@ -199,6 +199,11 @@ jobs:
             --admin-autotest=owner:ci-admin-pass-1 --admin-show=animtest --screenshot-after=120:/dev/null > /tmp/out.txt 2>&1 || true
           grep -E "AUTOTEST|SCRIPT ERROR" /tmp/out.txt || true
           grep -q 'AUTOTEST ANIM: {.*"ok":true' /tmp/out.txt || { cat /tmp/out.txt; exit 1; }
+          echo "--- нарезчик героя: рисунок → автонарезка → мазок кистью → герой в черновике"
+          timeout 180 $G --headless --path . res://admin/admin_main.tscn -- --server=http://127.0.0.1:8085 \
+            --admin-autotest=owner:ci-admin-pass-1 --admin-show=cuttest > /tmp/out.txt 2>&1 || true
+          grep -E "AUTOTEST|SCRIPT ERROR" /tmp/out.txt || true
+          grep -q 'AUTOTEST CUT: {.*"ok":true' /tmp/out.txt || { cat /tmp/out.txt; exit 1; }
           echo "--- конструктор экранов: перенос элемента сохраняется в черновик"
           timeout 180 $G --headless --path . res://admin/admin_main.tscn -- --server=http://127.0.0.1:8085 \
             --admin-autotest=owner:ci-admin-pass-1 --admin-show=screentest --screenshot-after=120:/dev/null > /tmp/out.txt 2>&1 || true

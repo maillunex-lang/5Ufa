@@ -56,9 +56,11 @@ func setup(hero_dir: String, skeleton: Dictionary, skin_id := "") -> void:
 	_world.resize(_bones.size())
 	for s in data.get("slots", []):
 		var spr := Sprite2D.new()
-		spr.texture = load_texture(skin_path(base_dir, str(s["image"]), skin))
+		# Своя картинка и точка крепления части в скине (нарезчик админки): slots[].skins[<скин>]
+		var own: Dictionary = s.get("skins", {}).get(skin, {}) if skin != "" else {}
+		spr.texture = load_texture(skin_path(base_dir, str(own.get("image", s["image"])), skin))
 		spr.centered = false
-		var pivot: Array = s.get("pivot", [0, 0])
+		var pivot: Array = own.get("pivot", s.get("pivot", [0, 0]))
 		spr.offset = -Vector2(float(pivot[0]), float(pivot[1]))
 		spr.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 		add_child(spr)

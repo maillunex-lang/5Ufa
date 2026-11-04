@@ -1103,6 +1103,9 @@ func _preview_hero(hero_id: String) -> void:
 					else:
 						_fail(r), "Удалить"), 18)]))
 	b.add_child(_text("Новый скин — копия картинок обычного вида. Замените их в «Редактор анимации и частей» (выберите скин) или через ZIP героя.", 16))
+	b.add_child(_btn("Нарезать из рисунка (в выбранный вид)", func():
+		_open(_cutter.bind(hero_id, str(skins[pick.selected]["id"]))), 20))
+	b.add_child(_text("Загрузите рисунок, лист персонажа или слои — части и скелет сделаются автоматически или с ИИ, потом поправите пальцем.", 16))
 	b.add_child(Ui.label("Герой целиком", 24, "accent"))
 	b.add_child(_row([_btn("Выгрузить героя (ZIP)", func():
 		_say("Выгрузка…")
@@ -1134,6 +1137,58 @@ func _create_skin(hero_id: String, sid: String, name: String, free: bool) -> voi
 	await _with_draft(func(): pass)
 	_preview_hero(hero_id)
 	_say("Скин «%s» создан в черновике (%d картинок). Замените картинки и опубликуйте." % [name, int(r.data["files"])])
+
+
+func _cutter(hero_id: String, target := "default") -> void:
+	var b := _frame("Нарезка героя: " + hero_id)
+	var c := HeroCutter.new()
+	b.add_child(c)
+	await c.setup(self, hero_id, target)
+
+
+func _cut_selftest() -> void:
+	## Рисунок → авто → мазок → сборка в черновик → скелет героя обновлён
+	await _cutter("shulgen")
+	var c: HeroCutter = null
+	for ch in _body.get_children():
+		if ch is HeroCutter:
+			c = ch
+	var img := Image.create(400, 600, false, Image.FORMAT_RGBA8)
+	img.fill(Color(1, 0, 1))
+	var rects := [[Rect2i(165, 40, 70, 80), Color("#E6BE96")], [Rect2i(150, 120, 100, 210), Color("#287840")],
+			[Rect2i(120, 140, 30, 190), Color("#C8A028")], [Rect2i(250, 140, 30, 190), Color("#D2AA32")],
+			[Rect2i(155, 330, 40, 230), Color("#5A3C1E")], [Rect2i(205, 330, 40, 230), Color("#644628")]]
+	for r in rects:
+		img.fill_rect(r[0], r[1])
+	var ok := await c.upload(img.save_png_to_buffer(), "test.png")
+	ok = ok and await c._auto()
+	var parts_ok := c.parts.size() == 7 and c._part_tex.has("head")
+	await c.test_stroke("head", "erase", Vector2(200, 60), 6)
+	var res: Dictionary = await c.build_hero()
+	var f: Dictionary = await api.call_api(HTTPClient.METHOD_GET, "/files?path=heroes/shulgen/skeleton.json", null, true)
+	var sk: Variant = JSON.parse_string(f.bytes.get_string_from_utf8())
+	var slots: Array = sk.get("slots", []) if sk is Dictionary else []
+	ok = ok and parts_ok and bool(res.get("ok", false)) and slots.any(func(s): return str(s["image"]) == "rig/head.png")
+	print("AUTOTEST CUT: ", JSON.stringify({"ok": ok, "parts": c.parts.size(), "slots": slots.size(), "joints": c.joints.size()}))
+	c.tool = "joint"
+	c.part = ""
+	c._canvas.queue_redraw()
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--cut-scroll="):  # снимки экрана нижней части нарезчика
+			var sc := _body.get_parent() as ScrollContainer
+			if sc:
+				await get_tree().process_frame
+				sc.scroll_vertical = int(arg.get_slice("=", 1))
+		if arg == "--cut-preview":
+			await _with_draft(func(): pass)
+			_open(_preview_hero.bind("shulgen"))
+		if arg == "--cut-part":
+			c.part = "head"
+			c._set_tool("erase")
+			c._refresh_parts()
+	if "--screenshot-after=" not in str(OS.get_cmdline_user_args()):
+		await api.call_api(HTTPClient.METHOD_POST, "/draft/revert", {})
+		get_tree().quit(0 if ok else 1)
 
 
 func _anim_editor(hero_id: String) -> void:
@@ -1281,6 +1336,7 @@ func _autotest(creds: String) -> void:
 				"game": _open_game("res://scenes/inventory.tscn")
 				"anim": _open(_anim_editor.bind("ural_batyr"))
 				"animtest": await _anim_selftest()
+				"cuttest": await _cut_selftest()
 				"screens": await _with_draft(func(): _open(_screen_editor.bind("hub")))
 				"screentest": await _screen_selftest()
 				"skinshot": await _skin_shot()
