@@ -85,7 +85,8 @@
      "Spike_Shield",
      "2H_Sword"
     ]
-   }
+   },
+   "starter": true
   },
   {
    "key": "warrior",
@@ -154,7 +155,8 @@
     ],
     "source": "Meshy (владелец), модель мечника",
     "_test": true
-   }
+   },
+   "starter": true
   },
   {
    "key": "archer",
@@ -195,7 +197,8 @@
      "Throwable",
      "Knife"
     ]
-   }
+   },
+   "starter": true
   },
   {
    "key": "mage",
@@ -256,7 +259,8 @@
      "Spellbook_open",
      "1H_Wand"
     ]
-   }
+   },
+   "starter": true
   },
   {
    "key": "healer",
@@ -314,7 +318,8 @@
     "source": "Meshy (проба), см. docs/licenses.md",
     "_test": true,
     "bar_height": 2.8
-   }
+   },
+   "starter": true
   }
  ],
  "enemies": [

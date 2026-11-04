@@ -29,4 +29,17 @@
 Координаты в условных единицах арены: игрок слева (x<0), враги справа. Клиент воспроизводит события с нужной скоростью; сам ничего не считает.
 
 ## Админ-API (`Authorization: Bearer <admin token>`, префикс `/admin/api/`)
-`POST login{login,password}` · `GET status` · `POST maintenance{on,message}` · `POST backup` · `GET content/versions` · `POST content/reload`. Новые редакторы добавляют свои методы здесь и в этом файле.
+`POST login{login,password}` · `GET status` · `POST maintenance{on,message}` · `POST backup`.
+
+Контент (версии линейные, активна последняя; правка и откат создают новую версию, история не переписывается):
+| Метод | Путь | Тело → ответ |
+| --- | --- | --- |
+| GET | `content/current` | → `{id,content,note,source,author,parent,created,active}` активная версия |
+| GET | `content/versions?limit=` | → список `{id,hash,note,source,author,parent,created,active}` (source: file, admin, rollback) |
+| GET | `content/version/:id` | → та же структура для любой версии |
+| GET | `content/diff?from=&to=` | → `{from,to,total,changes[{path,from,to}],truncated}` (путь вида `heroes[tank].stats.hp`) |
+| POST | `content/save` | `{content,note,baseVersion}` → `{version,changes}`; ошибки: 422 `invalid_content` с `details[]`, 409 `version_conflict`, 409 `hero_in_use`, 400 `no_changes` |
+| POST | `content/rollback` | `{version,note}` → `{version,restoredFrom}`; 400 `already_current`, 404 `no_version` |
+| POST | `content/reload` | `{force}` → `{changed,version}`: повторный импорт `content/game.json` |
+
+Новые редакторы добавляют свои методы здесь.

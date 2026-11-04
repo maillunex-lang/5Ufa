@@ -56,9 +56,9 @@ export function createApp({ dataDir, contentPath, adminDir, env = process.env })
 
   // ---------- http ----------
   const json = (res, status, obj) => { const b = JSON.stringify(obj); res.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' }); res.end(b); };
-  const readBody = (req) => new Promise((ok, fail) => {
+  const readBody = (req, max = 65536) => new Promise((ok, fail) => {
     let n = 0; const ch = [];
-    req.on('data', (d) => { n += d.length; if (n > 65536) { fail(new GameError('too_large', 'Слишком большой запрос', 413)); req.destroy(); } else ch.push(d); });
+    req.on('data', (d) => { n += d.length; if (n > max) { fail(new GameError('too_large', 'Слишком большой запрос', 413)); req.destroy(); } else ch.push(d); });
     req.on('end', () => { try { ok(ch.length ? JSON.parse(Buffer.concat(ch).toString('utf8')) : {}); } catch { fail(new GameError('bad_json', 'Некорректный JSON')); } });
   });
   const bearer = (req) => (req.headers.authorization || '').replace(/^Bearer /, '');
@@ -122,7 +122,7 @@ export function createApp({ dataDir, contentPath, adminDir, env = process.env })
     }
     if (p.startsWith('/admin/api/')) {
       requireAdmin(req);
-      const b = m === 'POST' ? await readBody(req) : {};
+      const b = m === 'POST' ? await readBody(req, p.startsWith('/admin/api/content') ? 3_000_000 : 65536) : {};
       if (p === '/admin/api/status') {
         const n = (sql) => db.prepare(sql).get().n;
         return json(res, 200, {
@@ -143,8 +143,17 @@ export function createApp({ dataDir, contentPath, adminDir, env = process.env })
         return json(res, 200, { maintenance: on });
       }
       if (p === '/admin/api/backup' && m === 'POST') { const name = backup('manual'); audit(adminUser, 'backup', { name }); return json(res, 200, { name }); }
-      if (p === '/admin/api/content/versions') return json(res, 200, db.prepare('SELECT id,hash,note,created FROM content_versions ORDER BY id DESC LIMIT 50').all());
-      if (p === '/admin/api/content/reload' && m === 'POST') { const before = game.getContent().id; game.syncContentFromFile(); audit(adminUser, 'content_reload', { before, after: game.getContent().id }); return json(res, 200, { contentVersion: game.getContent().id }); }
+      if (p === '/admin/api/content/current' && m === 'GET') { const id = game.currentVersionId(); return json(res, 200, game.getVersion(id)); }
+      if (p === '/admin/api/content/versions' && m === 'GET') return json(res, 200, game.listVersions(Number(url.searchParams.get('limit')) || 50));
+      const mv = p.match(/^\/admin\/api\/content\/version\/(\d+)$/);
+      if (mv && m === 'GET') return json(res, 200, game.getVersion(Number(mv[1])));
+      if (p === '/admin/api/content/diff' && m === 'GET') return json(res, 200, game.diffVersions(Number(url.searchParams.get('from')), Number(url.searchParams.get('to'))));
+      if (p === '/admin/api/content/save' && m === 'POST') {
+        const r = game.publishContent(b.content, { author: adminUser, note: String(b.note || '').slice(0, 300), baseVersion: b.baseVersion });
+        return json(res, 200, r);
+      }
+      if (p === '/admin/api/content/rollback' && m === 'POST') return json(res, 200, game.rollbackTo(Number(b.version), { author: adminUser, note: String(b.note || '').slice(0, 300) }));
+      if (p === '/admin/api/content/reload' && m === 'POST') { const r = game.syncContentFromFile({ force: !!b.force, author: adminUser }); return json(res, 200, { ...r, contentVersion: game.currentVersionId() }); }
       throw new GameError('not_found', 'Нет такого метода', 404);
     }
     // --- статика админки ---
@@ -162,7 +171,7 @@ export function createApp({ dataDir, contentPath, adminDir, env = process.env })
     try {
       await route(req, res, new URL(req.url, 'http://x'));
     } catch (e) {
-      if (e instanceof GameError) return json(res, e.status, { error: e.code, message: e.message });
+      if (e instanceof GameError) return json(res, e.status, { error: e.code, message: e.message, ...(e.details ? { details: e.details } : {}) });
       logError('server', e);
       console.error(e);
       json(res, 500, { error: 'internal', message: 'Внутренняя ошибка' });

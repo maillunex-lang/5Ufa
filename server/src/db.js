@@ -19,11 +19,20 @@ CREATE TABLE IF NOT EXISTS audit(id INTEGER PRIMARY KEY, ts INTEGER NOT NULL, ac
 CREATE TABLE IF NOT EXISTS error_log(id INTEGER PRIMARY KEY, ts INTEGER NOT NULL, source TEXT NOT NULL, message TEXT NOT NULL);
 `;
 
+function ensureColumn(db, table, col, ddl) {
+  const cols = db.prepare(`PRAGMA table_info(${table})`).all().map((c) => c.name);
+  if (!cols.includes(col)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${ddl}`);
+}
+
 export function openDb(path) {
   if (path !== ':memory:') mkdirSync(dirname(path), { recursive: true });
   const db = new DatabaseSync(path);
   db.exec('PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000;');
   db.exec(SCHEMA);
+  // миграции существующих баз (версии контента получили источник, автора и родителя)
+  ensureColumn(db, 'content_versions', 'source', 'source TEXT');
+  ensureColumn(db, 'content_versions', 'author', 'author TEXT');
+  ensureColumn(db, 'content_versions', 'parent', 'parent INTEGER');
   return db;
 }
 

@@ -262,3 +262,27 @@ test('контент: камера арены проверяется', () => {
   bad.arena.camera.fov = 5;
   assert.ok(validateContent(bad).some((e) => e.includes('камера')));
 });
+
+test('контент: правила юнитов и способностей, дополнительные нестартовые герои', () => {
+  const c = content();
+  assert.deepEqual(validateContent(c), []);
+  // новый нестартовый герой допустим, но игрок получает только стартовых
+  const ok = structuredClone(c);
+  const h = structuredClone(ok.heroes[0]);
+  h.key = 'paladin'; h.name = 'Паладин'; h.starter = false;
+  h.abilities.forEach((a) => { a.id = 'pal_' + a.id; });
+  ok.heroes.push(h);
+  assert.deepEqual(validateContent(ok), []);
+  const bad = structuredClone(c);
+  bad.heroes[1].key = 'Bad Key';
+  bad.heroes[2].stats.critChance = 2;
+  bad.heroes[3].abilities[0].id = bad.heroes[0].abilities[0].id;
+  bad.heroes[4].abilities.push({ id: 'x_main2', kind: 'main', effect: 'aoe', mult: 1 }, { id: 'x_main3', kind: 'main', effect: 'aoe', mult: 1 });
+  bad.stages[0].reward.gold = -5;
+  bad.progression.growth = 99;
+  const errs = validateContent(bad).join(' | ');
+  for (const part of ['латиница', 'critChance', 'не уникален', 'главная способность', 'награда gold', 'progression.growth']) assert.ok(errs.includes(part), `нет ошибки про «${part}»: ${errs}`);
+  const few = structuredClone(c);
+  few.heroes[0].starter = false;
+  assert.ok(validateContent(few).some((e) => e.includes('стартовых')));
+});
