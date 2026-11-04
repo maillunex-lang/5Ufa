@@ -19,9 +19,12 @@ MAX_PATCH_FILES = 2000
 
 
 @lru_cache
+def sections_doc() -> dict:
+    return json.loads((get_settings().shared_dir / "admin" / "sections.json").read_text(encoding="utf-8"))
+
+
 def sections() -> dict[str, dict]:
-    data = json.loads((get_settings().shared_dir / "admin" / "sections.json").read_text(encoding="utf-8"))
-    return {s["id"]: s for s in data["sections"]}
+    return {s["id"]: s for s in sections_doc()["sections"]}
 
 
 def get_section(section_id: str) -> dict:

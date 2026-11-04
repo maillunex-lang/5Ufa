@@ -217,3 +217,18 @@ async def test_publish_build_errors_are_readable(published):
     await c.put("/api/v1/admin/files", params={"path": "nowhere/pic.png"}, headers=hdr, content=b"\x89PNG")
     r = await c.post("/api/v1/admin/draft/test", headers=hdr, json={})
     assert r.status_code == 422 and any("пакет" in e for e in r.json()["detail"]["errors"])
+
+
+async def test_assets_grouped_by_usage(published):
+    c = published
+    await make_admin()
+    hdr = await admin_headers(c)
+    data = (await c.get("/api/v1/admin/assets", headers=hdr)).json()
+    groups = {g["name"]: g for g in data["groups"]}
+    assert data["groups"][0]["name"] == "Главный экран"
+    hub = {i["path"]: i["where"] for i in groups["Главный экран"]["items"]}
+    assert "ui/hub/building_fortress.png" in hub and "ui/hub/icon_events.png" in hub and "ui/hub/icon_coin.png" in hub
+    assert any(n.startswith("Герой: Хумай") for n in groups)
+    humai = next(g for n, g in groups.items() if n.startswith("Герой: Хумай"))
+    assert any(i["path"] == "heroes/humai/rig/torso.png" for i in humai["items"])
+    assert "Инвентарь и снаряжение" in groups and "Загрузка и вход" in groups

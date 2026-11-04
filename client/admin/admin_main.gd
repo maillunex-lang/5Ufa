@@ -218,7 +218,8 @@ func _show_home() -> void:
 	b.add_child(_row([_btn("Черновик (%d)" % _draft_count, func(): _open(_show_draft)),
 			_btn("Версии", func(): _open(_show_releases)), _btn("Журнал", func(): _open(_show_audit.bind(0)))]))
 	b.add_child(_row([_btn("ZIP-патч", func(): _open(_show_patch)), _btn("Предпросмотр", func(): _open(_show_previews))]))
-	b.add_child(_btn("Конструктор экранов", func(): _with_draft(func(): _open(_show_screens)), 24))
+	b.add_child(_row([_btn("Конструктор экранов", func(): _with_draft(func(): _open(_show_screens)), 22),
+			_btn("Картинки игры", func(): _open(_show_assets), 22)]))
 	b.add_child(_row([_btn("Игроки", func(): _open(_show_players.bind(""))), _btn("Бэкапы", func(): _open(_show_backups)),
 			_btn("Версии APK", func(): _open(_show_apk))]))
 	b.add_child(Ui.label("Разделы", 26, "accent"))
@@ -687,6 +688,52 @@ func _pick_and_upload(path: String) -> void:
 			_fail(r))
 
 
+# --- Картинки игры по местам использования -------------------------------------------------
+
+var _asset_groups: Array = []
+
+
+func _show_assets() -> void:
+	var b := _frame("Картинки игры")
+	_say("Загрузка…")
+	var res: Dictionary = await api.call_api(HTTPClient.METHOD_GET, "/assets")
+	if not res.ok:
+		_fail(res)
+		return
+	_say("")
+	_asset_groups = res.data["groups"]
+	b.add_child(_text("Картинки сгруппированы по тому, где они используются в игре. Нажмите группу — увидите её картинки; нажмите картинку — заменить, скачать или удалить.", 18))
+	for g in _asset_groups:
+		var name := str(g["name"])
+		b.add_child(_btn("%s  (%d)" % [name, int(g["count"])], func(): _open(_show_asset_group.bind(name)), 21))
+
+
+func _show_asset_group(name: String) -> void:
+	var b := _frame(name)
+	var group: Dictionary = {}
+	for g in _asset_groups:
+		if g["name"] == name:
+			group = g
+	if group.is_empty():
+		return
+	var grid := GridContainer.new()
+	grid.columns = 3
+	grid.add_theme_constant_override("h_separation", 8)
+	grid.add_theme_constant_override("v_separation", 10)
+	b.add_child(grid)
+	for it in group["items"]:
+		var box := _asset_tile(str(it["path"]))
+		var where := Ui.label(str(it["where"]), 13)
+		where.custom_minimum_size = Vector2(212, 0)
+		where.modulate = Color(1, 1, 1, 0.7)
+		box.add_child(where)
+		grid.add_child(box)
+	b.add_child(_btn("+ Загрузить новый файл", func():
+		_ask("Путь нового файла в контенте", "например ui/hub/icon_new.png", func(p):
+			if p != "":
+				_pick_and_upload(p)), 20))
+
+
 # --- Конструктор экранов ------------------------------------------------------------------
 
 const SCREEN_SCENES := {"hub": "res://scenes/main.tscn", "heroes": "res://scenes/heroes.tscn",
@@ -1121,6 +1168,11 @@ func _preview_campaign() -> void:
 		b.add_child(Previews.chapter_card(ch, i))
 
 
+func _assets_shot() -> void:
+	await _show_assets()
+	await _show_asset_group("Главный экран")
+
+
 func _skin_shot() -> void:
 	## Для снимка: предпросмотр Хумай в скине «winter»
 	await _with_draft(func(): pass)
@@ -1232,6 +1284,7 @@ func _autotest(creds: String) -> void:
 				"screens": await _with_draft(func(): _open(_screen_editor.bind("hub")))
 				"screentest": await _screen_selftest()
 				"skinshot": await _skin_shot()
+				"assets": await _assets_shot()
 				"livetest": await _with_draft(func(): _open_game("res://scenes/main.tscn"))
 				"players": _open(_show_players.bind(""))
 				"backups": _open(_show_backups)

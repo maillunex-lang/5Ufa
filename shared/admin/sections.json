@@ -221,5 +221,50 @@
       "assets": [],
       "preview": "none"
     }
-  ]
+  ],
+  "asset_groups": {
+    "description": "Картинки, на которые ссылается код игры, а не файлы контента: шаблон пути -> группа и подпись",
+    "code_refs": [
+      {
+        "pattern": "ui/hub/icon_coin.png",
+        "group": "Главный экран",
+        "where": "плашка золота"
+      },
+      {
+        "pattern": "ui/hub/icon_crystal.png",
+        "group": "Главный экран",
+        "where": "плашка кристаллов"
+      },
+      {
+        "pattern": "ui/hub/icon_power.png",
+        "group": "Главный экран",
+        "where": "плашка силы"
+      },
+      {
+        "pattern": "ui/hub/icon_plus.png",
+        "group": "Главный экран",
+        "where": "кнопка «+» у валют"
+      },
+      {
+        "pattern": "ui/items/**",
+        "group": "Инвентарь и снаряжение",
+        "where": "иконка предмета"
+      },
+      {
+        "pattern": "ui/logo.png",
+        "group": "Загрузка и вход",
+        "where": "логотип"
+      },
+      {
+        "pattern": "ui/loading_bg.png",
+        "group": "Загрузка и вход",
+        "where": "фон загрузки"
+      },
+      {
+        "pattern": "ui/button.png",
+        "group": "Общие элементы",
+        "where": "кнопка"
+      }
+    ]
+  }
 }

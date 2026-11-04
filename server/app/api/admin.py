@@ -572,3 +572,107 @@ async def delete_skin(hero_id: str, skin_id: str, request: Request, admin: Admin
                 {"hero": hero_id, "skin": skin_id})
     await session.commit()
     return {"ok": True}
+
+
+# --- Картинки игры по местам использования -------------------------------------------------
+
+IMAGE_EXT = (".png", ".webp", ".jpg", ".jpeg")
+
+
+def _group_of_json(ws, path: str) -> str:
+    """Название группы по файлу, который ссылается на картинку."""
+    if path.startswith("ui/screens/"):
+        try:
+            return str(ws.read_json(path).get("title") or path.split("/")[-1][:-5])
+        except (KeyError, ValueError):
+            return path
+    if path == "ui/hub.json":
+        return "Главный экран"
+    if path.startswith("heroes/"):
+        hid = path.split("/")[1]
+        try:
+            return "Герой: " + str(ws.read_json(f"heroes/{hid}/hero.json").get("name", hid))
+        except (KeyError, ValueError):
+            return "Герой: " + hid
+    if path.startswith("campaign/"):
+        return "Кампания: " + path.split("/")[1].replace("chapter_", "глава ")
+    if path.startswith("summon/"):
+        return "Призыв героев"
+    if path.startswith("config/equipment"):
+        return "Инвентарь и снаряжение"
+    if path.startswith("config/game_settings"):
+        return "Настройки игры"
+    return path
+
+
+KEY_NAMES = {"background": "фон", "emblem": "эмблема под названием", "image": "картинка", "icon": "иконка",
+             "portrait": "портрет", "full": "полный арт", "projectile": "снаряд", "map": "карта"}
+
+
+def _where(doc, target_names: set[str]) -> list[str]:
+    """Подписи «где используется»: id/title объекта, внутри которого встретилась ссылка."""
+    found = []
+
+    def walk(v, ctx):
+        if isinstance(v, dict):
+            label = v.get("title") or v.get("text") or v.get("name") or v.get("id") or ctx
+            for k, x in v.items():
+                walk(x, str(label) if label else KEY_NAMES.get(k, k))
+        elif isinstance(v, list):
+            for x in v:
+                walk(x, ctx)
+        elif isinstance(v, str) and v in target_names:
+            found.append((v, ctx))
+    walk(doc, "")
+    return found
+
+
+@router.get("/assets")
+async def assets(admin: AdminUser = Depends(editor), session: AsyncSession = Depends(get_session)):
+    """Все картинки игры, сгруппированные по месту использования (экраны, герои, кампания…)."""
+    ws = await drf.workspace(session)
+    files = ws.files()
+    images = {p: sha for p, sha in files.items() if p.endswith(IMAGE_EXT)}
+    uses: dict[str, list[dict]] = {p: [] for p in images}
+    for path in files:
+        if not path.endswith(".json") or path == drf.PACKAGES:
+            continue
+        try:
+            doc = ws.read_json(path)
+        except (KeyError, ValueError):
+            continue
+        group = _group_of_json(ws, path)
+        names = set(images)
+        rel = {}
+        if path.startswith("heroes/"):  # в скелете пути частей — относительно папки героя
+            base = "/".join(path.split("/")[:2]) + "/"
+            for p in images:
+                if p.startswith(base):
+                    rel[p[len(base):]] = p
+            names |= set(rel)
+        for value, ctx in _where(doc, names):
+            p = rel.get(value, value)
+            if p in uses and not any(u["group"] == group and u["where"] == ctx for u in uses[p]):
+                uses[p].append({"group": group, "where": ctx or path.split("/")[-1]})
+    # Скины: картинки в heroes/<id>/skins/<скин>/ относятся к герою
+    for p in images:
+        parts = p.split("/")
+        if len(parts) > 4 and parts[0] == "heroes" and parts[2] == "skins" and not uses[p]:
+            try:
+                name = ws.read_json(f"heroes/{parts[1]}/hero.json").get("name", parts[1])
+            except (KeyError, ValueError):
+                name = parts[1]
+            uses[p].append({"group": f"Герой: {name}", "where": f"скин «{parts[3]}»"})
+    for rule in sec.sections_doc().get("asset_groups", {}).get("code_refs", []):
+        from app.content.validation import glob_to_regex
+        rx = glob_to_regex(rule["pattern"])
+        for p in images:
+            if rx.match(p) and not any(u["group"] == rule["group"] for u in uses[p]):
+                uses[p].append({"group": rule["group"], "where": rule["where"]})
+    groups: dict[str, list[dict]] = {}
+    for p, sha in sorted(images.items()):
+        for u in uses[p] or [{"group": "Не используется", "where": ""}]:
+            groups.setdefault(u["group"], []).append({"path": p, "sha256": sha, "where": u["where"]})
+    order = sorted(groups, key=lambda g: (g == "Не используется", not g.startswith("Главный"), g.startswith("Герой:"), g))
+    await session.commit()
+    return {"groups": [{"name": g, "count": len(groups[g]), "items": groups[g]} for g in order]}
