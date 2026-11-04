@@ -1,0 +1,11 @@
+# Запуск: ./deploy/redeploy.sh   (или: docker compose up -d --build)
+name: 5ufa
+services:
+  server:
+    build: { context: ., dockerfile: server/Dockerfile }
+    restart: unless-stopped
+    env_file: [{ path: .env, required: false }]
+    ports: ["127.0.0.1:${PORT:-18080}:8080"]
+    volumes: ["5ufa-data:/data"]
+volumes:
+  5ufa-data:

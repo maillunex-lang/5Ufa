@@ -1,0 +1,34 @@
+import { readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+
+export function validateContent(c) {
+  const errs = [];
+  const need = (cond, msg) => { if (!cond) errs.push(msg); };
+  need(c && typeof c === 'object', 'content must be object');
+  if (errs.length) return errs;
+  need(c.heroes?.length === 5, 'нужно ровно 5 героев в первой версии');
+  const hk = new Set((c.heroes || []).map((h) => h.key));
+  const ek = new Set((c.enemies || []).map((h) => h.key));
+  need(hk.size === (c.heroes || []).length, 'ключи героев не уникальны');
+  for (const u of [...(c.heroes || []), ...(c.enemies || [])]) {
+    for (const s of ['hp', 'atk', 'def', 'critChance', 'critPower', 'range', 'interval', 'speed'])
+      need(Number.isFinite(u.stats?.[s]), `${u.key}: нет характеристики ${s}`);
+    need(u.abilities?.filter((a) => a.kind === 'basic').length === 1, `${u.key}: нужна ровно одна базовая атака`);
+  }
+  need(c.stages?.length === 10, 'нужно 10 этапов');
+  (c.stages || []).forEach((s) => {
+    need(s.enemies?.length === 5, `этап ${s.n}: нужно 5 позиций`);
+    for (const e of s.enemies || []) if (e) need(ek.has(e.key), `этап ${s.n}: неизвестный враг ${e.key}`);
+    need(s.enemies?.some(Boolean), `этап ${s.n}: нет врагов`);
+  });
+  need(Number.isInteger(c.progression?.maxLevel) && c.progression.maxLevel >= 1, 'progression.maxLevel');
+  return errs;
+}
+
+export function loadContentFile(path) {
+  const text = readFileSync(path, 'utf8');
+  const json = JSON.parse(text);
+  const errs = validateContent(json);
+  if (errs.length) throw new Error('Некорректный контент: ' + errs.join('; '));
+  return { json: JSON.stringify(json), hash: createHash('sha256').update(JSON.stringify(json)).digest('hex') };
+}
