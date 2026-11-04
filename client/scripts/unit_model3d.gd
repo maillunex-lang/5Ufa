@@ -3,7 +3,7 @@ extends Node2D
 ## Боец с GLB вместо 2D-скелета. Вид сбоку, без тун-шейдера и теней.
 ## Временный посох Хыухылу крепится к кости кисти и едет вместе с ней.
 
-const VIEW_H := 220.0
+const VIEW_H := 140.0
 
 var speed := 1.0
 var current := ""
@@ -50,11 +50,12 @@ func load_bytes(bytes: PackedByteArray, model: Dictionary, hero_id: String) -> b
 	if _player and not _player.animation_finished.is_connected(_on_finished):
 		_player.animation_finished.connect(_on_finished)
 	_map_clips(str(model.get("file", "")))
-	var bounds := _bounds(_model_root)
-	if hero_id == "hyuhylu" and _skeleton:
+	var bounds := _character_bounds()
+	if hero_id == "hyuhylu" and _skeleton and staff_bone == "":
 		staff_bone = attach_staff(_skeleton, maxf(bounds.size.y, 0.2))
-	_frame(bounds, float(model.get("scale", 1.0)))
+	_frame(bounds)
 	play("idle")
+	call_deferred("_reframe")
 	return true
 
 
@@ -160,6 +161,7 @@ func _build_view() -> void:
 	world.add_child(sun)
 	_camera = Camera3D.new()
 	_camera.projection = Camera3D.PROJECTION_ORTHOGONAL
+	_camera.current = true
 	world.add_child(_camera)
 	_sprite = Sprite2D.new()
 	_sprite.texture = _viewport.get_texture()
@@ -217,14 +219,23 @@ func _pull_clip(file: String, wanted: String, main_file: String) -> String:
 	return unique
 
 
-func _frame(bounds: AABB, scale_factor: float) -> void:
+func _reframe() -> void:
+	if not is_instance_valid(_model_root) or _camera == null:
+		return
+	_frame(_character_bounds())
+
+
+func _frame(bounds: AABB) -> void:
 	if bounds.size.y <= 0.001:
 		_sprite.position = Vector2(0, -VIEW_H * 0.5)
 		return
 	var center := bounds.get_center()
-	var natural_h := bounds.size.y / maxf(scale_factor, 0.001)
-	_camera.size = maxf(0.2, natural_h * 1.35 / maxf(scale_factor, 0.001))
-	_camera.global_position = center + Vector3(maxf(bounds.size.x, natural_h), 0, 0)
+	_camera.current = true
+	_camera.size = bounds.size.y * 1.15
+	var distance := maxf(bounds.size.x, bounds.size.y)
+	_camera.global_position = center + Vector3(distance, bounds.size.y * 0.05, 0)
+	if _camera.global_position.is_equal_approx(center):
+		_camera.global_position = center + Vector3(1, 0, 0)
 	_camera.look_at(center, Vector3.UP)
 	var feet := _camera.unproject_position(Vector3(center.x, bounds.position.y, center.z))
 	var feet_local := (feet - Vector2(_viewport.size) * 0.5) * _sprite.scale
@@ -233,6 +244,32 @@ func _frame(bounds: AABB, scale_factor: float) -> void:
 
 func _viewport_to_local(px: Vector2) -> Vector2:
 	return _sprite.position + (px - Vector2(_viewport.size) * 0.5) * _sprite.scale
+
+
+func _character_bounds() -> AABB:
+	var meshes := _bounds(_model_root)
+	var bones := _bone_bounds()
+	if bones.size.y > 0.05 and (meshes.size.y < bones.size.y * 0.5 or meshes.size.y > bones.size.y * 6.0):
+		return bones.grow(bones.size.y * 0.12)
+	if meshes.size.y > 0.001:
+		return meshes
+	return bones
+
+
+func _bone_bounds() -> AABB:
+	var bounds := AABB()
+	if _skeleton == null:
+		return bounds
+	_skeleton.force_update_all_bone_transforms()
+	var found := false
+	for idx in _skeleton.get_bone_count():
+		var point := _skeleton.to_global(_skeleton.get_bone_global_pose(idx).origin)
+		if not found:
+			bounds = AABB(point, Vector3.ZERO)
+			found = true
+		else:
+			bounds = bounds.expand(point)
+	return bounds
 
 
 func _bounds(node: Node) -> AABB:
