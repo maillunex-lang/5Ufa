@@ -11,7 +11,10 @@ extends Node3D
 
 const SPEED := 1.0
 const TIME_LIMIT := 90.0
-const DEPTH := 1.5   # растяжение арены по глубине для экрана (на сервере координаты не меняются)
+const DEPTH := 1.8   # растяжение арены по глубине для экрана (на сервере координаты не меняются)
+const CAM_POS := Vector3(0, 8.0, 11.2)    # угол около 35° над землёй, вид сбоку
+const CAM_LOOK := Vector3(0, 0.9, 0.6)
+const CAM_FOV := 54.0
 ## Логические анимации -> названия внутри модели. Эти — для KayKit. Для другой модели (например из Meshy) в данных героя:
 ##   visual.anims      {"idle": "<название в модели>", ...}  — переопределить названия
 ##   visual.anim_files {"run": "res://assets/models/X_run.glb", ...} — взять анимацию из отдельного файла с тем же скелетом
@@ -47,6 +50,7 @@ var _banner_layer: Control
 var _result_shown := false
 var _result: Dictionary = {}
 var _toast: Label
+var _cam_tween: Tween
 
 
 func _ready() -> void:
@@ -64,10 +68,10 @@ func _ready() -> void:
 func _build_scene() -> void:
 	_cam = Camera3D.new()
 	_cam.keep_aspect = Camera3D.KEEP_WIDTH   # ширина сцены постоянна в вертикальной ориентации
-	_cam.fov = 60.0
-	_cam.position = Vector3(0, 4.4, 10.8)
+	_cam.fov = CAM_FOV
+	_cam.position = CAM_POS
 	add_child(_cam)
-	_cam.look_at(Vector3(0, 1.0, 0.8), Vector3.UP)
+	_cam.look_at(CAM_LOOK, Vector3.UP)
 
 	var sun := DirectionalLight3D.new()
 	sun.rotation_degrees = Vector3(-50, -30, 0)
@@ -461,6 +465,7 @@ func _on_cast(e: Dictionary) -> void:
 	var a := _ability(aid)
 	if a.get("kind", "") == "main":
 		_banner(u, str(a.get("name", "Главное умение")))
+		_ult_zoom(u, targets, 0.9)
 
 	var style := _style_of(u, aid)
 	if style == "none":
@@ -488,10 +493,30 @@ func _on_cast(e: Dictionary) -> void:
 
 func _shake() -> void:
 	var tw := create_tween()
-	var base := _cam.position
-	for i in 4:
-		tw.tween_property(_cam, "position", base + Vector3(randf_range(-0.12, 0.12), randf_range(-0.08, 0.08), 0), 0.04)
-	tw.tween_property(_cam, "position", base, 0.04)
+	for i in 5:
+		tw.tween_property(_cam, "h_offset", randf_range(-0.18, 0.18), 0.035)
+		tw.parallel().tween_property(_cam, "v_offset", randf_range(-0.12, 0.12), 0.035)
+	tw.tween_property(_cam, "h_offset", 0.0, 0.05)
+	tw.parallel().tween_property(_cam, "v_offset", 0.0, 0.05)
+
+
+## Подъезд камеры на главном умении: приближение к месту действия, пауза, возврат.
+func _ult_zoom(caster: Dictionary, targets: Array, hold: float) -> void:
+	var focus: Vector3 = (caster["node"] as Node3D).position
+	var n := 1
+	for dst in targets:
+		if _units.has(dst):
+			focus += (_units[dst]["node"] as Node3D).position
+			n += 1
+	focus /= float(n)
+	if _cam_tween != null and _cam_tween.is_valid():
+		_cam_tween.kill()
+	_cam_tween = create_tween().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	_cam_tween.tween_property(_cam, "fov", CAM_FOV - 10.0, 0.3)
+	_cam_tween.parallel().tween_property(_cam, "position", CAM_POS + Vector3(focus.x * 0.45, -1.2, -1.8), 0.3)
+	_cam_tween.tween_interval(hold)
+	_cam_tween.tween_property(_cam, "fov", CAM_FOV, 0.45)
+	_cam_tween.parallel().tween_property(_cam, "position", CAM_POS, 0.45)
 
 
 func _banner(u: Dictionary, ability_name: String) -> void:
