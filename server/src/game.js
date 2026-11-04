@@ -1,11 +1,11 @@
-import { randomUUID, randomInt } from 'node:crypto';
+import { randomUUID, randomInt, createHash } from 'node:crypto';
 import { tx } from './db.js';
 import { buildUnit, simulate } from './battle.js';
 import { sha, newToken, hashPassword, checkPassword, newRecoveryCode, normCode } from './auth.js';
-import { loadContentFile } from './content.js';
+import { loadContentFile, validateContent, diffContent } from './content.js';
 
 export class GameError extends Error {
-  constructor(code, msg, status = 400) { super(msg || code); this.code = code; this.status = status; }
+  constructor(code, msg, status = 400, details) { super(msg || code); this.code = code; this.status = status; this.details = details; }
 }
 const now = () => Date.now();
 
@@ -15,19 +15,100 @@ export function createGame(db, { contentPath }) {
   const run = (sql, ...p) => db.prepare(sql).run(...p);
 
   // ---------- контент и версии ----------
-  function syncContentFromFile() {
-    const { json, hash } = loadContentFile(contentPath);
-    const last = one('SELECT hash FROM content_versions ORDER BY id DESC LIMIT 1');
-    // Если последняя версия задана файлом и он изменился — публикуем новую. Бои, идущие сейчас, остаются на прежней.
-    if (!last || last.hash !== hash) {
-      run('INSERT INTO content_versions(hash,json,note,created) VALUES(?,?,?,?)', hash, json, 'file', now());
-    }
+  // Версии линейные: активна последняя. Правка и откат создают НОВУЮ версию (история не переписывается).
+  // Бой закрепляет версию в момент старта (battles.content_version), поэтому правки действуют со следующего боя.
+  const audit = (actor, action, detail) => run('INSERT INTO audit(ts,actor,action,detail) VALUES(?,?,?,?)', now(), actor, action, detail ? JSON.stringify(detail) : null);
+  const hashOf = (text) => createHash('sha256').update(text).digest('hex');
+  const currentVersionId = () => one('SELECT MAX(id) m FROM content_versions').m;
+  const versionRow = (id) => one('SELECT id,hash,json,note,source,author,parent,created FROM content_versions WHERE id=?', id);
+
+  function insertVersion(obj, { source, author, note, parent }) {
+    const json = JSON.stringify(obj);
+    const r = run('INSERT INTO content_versions(hash,json,note,created,source,author,parent) VALUES(?,?,?,?,?,?,?)',
+      hashOf(json), json, note ?? null, now(), source, author ?? null, parent ?? null);
+    return Number(r.lastInsertRowid);
   }
+
   const contentCache = new Map();
   function getContent(version) {
-    const id = version ?? one('SELECT MAX(id) m FROM content_versions').m;
-    if (!contentCache.has(id)) contentCache.set(id, { id, ...JSON.parse(one('SELECT json FROM content_versions WHERE id=?', id).json) });
+    const id = version ?? currentVersionId();
+    if (!contentCache.has(id)) {
+      const row = versionRow(id);
+      if (!row) throw new GameError('no_version', 'Версия контента не найдена', 404);
+      contentCache.set(id, { id, ...JSON.parse(row.json) });
+    }
     return contentCache.get(id);
+  }
+
+  // Файл content/game.json — «зерно»: импортируется только когда изменился сам файл (по хешу), иначе каждый деплой
+  // затирал бы правки из админки. Первый запуск на пустой базе тоже импортирует файл.
+  function syncContentFromFile({ force = false, author = 'система' } = {}) {
+    const { json, hash } = loadContentFile(contentPath);
+    const seen = one("SELECT v FROM settings WHERE k='content_file_hash'")?.v;
+    const cur = currentVersionId();
+    if (!force && seen === hash && cur) return { changed: false, version: cur };
+    run("INSERT OR REPLACE INTO settings(k,v) VALUES('content_file_hash',?)", hash);
+    if (cur && versionRow(cur).hash === hash) return { changed: false, version: cur };
+    const id = insertVersion(JSON.parse(json), { source: 'file', author, note: 'Импорт из content/game.json', parent: cur });
+    audit(author, 'content_file_import', { from: cur ?? null, to: id });
+    return { changed: true, version: id };
+  }
+
+  // Нельзя убрать героя, которым владеют игроки: удаление возможно только с компенсацией (отдельная задача S-5).
+  function assertHeroesKept(obj) {
+    const keep = new Set((obj.heroes || []).map((h) => h.key));
+    const gone = q('SELECT hero_key, COUNT(*) n FROM heroes GROUP BY hero_key').filter((r) => !keep.has(r.hero_key));
+    if (gone.length) throw new GameError('hero_in_use', `Нельзя удалить героев, которые есть у игроков: ${gone.map((r) => `${r.hero_key} (${r.n})`).join(', ')}. Удаление с компенсацией будет добавлено отдельно.`, 409, gone);
+  }
+
+  function listVersions(limit = 50) {
+    const cur = currentVersionId();
+    return q('SELECT id,hash,note,source,author,parent,created FROM content_versions ORDER BY id DESC LIMIT ?', limit)
+      .map((r) => ({ ...r, hash: r.hash.slice(0, 12), active: r.id === cur }));
+  }
+
+  function getVersion(id) {
+    const row = versionRow(id);
+    if (!row) throw new GameError('no_version', 'Версия контента не найдена', 404);
+    return { id: row.id, note: row.note, source: row.source, author: row.author, parent: row.parent, created: row.created, active: row.id === currentVersionId(), content: JSON.parse(row.json) };
+  }
+
+  function diffVersions(from, to) {
+    return { from, to, ...diffContent(getVersion(from).content, getVersion(to).content) };
+  }
+
+  // Сохранение правки из админки: проверка до записи, защита от гонки по базовой версии, журнал.
+  function publishContent(obj, { author = 'owner', note = '', baseVersion } = {}) {
+    const errs = validateContent(obj);
+    if (errs.length) throw new GameError('invalid_content', 'Контент не прошёл проверку', 422, errs);
+    return tx(db, () => {
+      const cur = currentVersionId();
+      if (baseVersion !== undefined && Number(baseVersion) !== cur) {
+        throw new GameError('version_conflict', `Контент уже изменили: сейчас версия ${cur}, а вы правили версию ${baseVersion}. Обновите страницу и повторите.`, 409);
+      }
+      const text = JSON.stringify(obj);
+      if (hashOf(text) === versionRow(cur).hash) throw new GameError('no_changes', 'Изменений нет', 400);
+      assertHeroesKept(obj);
+      const diff = diffContent(getVersion(cur).content, obj);
+      const id = insertVersion(obj, { source: 'admin', author, note, parent: cur });
+      audit(author, 'content_save', { from: cur, to: id, note, changes: diff.total });
+      return { version: id, changes: diff.total };
+    });
+  }
+
+  // Откат: создаёт новую версию с содержимым старой. Аккаунты игроков не затрагиваются.
+  function rollbackTo(targetId, { author = 'owner', note = '' } = {}) {
+    return tx(db, () => {
+      const target = versionRow(targetId);
+      if (!target) throw new GameError('no_version', 'Версия контента не найдена', 404);
+      const cur = currentVersionId();
+      if (target.id === cur) throw new GameError('already_current', 'Эта версия уже активна', 400);
+      const obj = JSON.parse(target.json);
+      assertHeroesKept(obj);
+      const id = insertVersion(obj, { source: 'rollback', author, note: note || `Откат к версии ${target.id}`, parent: cur });
+      audit(author, 'content_rollback', { target: target.id, from: cur, to: id, note });
+      return { version: id, restoredFrom: target.id };
+    });
   }
   syncContentFromFile();
 
@@ -211,5 +292,5 @@ export function createGame(db, { contentPath }) {
     return { battleId: b.id, stage: b.stage, contentVersion: b.content_version, winner: b.winner, timeout: !!b.timeout, duration: b.duration, reward: b.reward ? JSON.parse(b.reward) : null, events: JSON.parse(b.events), balances: balances(acc) };
   }
 
-  return { db, syncContentFromFile, getContent, guest, authenticate, bind, login, recover, me, setFormation, setTutorialDone, upgradeHero, resetHero, startBattle, getBattle, addRes, balances, isMaintenance, q, one, run };
+  return { db, audit, syncContentFromFile, getContent, currentVersionId, listVersions, getVersion, diffVersions, publishContent, rollbackTo, getContent, guest, authenticate, bind, login, recover, me, setFormation, setTutorialDone, upgradeHero, resetHero, startBattle, getBattle, addRes, balances, isMaintenance, q, one, run };
 }

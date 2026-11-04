@@ -18,7 +18,7 @@ main{padding:16px;max-width:900px;margin:auto}
 button,input{font:inherit;padding:9px 12px;border-radius:8px;border:1px solid #333a49;background:#262b36;color:var(--fg)}
 button{cursor:pointer;background:var(--acc);color:#1b1500;border:0;font-weight:600}button.sec{background:#2f3542;color:var(--fg)}
 input{width:100%;margin-bottom:8px}table{width:100%;border-collapse:collapse;font-size:13px}td{padding:4px 6px;border-bottom:1px solid #2a2f3a;vertical-align:top;word-break:break-word}
-.bad{color:var(--bad)}.ok{color:var(--ok)}#login{max-width:340px;margin:12vh auto}
+.bad{color:var(--bad)}.vrow{border-bottom:1px solid #2a2f3a;padding:8px 0;font-size:13px}.vrow span{color:var(--mut);margin-right:8px}.vrow .nt{margin-top:2px;word-break:break-word}.vrow button{margin:6px 6px 0 0;padding:6px 10px;font-size:13px}.ok{color:var(--ok)}#login{max-width:340px;margin:12vh auto}
 @media(min-width:900px){nav{display:flex!important;position:fixed;left:0;top:49px;bottom:0;width:200px}main{margin-left:220px}#menu{display:none}}
 </style>
 </head>
@@ -34,6 +34,16 @@ input{width:100%;margin-bottom:8px}table{width:100%;border-collapse:collapse;fon
 <div class="grid" id="stats"></div>
 <div class="card"><b>Действия</b><p>
 <button id="maint" class="sec"></button> <button id="bk" class="sec">Бэкап сейчас</button> <button id="reload" class="sec">Перечитать content/game.json</button></p><div id="msg"></div></div>
+<div class="card"><b>Контент игры</b>
+<p id="cver" style="color:var(--mut)"></p>
+<div id="vers"></div>
+<pre id="diffbox" hidden></pre>
+<details style="margin-top:10px"><summary>Редактор JSON (для опытных)</summary>
+<p style="color:var(--mut);font-size:13px">Правка сохраняется как новая версия и действует со следующего боя. Бои, которые уже идут, остаются на прежней. Формы для героев, способностей и кампании появятся позже.</p>
+<textarea id="json" spellcheck="false" style="width:100%;height:260px;font:12px monospace;background:#0e1016;color:var(--fg);border:1px solid #333a49;border-radius:8px;padding:8px"></textarea>
+<input id="note" placeholder="Комментарий к изменению (необязательно)">
+<button id="savejson">Сохранить как новую версию</button> <button class="sec" id="reloadjson">Загрузить текущую</button>
+<div id="jerr" class="bad"></div></details></div>
 <div class="card"><b>Ошибки</b><table id="errs"></table></div>
 <div class="card"><b>Последние изменения</b><table id="chg"></table></div>
 </main></div>
@@ -41,8 +51,8 @@ input{width:100%;margin-bottom:8px}table{width:100%;border-collapse:collapse;fon
 const $=id=>document.getElementById(id);let T=sessionStorage.getItem('t');
 const esc=s=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
 async function api(path,body){const r=await fetch('api/'+path,{method:body?'POST':'GET',headers:{'content-type':'application/json',authorization:'Bearer '+T},body:body?JSON.stringify(body):undefined});
- if(r.status===401&&path!=='login'){T=null;sessionStorage.removeItem('t');show();throw 0}const j=await r.json();if(!r.ok)throw new Error(j.message||r.status);return j}
-function show(){$('login').hidden=!!T;$('app').hidden=!T;if(T)load()}
+ if(r.status===401&&path!=='login'){T=null;sessionStorage.removeItem('t');show();throw 0}const j=await r.json();if(!r.ok){const e=new Error(j.message||r.status);e.details=j.details;throw e}return j}
+function show(){$('login').hidden=!!T;$('app').hidden=!T;if(T){load();loadContent(true)}}
 $('go').onclick=async()=>{try{const j=await api('login',{login:$('l').value,password:$('p').value});T=j.token;sessionStorage.setItem('t',T);show()}catch(e){$('lerr').textContent=e.message}};
 $('p').onkeydown=e=>{if(e.key==='Enter')$('go').click()};
 $('out').onclick=()=>{T=null;sessionStorage.removeItem('t');show()};$('menu').onclick=()=>$('nav').classList.toggle('open');
@@ -54,10 +64,30 @@ async function load(){const s=await api('status');maint=s.maintenance;
  const t=ts=>new Date(ts).toLocaleString();
  $('errs').innerHTML=s.errors.length?s.errors.map(e=>`<tr><td>${t(e.ts)}</td><td>${esc(e.source)}</td><td>${esc(e.message.slice(0,200))}</td></tr>`).join(''):'<tr><td class="ok">Ошибок нет</td></tr>';
  $('chg').innerHTML=s.changes.map(e=>`<tr><td>${t(e.ts)}</td><td>${esc(e.action)}</td><td>${esc(e.detail||'')}</td></tr>`).join('')}
-const act=f=>async()=>{try{$('msg').textContent=await f()||'';load()}catch(e){$('msg').innerHTML='<span class="bad">'+esc(e.message)+'</span>'}};
+const act=f=>async()=>{try{$('msg').textContent=await f()||'';load();loadContent(true)}catch(e){$('msg').innerHTML='<span class="bad">'+esc(e.message)+'</span>'}};
 $('maint').onclick=act(async()=>{if(!maint&&!confirm('Новые бои будут заблокированы. Включить?'))return;await api('maintenance',{on:!maint,message:maint?'':'Технические работы'});});
 $('bk').onclick=act(async()=>'Создан '+(await api('backup',{})).name);
 $('reload').onclick=act(async()=>'Версия контента #'+(await api('content/reload',{})).contentVersion);
+
+let CUR=0;
+const SRC={file:'файл',admin:'админка',rollback:'откат'};
+async function loadContent(fillEditor){
+ const list=await api('content/versions?limit=15');
+ CUR=(list.find(v=>v.active)||{}).id||0;
+ $('cver').textContent='Активная версия: #'+CUR+'. Правки и откат создают новую версию, история сохраняется.';
+ $('vers').innerHTML=list.map(v=>`<div class="vrow"><b>#${v.id}${v.active?' ✓ активна':''}</b> <span>${new Date(v.created).toLocaleString()}</span><span>${esc(SRC[v.source]||v.source||'')}${v.author?', '+esc(v.author):''}</span><div class="nt">${esc(v.note||'')}</div>${v.active?'':`<button class="sec" data-d="${v.id}">Отличия</button><button class="sec" data-r="${v.id}">Откатить</button>`}</div>`).join('');
+ $('vers').querySelectorAll('[data-d]').forEach(b=>b.onclick=async()=>{const d=await api('content/diff?from='+b.dataset.d+'&to='+CUR);
+  $('diffbox').hidden=false;$('diffbox').textContent=d.total?`Отличия версии #${d.from} от активной #${d.to} (${d.total}):\n`+d.changes.map(c=>`${c.path}: ${c.from} → ${c.to}`).join('\n'):'Содержимое совпадает.'});
+ $('vers').querySelectorAll('[data-r]').forEach(b=>b.onclick=act(async()=>{if(!confirm('Откатить контент к версии #'+b.dataset.r+'? Будет создана новая версия. Аккаунты игроков не меняются.'))return;
+  const r=await api('content/rollback',{version:Number(b.dataset.r)});return 'Откат: новая версия #'+r.version}));
+ if(fillEditor){const c=await api('content/current');$('json').value=JSON.stringify(c.content,null,1)}
+}
+$('reloadjson').onclick=()=>{$('jerr').textContent='';loadContent(true)};
+$('savejson').onclick=async()=>{$('jerr').textContent='';let obj;
+ try{obj=JSON.parse($('json').value)}catch(e){$('jerr').textContent='Не JSON: '+e.message;return}
+ let j;try{j=await api('content/save',{content:obj,note:$('note').value,baseVersion:CUR})}
+ catch(e){$('jerr').innerHTML=esc(e.message)+(e.details?'<br>'+e.details.map(x=>'• '+esc(typeof x==='string'?x:JSON.stringify(x))).join('<br>'):'');return}
+ $('msg').textContent='Сохранено: версия #'+j.version+', изменений '+j.changes;$('note').value='';load();loadContent(true)};
 show();
 </script>
 </body></html>

@@ -50,3 +50,29 @@ export function loadContentFile(path) {
   if (errs.length) throw new Error('Некорректный контент: ' + errs.join('; '));
   return { json: JSON.stringify(json), hash: createHash('sha256').update(JSON.stringify(json)).digest('hex') };
 }
+
+
+// Плоский список листьев контента: путь вида heroes[tank].stats.hp. Элементы массивов называются по key, id или n.
+function flat(obj, path = '', out = {}) {
+  if (Array.isArray(obj)) {
+    obj.forEach((el, i) => {
+      const id = el && typeof el === 'object' ? (el.key ?? el.id ?? el.n) : undefined;
+      flat(el, `${path}[${id ?? i}]`, out);
+    });
+  } else if (obj && typeof obj === 'object') {
+    for (const k of Object.keys(obj)) flat(obj[k], path ? `${path}.${k}` : k, out);
+  } else out[path] = obj;
+  return out;
+}
+
+const short = (v) => (v === undefined ? '(нет)' : String(JSON.stringify(v)).slice(0, 80));
+
+// Список отличий между двумя версиями контента (для показа перед откатом и в журнале)
+export function diffContent(a, b, limit = 300) {
+  const fa = flat(a), fb = flat(b);
+  const out = [];
+  for (const p of new Set([...Object.keys(fa), ...Object.keys(fb)])) {
+    if (JSON.stringify(fa[p]) !== JSON.stringify(fb[p])) out.push({ path: p, from: short(fa[p]), to: short(fb[p]) });
+  }
+  return { total: out.length, changes: out.slice(0, limit), truncated: out.length > limit };
+}
