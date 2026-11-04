@@ -129,9 +129,12 @@ export function simulate({ attackers, defenders, seed, config }) {
       if (dist(u, tgt) > u.range) {
         // подбегание к своей свободной точке рядом с целью (без расталкивания)
         const dir = u.side === 'a' ? -1 : 1;
-        const gx = tgt.x + dir * Math.max(0.6, u.range * 0.9);
-        const gy = tgt.y + (u.slot - 2) * 0.5;
+        let gx = tgt.x + dir * Math.max(0.6, u.range * 0.9);
+        let gy = tgt.y + (u.slot - 2) * 0.5;
+        const B = C.bounds; // прямоугольник арены: за него бойцы не выходят (цель внутри, значит точка после обрезки только ближе к ней)
+        if (B) { gx = Math.min(B.xMax, Math.max(B.xMin, gx)); gy = Math.min(B.yMax, Math.max(B.yMin, gy)); }
         const dx = gx - u.x, dy = gy - u.y, d = Math.hypot(dx, dy);
+        if (d < 1e-6) continue; // уже в точке (упёрлись в границу), ждём без лишних событий
         const step = Math.min(d, u.speed * C.tick);
         // Клиент двигает бойца только по событиям: заново сообщаем цель пути при старте и при смене цели
         if (!u.moving || u.moveTarget !== tgt.id) {

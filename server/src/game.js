@@ -183,7 +183,7 @@ export function createGame(db, { contentPath }) {
       return buildUnit(d, e.level, g, 'd', i, `d${i}`);
     });
     const seed = opts.seed ?? randomInt(1, 2 ** 31);
-    const res = simulate({ attackers, defenders, seed, config: c.battle });
+    const res = simulate({ attackers, defenders, seed, config: { ...c.battle, bounds: c.arena?.bounds } });
     const id = randomUUID();
 
     // Бой, результат и награда — одна транзакция; награда за первую победу выдаётся ровно один раз.

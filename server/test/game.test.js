@@ -15,7 +15,7 @@ function unit(c, key, side, slot, over = {}) {
   Object.assign(d.stats, over);
   return buildUnit(d, 1, c.progression.growth, side, slot, `${side}${slot}`);
 }
-const sim = (c, a, d, seed = 1) => simulate({ attackers: a, defenders: d, seed, config: c.battle });
+const sim = (c, a, d, seed = 1) => simulate({ attackers: a, defenders: d, seed, config: { ...c.battle, bounds: c.arena.bounds } });
 
 // ---- бой ----
 test('крит бывает только у базовой атаки', () => {
@@ -218,4 +218,30 @@ test('позиции, восстановленные клиентом по со�
   }
   const max = Math.max(...worst);
   assert.ok(max < 0.6, `максимальное расхождение клиента и сервера ${max.toFixed(2)}`);
+});
+
+test('бойцы никогда не выходят за прямоугольник арены', () => {
+  const c = content();
+  const B = c.arena.bounds;
+  const mk = (keys, side) => keys.map((k, i) => (k ? unit(c, k, side, i) : null));
+  for (let seed = 1; seed <= 12; seed++) {
+    const A = mk(['tank', 'warrior', 'archer', 'mage', 'healer'], 'a');
+    const D = mk(['e_boss', 'e_fighter', 'e_shooter', 'e_mage', 'e_shooter'], 'd');
+    const r = sim(c, A, D, seed);
+    // каждая точка пути: старт, цели move и позиции stop
+    for (const e of r.events) {
+      const pts = e.type === 'start' ? e.units.map((u) => [u.x, u.y]) : e.type === 'move' ? [e.to] : e.type === 'stop' ? [[e.x, e.y]] : [];
+      for (const [x, y] of pts) {
+        assert.ok(x >= B.xMin - 0.11 && x <= B.xMax + 0.11 && y >= B.yMin - 0.11 && y <= B.yMax + 0.11, `seed ${seed}: точка (${x}, ${y}) вне арены`);
+      }
+    }
+    for (const s of r.survivors) assert.ok(s.x >= B.xMin && s.x <= B.xMax && s.y >= B.yMin && s.y <= B.yMax);
+  }
+});
+
+test('контент: арена с границами обязательна', () => {
+  const c = content();
+  const bad = structuredClone(c);
+  bad.arena.bounds.xMax = 1;
+  assert.ok(validateContent(bad).some((e) => e.includes('арена')));
 });

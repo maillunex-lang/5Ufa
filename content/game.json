@@ -701,5 +701,16 @@
     "done": "button_ack"
    }
   ]
+ },
+ "arena": {
+  "id": "arena_1",
+  "name": "Арена 1",
+  "bounds": {
+   "xMin": -5.5,
+   "xMax": 5.5,
+   "yMin": -3.4,
+   "yMax": 3.4
+  },
+  "_test": true
  }
 }
