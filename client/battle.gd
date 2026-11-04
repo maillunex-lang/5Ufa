@@ -12,6 +12,20 @@ extends Node3D
 const SPEED := 1.0
 const TIME_LIMIT := 90.0
 const DEPTH := 1.5   # растяжение арены по глубине для экрана (на сервере координаты не меняются)
+## Логические анимации -> названия внутри модели. Эти — для KayKit. Для другой модели (например из Meshy) в данных героя:
+##   visual.anims      {"idle": "<название в модели>", ...}  — переопределить названия
+##   visual.anim_files {"run": "res://assets/models/X_run.glb", ...} — взять анимацию из отдельного файла с тем же скелетом
+const DEFAULT_ANIMS := {
+	"idle": "Idle", "idle_alt": "Idle_Combat", "run": "Running_A",
+	"attack_melee": "1H_Melee_Attack_Slice_Horizontal", "attack_melee_strong": "2H_Melee_Attack_Spin",
+	"attack_ranged": "1H_Ranged_Shoot", "cast": "Spellcast_Shoot", "cast_strong": "Spellcast_Long",
+	"hit": "Hit_A", "death": "Death_A",
+}
+## Если нужной анимации нет в модели, пробуем эти (по порядку).
+const ANIM_FALLBACKS := {
+	"idle": ["idle_alt"], "cast_strong": ["cast", "attack_melee"], "cast": ["attack_ranged", "attack_melee"],
+	"attack_melee_strong": ["attack_melee"], "attack_ranged": ["cast", "attack_melee"],
+}
 const KIND_BY_KEY := {"e_fighter": "melee", "e_shooter": "ranged", "e_mage": "caster", "e_boss": "melee"}
 const KIND_BY_ROLE := {"tank": "melee", "melee": "melee", "ranged": "ranged", "mage": "caster", "healer": "caster"}
 
@@ -228,15 +242,17 @@ func _spawn(u: Dictionary) -> void:
 	var model_path := "res://assets/models/%s.glb" % str(vis.get("model", ""))
 	var player: AnimationPlayer = null
 	var body: Node3D
+	var anim_names: Dictionary = DEFAULT_ANIMS.duplicate()
+	anim_names.merge(vis.get("anims", {}), true)
 	if vis.has("model") and ResourceLoader.exists(model_path):
 		body = (load(model_path) as PackedScene).instantiate()
 		body.scale = Vector3.ONE * scale_f
+		body.rotation.y = deg_to_rad(float(vis.get("yaw", 0.0)))     # поправка, если модель смотрит не туда
+		body.position.y = float(vis.get("y_offset", 0.0))            # поправка высоты над землёй
 		var found := body.find_children("*", "AnimationPlayer", true, false)
 		if found.size() > 0:
 			player = found[0]
-			for nm in ["Idle", "Idle_Combat", "Running_A"]:
-				if player.has_animation(nm):
-					player.get_animation(nm).loop_mode = Animation.LOOP_LINEAR
+			_load_extra_anims(player, vis, anim_names)
 	else:
 		var m := MeshInstance3D.new()   # запасной вариант: капсула
 		var cap := CapsuleMesh.new()
@@ -268,7 +284,7 @@ func _spawn(u: Dictionary) -> void:
 		if a["kind"] == "main":
 			has_main = true
 	var rec := {
-		"node": node, "pivot": pivot, "anim": player, "bar_fg": fg, "name": def.get("name", u["key"]),
+		"node": node, "pivot": pivot, "anim": player, "anim_names": anim_names, "bar_fg": fg, "name": def.get("name", u["key"]),
 		"max_hp": int(u["hp"]), "hp": int(u["hp"]), "target": null, "speed": 0.0, "alive": true, "busy": 0.0,
 		"kind": _kind(def, u["key"]), "running": false, "vis": vis, "side": u["side"], "has_main": has_main, "id": u["id"],
 		"color": Color(0.3, 0.5, 0.9) if u["side"] == "a" else Color(0.85, 0.3, 0.3),
@@ -276,20 +292,75 @@ func _spawn(u: Dictionary) -> void:
 	_units[u["id"]] = rec
 	if u["side"] == "a":
 		_make_card(u, rec)
-	_play(rec, "Idle")
+	for lg in ["idle", "run"]:
+		var an := _resolve(rec, lg)
+		if an != "":
+			player.get_animation(an).loop_mode = Animation.LOOP_LINEAR
+	if OS.get_environment("FIVEUFA_DEBUG") != "":
+		var res := {}
+		for lg in DEFAULT_ANIMS:
+			res[lg] = _resolve(rec, lg)
+		print("[anim] ", u["key"], " ", res)
+	_play(rec, "idle")
 
 
-func _play(u: Dictionary, anim: String) -> float:
+func _load_extra_anims(player: AnimationPlayer, vis: Dictionary, anim_names: Dictionary) -> void:
+	# Анимации из отдельных файлов (у Meshy каждая анимация обычно идёт своим файлом с тем же скелетом).
+	var files: Dictionary = vis.get("anim_files", {})
+	if files.is_empty():
+		return
+	var lib: AnimationLibrary = player.get_animation_library("")
+	for lg in files:
+		var path := str(files[lg])
+		if not ResourceLoader.exists(path):
+			push_warning("нет файла анимации " + path)
+			continue
+		var holder: Node = (load(path) as PackedScene).instantiate()
+		var ps := holder.find_children("*", "AnimationPlayer", true, false)
+		if ps.size() > 0:
+			var src: AnimationPlayer = ps[0]
+			var wanted := str(vis.get("anims", {}).get(lg, ""))
+			var list := src.get_animation_list()
+			var pick := wanted if wanted != "" and src.has_animation(wanted) else ""
+			if pick == "":
+				for n in list:
+					if n != "RESET":
+						pick = n
+						break
+			if pick != "":
+				var key := "ext_" + str(lg)
+				lib.add_animation(key, src.get_animation(pick).duplicate())
+				anim_names[lg] = key
+		holder.queue_free()
+
+
+## Реальное название анимации в модели для логического имени (с запасными вариантами) или "".
+func _resolve(u: Dictionary, logical: String) -> String:
 	var p: AnimationPlayer = u["anim"]
 	if p == null:
+		return ""
+	var names: Dictionary = u["anim_names"]
+	var tries: Array = [names.get(logical, logical)]
+	for fb in ANIM_FALLBACKS.get(logical, []):
+		tries.append(names.get(fb, fb))
+	for n in tries:
+		if p.has_animation(n):
+			return n
+	return ""
+
+
+func _play(u: Dictionary, logical: String) -> float:
+	var n := _resolve(u, logical)
+	if n == "":
 		return 0.0
-	if not p.has_animation(anim):
-		if anim == "Idle" and p.has_animation("Idle_Combat"):
-			anim = "Idle_Combat"
-		else:
-			return 0.0
-	p.play(anim, 0.1)
-	return p.get_animation(anim).length
+	var p: AnimationPlayer = u["anim"]
+	p.play(n, 0.1)
+	return p.get_animation(n).length
+
+
+func _is_idle(u: Dictionary) -> bool:
+	var p: AnimationPlayer = u["anim"]
+	return p == null or p.current_animation == _resolve(u, "idle")
 
 
 func _face(u: Dictionary, to: Vector3) -> void:
@@ -358,11 +429,11 @@ func _later(delay: float, fn: Callable) -> void:
 func _attack_anim(kind: String, strong: bool) -> String:
 	match kind:
 		"ranged":
-			return "1H_Ranged_Shoot"
+			return "attack_ranged"
 		"caster":
-			return "Spellcast_Long" if strong else "Spellcast_Shoot"
+			return "cast_strong" if strong else "cast"
 		_:
-			return "2H_Melee_Attack_Spin" if strong else "1H_Melee_Attack_Slice_Horizontal"
+			return "attack_melee_strong" if strong else "attack_melee"
 
 
 func _on_cast(e: Dictionary) -> void:
@@ -501,7 +572,7 @@ func _hit(e: Dictionary) -> void:
 	_update_hp(u)
 	var crit: bool = e.get("crit", false)
 	if u["alive"] and u["busy"] <= 0.0 and int(e["hp"]) > 0:
-		u["busy"] = _play(u, "Hit_A")
+		u["busy"] = _play(u, "hit")
 	_float_text((u["node"] as Node3D).position, ("%d!" if crit else "%d") % int(e["amount"]), Color(1, 0.85, 0.2) if crit else Color(1, 1, 1), crit)
 
 
@@ -514,7 +585,7 @@ func _on_heal(e: Dictionary) -> void:
 	var from := _hand(s, (d["node"] as Node3D).position)
 	var to := _chest(d)
 	_face(s, (d["node"] as Node3D).position)
-	s["busy"] = maxf(_play(s, "Spellcast_Long"), 0.4)
+	s["busy"] = maxf(_play(s, "cast_strong"), 0.4)
 	s["running"] = false
 	var flight := 0.0 if e["src"] == e["dst"] else clampf(from.distance_to(to) / 14.0, 0.25, 0.6)
 	if flight > 0.0:
@@ -540,10 +611,11 @@ func _die(id: String) -> void:
 	(u["bar_fg"] as MeshInstance3D).get_parent().visible = false
 	if _cards.has(id):
 		(_cards[id]["panel"] as Control).modulate = Color(0.45, 0.45, 0.45)
-	var p: AnimationPlayer = u["anim"]
-	if p != null and p.has_animation("Death_A"):
-		p.get_animation("Death_A").loop_mode = Animation.LOOP_NONE
-		p.play("Death_A", 0.1)
+	var dn := _resolve(u, "death")
+	if dn != "":
+		var p: AnimationPlayer = u["anim"]
+		p.get_animation(dn).loop_mode = Animation.LOOP_NONE
+		p.play(dn, 0.1)
 	else:
 		var tw := create_tween()
 		tw.tween_property(u["node"], "scale", Vector3(1, 0.1, 1), 0.3)
@@ -580,10 +652,10 @@ func _process(delta: float) -> void:
 				moving = true
 		if u["busy"] <= 0.0:
 			if moving and not u["running"]:
-				_play(u, "Running_A")
+				_play(u, "run")
 				u["running"] = true
-			elif not moving and (u["running"] or (u["anim"] != null and (u["anim"] as AnimationPlayer).current_animation not in ["Idle", "Idle_Combat"])):
-				_play(u, "Idle")
+			elif not moving and (u["running"] or not _is_idle(u)):
+				_play(u, "idle")
 				u["running"] = false
 	var left := maxf(0.0, TIME_LIMIT - _t)
 	_timer_label.text = "%d:%02d" % [int(left) / 60, int(left) % 60]
